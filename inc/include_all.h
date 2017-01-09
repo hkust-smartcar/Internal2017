@@ -21,12 +21,14 @@
 #include <libsc/led.h>
 #include <libsc/simple_buzzer.h>
 #include <libsc/st7735r.h>
+#include <libsc/system.h>
 #include <libsc/tower_pro_mg995.h>
 #include <libsc/trs_d05.h>
 
 // libsc - k60-specific
 #include <libsc/k60/ftdi_ft232r.h>
 #include <libsc/k60/jy_mcu_bt_106.h>
+#include <libsc/k60/ov7725.h>
 
 // libutil
 // line below causes compilation error
