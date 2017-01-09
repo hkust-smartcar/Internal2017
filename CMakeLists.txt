@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.6)
-project(smartcar_proj)
+project(Internal2017)
 
 include(CMakeForceCompiler)
 
@@ -42,17 +42,17 @@ if(${COMPILE_MACHINE} STREQUAL Desktop)
 else(${COMPILE_MACHINE} STREQUAL Desktop)
     set(MAKE_PATH "C:/Program Files (x86)/GnuWin32/bin/make.exe")
 endif(${COMPILE_MACHINE} STREQUAL Desktop)
-set(MAKE_ARGS -f ${smartcar_proj_SOURCE_DIR}/Makefile -k -j4)
-set(MAKE_VARS SCCC_BUILD=${MAKE_BUILD_TYPE} SCCC_CONFIG=${SCCC_CONFIG} PWD=${smartcar_proj_SOURCE_DIR} CWD=${PWD}
+set(MAKE_ARGS -f ${Internal2017_SOURCE_DIR}/Makefile -k -j4)
+set(MAKE_VARS SCCC_BUILD=${MAKE_BUILD_TYPE} SCCC_CONFIG=${SCCC_CONFIG} PWD=${Internal2017_SOURCE_DIR} CWD=${PWD}
         LIBSCCC_BIN_PATH=${LIBSCCC_PATH}/lib
         LIBSCCC_INC_PATH=${LIBSCCC_PATH}/inc)
 
 add_custom_target(make_once
         COMMAND ${MAKE_PATH} ${MAKE_ARGS} ${MAKE_VARS} all
-        WORKING_DIRECTORY ${smartcar_proj_SOURCE_DIR})
+        WORKING_DIRECTORY ${Internal2017_SOURCE_DIR})
 add_custom_target(clean_only
         COMMAND ${MAKE_PATH} ${MAKE_ARGS} ${MAKE_VARS} clean
-        WORKING_DIRECTORY ${smartcar_proj_SOURCE_DIR})
+        WORKING_DIRECTORY ${Internal2017_SOURCE_DIR})
 
 file(GLOB_RECURSE USER_SOURCES "src/*.cpp")
 
