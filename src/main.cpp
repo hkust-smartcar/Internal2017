@@ -8,8 +8,6 @@
 
 #include "../inc/include_all.h"
 
-#include "../inc/demo.h"
-
 #include <libbase/k60/mcg.h>
 #include <libsc/system.h>
 
@@ -28,9 +26,10 @@ namespace libbase {
 using namespace libsc;
 using namespace libbase::k60;
 
-int main() {
-    System::Init();
-
+/**
+ * Toggles the LEDs alternately on the mainboard
+ */
+void heartbeatTest() {
     // USING LED
     Led::Config config;
     config.id = 0;
@@ -52,6 +51,16 @@ int main() {
         led3.Switch();
         led4.Switch();
         System::DelayMs(250);
+    }
+}
+
+int main() {
+    System::Init();
+
+    heartbeatTest();
+
+    while(true) {
+
     }
 
     return 0;

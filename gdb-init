@@ -1,11 +1,14 @@
 target remote :2331
-file "C:/Users/david/Dropbox/ENGG4950S/smartcar_proj/bin/inno14-d-2016-inno.elf"
+file C:/Users/david/Dropbox/ENGG4950S/Internal2017/bin/inno14-d-vcan-fx15dev.elf
 monitor reset
 monitor halt
 monitor endian little
 monitor speed auto
-monitor flash device MK60FX512xxx15
+monitor flash device MK60FN1M0xxx15
 load
 monitor reset
-quit
-y
+# comment when running
+cont
+# uncomment when debugging
+# quit
+# y
