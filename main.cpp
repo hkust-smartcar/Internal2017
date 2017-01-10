@@ -62,14 +62,15 @@ int main(void)
 		if(ticks_img!=System::Time()){
 			ticks_img=System::Time();
 			if(ticks_img%10==0){
+				k=0;
 				LB=can.LockBuffer();
 				tft.ClearRegion();
 				for(Uint i=0;i<can.GetBufferSize();i++){
-					for(int j=0;j<8;j++)
+					for(int j=7;j>=0;j--)
 						camera[k++]=(*(LB+i)>>j)&1;
 				}
 				can.UnlockBuffer();
-				tft.FillBits(St7735r::kWhite,St7735r::kBlack,camera,sizeof(camera));
+				tft.FillBits(St7735r::kRed,St7735r::kGreen,camera,sizeof(camera));
 			}
 		}
 	}
