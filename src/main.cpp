@@ -71,7 +71,7 @@ int main() {
 
     // initialize camera
     k60::Ov7725::Config cameraConfig;
-    cameraConfig.fps = k60::Ov7725Configurator::Config::Fps::kMid; // placeholder, not sure if kMid is enough
+    cameraConfig.fps = k60::Ov7725Configurator::Config::Fps::kHigh;
     cameraConfig.id = 0;
     cameraConfig.w = 128; // downscale the width to 128
     cameraConfig.h = 160; // downscale the height to 160
@@ -80,7 +80,7 @@ int main() {
     // initialize LCD
     St7735r::Config lcdConfig;
     lcdConfig.is_bgr = true;
-    lcdConfig.fps = 10; //
+    lcdConfig.fps = 100;
     St7735r lcd(lcdConfig);
 
     // current execution cycle

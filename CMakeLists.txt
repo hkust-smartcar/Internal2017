@@ -4,7 +4,8 @@ project(Internal2017)
 include(CMakeForceCompiler)
 
 # specific what we're working with
-set(COMPILE_MACHINE Desktop)
+# valid options: david_desktop, david_laptop, xanthe
+set(COMPILE_ENV david_desktop)
 
 # specify the cross compiler
 set(TOOLCHAIN_PREFIX arm-none-eabi-)
@@ -17,11 +18,13 @@ CMAKE_FORCE_C_COMPILER(${CC} GNU)
 CMAKE_FORCE_CXX_COMPILER(${CXX} GNU)
 
 # find libsccc
-if(${COMPILE_MACHINE} STREQUAL Desktop)
+if(${COMPILE_ENV} STREQUAL david_desktop)
     set(LIBSCCC_PATH E:/David/Dropbox/ENGG4950S/libsccc)
-else(${COMPILE_MACHINE} STREQUAL Desktop)
+elseif(${COMPILE_ENV} STREQUAL david_laptop)
     set(LIBSCCC_PATH C:/Users/david/Dropbox/ENGG4950S/libsccc)
-endif(${COMPILE_MACHINE} STREQUAL Desktop)
+elseif(${COMPILE_ENV} STREQUAL xanthe)
+    set(LIBSCCC_PATH C:/Users/poon/CLionProjects/libsccc)
+endif()
 
 # define the c++ standard and includes to resolve *.h
 set(CMAKE_C_STANDARD 99)
@@ -40,12 +43,19 @@ else(${CMAKE_BUILD_TYPE} STREQUAL Release)
 endif(${CMAKE_BUILD_TYPE} STREQUAL Release)
 
 # set make parameters
-if(${COMPILE_MACHINE} STREQUAL Desktop)
+if(${COMPILE_ENV} STREQUAL david_desktop)
     set(MAKE_PATH "D:/Program Files (x86)/GnuWin32/bin/make.exe")
-else(${COMPILE_MACHINE} STREQUAL Desktop)
+else()
     set(MAKE_PATH "C:/Program Files (x86)/GnuWin32/bin/make.exe")
-endif(${COMPILE_MACHINE} STREQUAL Desktop)
-set(MAKE_ARGS -f ${Internal2017_SOURCE_DIR}/Makefile -k -j4)
+endif()
+set(MAKE_ARGS -f ${Internal2017_SOURCE_DIR}/Makefile -k)
+if(${COMPILE_ENV} STREQUAL david_desktop)
+    set(MAKE_ARGS ${MAKE_ARGS} -j8)
+elseif(${COMPILE_ENV} STREQUAL xanthe)
+    set(MAKE_ARGS ${MAKE_ARGS} -j2)
+else()
+    set(MAKE_ARGS ${MAKE_ARGS} -j4)
+endif()
 set(MAKE_VARS SCCC_BUILD=${MAKE_BUILD_TYPE} PWD=${Internal2017_SOURCE_DIR} CWD=${PWD}
         LIBSCCC_BIN_PATH=${LIBSCCC_PATH}/lib
         LIBSCCC_INC_PATH=${LIBSCCC_PATH}/inc)
