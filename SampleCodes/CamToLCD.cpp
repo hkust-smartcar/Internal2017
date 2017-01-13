@@ -55,7 +55,7 @@ int main(void)
 			time_img = System::Time();
 			if (time_img % 10 == 0){
 				Lcd.SetRegion(Lcd::Rect(0,0,80,60));
-				Lcd.FillBits(libutil::GetRgb565(255,255,255), libutil::GetRgb565(0, 0, 255), Camera.LockBuffer(),  Camera.GetBufferSize()*8);
+				Lcd.FillBits(libutil::GetRgb565(0,0,255), libutil::GetRgb565(255, 255, 255), Camera.LockBuffer(),  Camera.GetBufferSize()*8);
 				Camera.UnlockBuffer();
 			}
 		}
