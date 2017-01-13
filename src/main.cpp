@@ -73,8 +73,8 @@ int main() {
     k60::Ov7725::Config cameraConfig;
     cameraConfig.fps = k60::Ov7725Configurator::Config::Fps::kHigh;
     cameraConfig.id = 0;
-    cameraConfig.w = 128; // downscale the width to 128
-    cameraConfig.h = 160; // downscale the height to 160
+    cameraConfig.w = 80; // downscale the width to 80
+    cameraConfig.h = 60; // downscale the height to 60
     k60::Ov7725 camera(cameraConfig);
 
     // initialize LCD
@@ -100,40 +100,20 @@ int main() {
             // update the cycle
             cycleImg = System::Time()/10;
 
-            // lock the buffer, and retrieve the data into an array
-            const Byte *pImgBuffer = camera.LockBuffer();
+            // lock the buffer and copy it
             const auto bufferSize = camera.GetBufferSize();
+            const Byte* pBuffer = camera.LockBuffer();
             Byte bufferArr[bufferSize];
-            for (uint16_t i = 0; i < bufferSize; ++i) {
-                bufferArr[i] = static_cast<Byte>(pImgBuffer[i]);
+            for (int i = 0; i < bufferSize; ++i) {
+                bufferArr[i] = pBuffer[i];
             }
 
-            // unlock the buffer, since we got everything we need in bufferArr
+            // unlock the buffer now that we have the data
             camera.UnlockBuffer();
 
-            // convert the data into binary, and store it in a vector
-            std::vector<bool> bufferVec;
-            for (Byte b : bufferArr) {
-                // cast the byte into a 8-length string in binary form
-                std::string s = std::bitset<8>(static_cast<int>(b)).to_string();
-                for (uint8_t j = 0; j < 8; ++j) {
-                    // retrieve the j-th character from the string,
-                    // cast it into an int, and convert it into a boolean
-                    bufferVec.push_back((static_cast<uint8_t>(s.at(j)) - '0') == 1);
-                }
-            }
-
-            // clear the lcd
+            // clear the screen and rewrite it with new data
             lcd.Clear();
-
-            // fill the lcd
-            for (uint32_t i = 0; i < bufferVec.size(); ++i) {
-                // go through the pixels one by one
-                lcd.SetRegion(Lcd::Rect(i/128, i%128, 1, 1));
-                // fill the colors according to boolean value in vector
-                // assuming true = white, false = black
-                lcd.FillColor(bufferVec[i] ? Lcd::kWhite : Lcd::kBlack);
-            }
+            lcd.FillBits(Lcd::kWhite, Lcd::kBlack, bufferArr, bufferSize);
         }
     }
 
