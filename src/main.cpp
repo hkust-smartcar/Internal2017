@@ -6,10 +6,13 @@
  * Refer to LICENSE for details
  */
 
-#include "../inc/include_all.h"
+#include <memory>
 
 #include <libbase/k60/mcg.h>
+#include <libsc/led.h>
+#include <libsc/st7735r.h>
 #include <libsc/system.h>
+#include <libsc/k60/ov7725.h>
 
 namespace libbase {
     namespace k60 {
@@ -23,11 +26,20 @@ namespace libbase {
     }
 }
 
-using namespace libsc;
-using namespace libbase::k60;
+// selective includes to avoid namespace pollution
+using libsc::Lcd;
+using libsc::Led;
+using libsc::St7735r;
+using libsc::System;
+using libsc::Timer;
+using libsc::k60::Ov7725;
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
 /**
  * Toggles the LEDs alternately on the mainboard
+ *
+ * Used to test compilation, flashing, and configuration
  */
 void heartbeatTest() {
     // USING LED
@@ -53,61 +65,68 @@ void heartbeatTest() {
         System::DelayMs(250);
     }
 }
+#pragma clang diagnostic pop
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
 int main() {
     System::Init();
 
+    // initialize LEDs
     Led::Config ledConfig;
     ledConfig.is_active_low = true;
     ledConfig.id = 0;
-    Led led1(ledConfig);
+    Led led1(ledConfig);  // main loop
     ledConfig.id = 1;
-    Led led2(ledConfig);
+    Led led2(ledConfig);  // unused
     ledConfig.id = 2;
-    Led led3(ledConfig);
+    Led led3(ledConfig);  // unused
     ledConfig.id = 3;
-    Led led4(ledConfig);
+    Led led4(ledConfig);  // heartbeat
 
     led1.SetEnable(false);
-    led2.SetEnable(true);
+    led2.SetEnable(false);
     led3.SetEnable(false);
     led4.SetEnable(false);
 
     // initialize camera
-    k60::Ov7725::Config cameraConfig;
+    Ov7725::Config cameraConfig;
     cameraConfig.id = 0;
     cameraConfig.w = 80; // downscale the width to 80
     cameraConfig.h = 60; // downscale the height to 60
-    k60::Ov7725 camera(cameraConfig);
+    Ov7725 camera(cameraConfig);
 
     // initialize LCD
     St7735r::Config lcdConfig;
     lcdConfig.fps = 100;
     St7735r lcd(lcdConfig);
 
-    // current execution time
-    Timer::TimerInt timeImg = System::Time();
-
-    // start the camera before we do anything
+    // start the camera and wait until it's ready
     camera.Start();
-
-    // wait until the camera is ready
     while (!camera.IsAvailable()) {}
 
+    Timer::TimerInt timeImg = System::Time();  // current execution time
+    Timer::TimerInt startTime;  // starting time for read+copy buffer
+    const uint8_t test_ms = 10;  // testing case in ms
+    const Uint bufferSize = camera.GetBufferSize(); // size of camera buffer
+
+    led1.SetEnable(true);
+
+    // main loop
     while (true) {
-        // check if we're still in the same cycle
+        // limit max refresh time to 1ms
         if (timeImg != System::Time()) {
-            // check if it takes shorter than 9ms to read+copy the buffer
-            if ( ( System::Time() - timeImg ) <= 9) {
-                // update the cycle
-                timeImg = System::Time();
+            // update the cycle
+            timeImg = System::Time();
+
+            // attempt to refresh the buffer at every 10th millisecond
+            if ((System::Time() % 10) == 0) {
+                // record the starting time
+                startTime = System::Time();
 
                 // lock the buffer and copy it
-                const auto bufferSize = camera.GetBufferSize();
-                const Byte* pBuffer = camera.LockBuffer();
-                Byte bufferArr[bufferSize];
+                const Byte *pBuffer = camera.LockBuffer();
+                Byte *bufferArr = new Byte[bufferSize];
                 for (uint16_t i = 0; i < bufferSize; ++i) {
                     bufferArr[i] = pBuffer[i];
                 }
@@ -115,24 +134,34 @@ int main() {
                 // unlock the buffer now that we have the data
                 camera.UnlockBuffer();
 
-                // rewrite it with new data
-                /*lcd.SetRegion(Lcd::Rect(0, 0, 80, 60));
-                lcd.FillBits(Lcd::kBlack, Lcd::kWhite, bufferArr, camera.GetBufferSize() * 8);*/
-            } else {
-                break;
+                // break from loop when the read+copy process takes longer
+                // than test_ms
+                if (Timer::TimeDiff(System::Time(), startTime) > test_ms) {
+                    // clean up resources
+                    camera.Stop();
+                    delete [] bufferArr;
+                    bufferArr = nullptr;
+
+                    break;
+                }
+
+                // rewrite lcd with new data
+                lcd.SetRegion(Lcd::Rect(0, 0, 80, 60));
+                lcd.FillBits(Lcd::kBlack, Lcd::kWhite, bufferArr, camera.GetBufferSize()*8);
+            }
+
+            // 0.5s heartbeat
+            if ((System::Time() % 500) == 0) {
+                led4.Switch();
             }
         }
     }
 
-    // turn on LED4 when the process cannot keep up
-    led4.SetEnable(true);
-
-    // clean up resources in case something goes wrong
-    camera.Stop();
+    // turn off led1 now we're off the main loop
+    led1.SetEnable(false);
 
     // infinite loop to keep the program from terminating
-    while (1) {
-    }
+    while (true) {}
 
     return 0;
 }
