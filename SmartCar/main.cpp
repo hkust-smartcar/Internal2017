@@ -81,7 +81,7 @@ int main(void)
 					CamArray[i+k][j]=CamBuffer%2;
 					CamBuffer=CamBuffer/2;
 					i=i-1;
-				}else if(k>9){
+				}else if(k>72){
 					i=7;
 					k=k+8;
 					CamBufferPointer=(Byte*)(CamBufferPointer+1);
