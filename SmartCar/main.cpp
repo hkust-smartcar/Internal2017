@@ -83,7 +83,7 @@ int main(void)
 					i=i-1;
 				}else if(k>9){
 					i=7;
-					k=k+1;
+					k=k+8;
 					CamBufferPointer=(Byte*)(CamBufferPointer+1);
 					CamBuffer=(int)CamBufferPointer;
 				}else{
