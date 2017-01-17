@@ -1,8 +1,9 @@
-#include "../inc/button_toggle_led.h"
-#include "../inc/include_all.h"
+#include "../../inc/assignments/button_toggle_led.h"
+
+#include <libsc/button.h>
+#include <libsc/led.h>
 
 using namespace libsc;
-using namespace libbase::k60;
 
 // Pointer to led1, for access to both the listener and the main function
 Led* pLed1;
