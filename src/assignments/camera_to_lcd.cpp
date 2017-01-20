@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2014-2017 HKUST SmartCar Team
+ * Refer to LICENSE for details
+ */
+
 #include "../../inc/assignments/camera_to_lcd.h"
 
 #include <libbase/k60/mcg.h>
@@ -5,6 +10,7 @@
 #include <libsc/st7735r.h>
 #include <libsc/system.h>
 #include <libsc/k60/ov7725.h>
+#include "../../inc/main.h"
 
 using libsc::Lcd;
 using libsc::Led;
@@ -34,8 +40,8 @@ void cameraToLcd() {
     // initialize camera
     Ov7725::Config cameraConfig;
     cameraConfig.id = 0;
-    cameraConfig.w = 80; // downscale the width to 80
-    cameraConfig.h = 60; // downscale the height to 60
+    cameraConfig.w = 80;  // downscale the width to 80
+    cameraConfig.h = 60;  // downscale the height to 60
     Ov7725 camera(cameraConfig);
 
     // initialize LCD
@@ -50,7 +56,7 @@ void cameraToLcd() {
     Timer::TimerInt timeImg = System::Time();  // current execution time
     Timer::TimerInt startTime;  // starting time for read+copy buffer
     const uint8_t test_ms = 10;  // testing case in ms
-    const Uint bufferSize = camera.GetBufferSize(); // size of camera buffer
+    const Uint kBufferSize = camera.GetBufferSize();  // size of camera buffer
 
     led1.SetEnable(true);
 
@@ -68,8 +74,8 @@ void cameraToLcd() {
 
                 // lock the buffer and copy it
                 const Byte *pBuffer = camera.LockBuffer();
-                Byte bufferArr[bufferSize];
-                for (uint16_t i = 0; i < bufferSize; ++i) {
+                Byte bufferArr[kBufferSize];
+                for (uint16_t i = 0; i < kBufferSize; ++i) {
                     bufferArr[i] = pBuffer[i];
                 }
 

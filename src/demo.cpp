@@ -1,8 +1,31 @@
+/*
+ * Copyright (c) 2014-2017 HKUST SmartCar Team
+ * Refer to LICENSE for details
+ */
+
 #include <libsc/system.h>
+#include <string>
+
 #include "../inc/include_all.h"
 
-using namespace libsc;
-using namespace libbase::k60;
+using libbase::k60::FtmPwm;
+using libbase::k60::Gpi;
+using libbase::k60::Gpo;
+using libbase::k60::Pin;
+using libbase::k60::Pwm;
+using libbase::k60::SoftI2cMaster;
+using libbase::k60::SpiMaster;
+using libsc::Button;
+using libsc::DirMotor;
+using libsc::k60::FtdiFt232r;
+using libsc::Lcd;
+using libsc::LcdConsole;
+using libsc::LcdTypewriter;
+using libsc::Led;
+using libsc::SimpleBuzzer;
+using libsc::St7735r;
+using libsc::System;
+using libsc::TowerProMg995;
 
 // libbase/k60/gpio.h
 void mcu_gpio() {
@@ -18,23 +41,23 @@ void mcu_gpio() {
 
     Gpo::Config oConfig;
     oConfig.pin = Pin::Name::kPta0;
-    oConfig.is_high = false; // starts with low
+    oConfig.is_high = false;  // starts with low
     Gpo gpo(oConfig);
 
-    gpo.Set(true);  // set to high state
-    gpo.Set(false); // set to low state
+    gpo.Set(true);   // set to high state
+    gpo.Set(false);  // set to low state
 }
 
 // libbase/k60/ftm_pwm.h
 void mcu_pwm() {
     FtmPwm::Config config;
     config.pin = Pin::Name::kPta3;
-    config.period = 100000; // 10KHz
+    config.period = 100000;  // 10KHz
     config.pos_width = 0;
     config.precision = Pwm::Config::Precision::kNs;
     FtmPwm pwm(config);
 
-    pwm.SetPosWidth(10000); // 10% duty cycle
+    pwm.SetPosWidth(10000);  // 10% duty cycle
 }
 
 // libbase/k60/soft_i2c_master.h
@@ -63,7 +86,7 @@ void mcu_spi() {
     config.slaves[1].cs_pin = Pin::Name::kPta13;
     SpiMaster spi(config);
 
-    uint8_t receive = spi.ExchangeData(1, 0xFF);
+    uint8_t receive = static_cast<uint8_t>(spi.ExchangeData(1, 0xFF));
 }
 
 // libutil/string.h
@@ -107,7 +130,7 @@ void sc_button() {
     config.is_active_low = true;
     Button btn(config);
 
-    while(true) {
+    while (true) {
         if (btn.IsDown()) {
             // do something
         }
@@ -191,10 +214,10 @@ void sc_lcd() {
 // libsc/k60/ftdi_ft232r.h
 // libsc/k60/jy_mcu_bt_106.h
 void sc_uart() {
-    k60::FtdiFt232r::Config config;
+    FtdiFt232r::Config config;
     config.id = 0;
     config.baud_rate = libbase::k60::Uart::Config::BaudRate::k115200;
-    k60::FtdiFt232r com(config);
+    FtdiFt232r com(config);
 
     com.SendStr("hello world\n");
     std::string str = "C++ string\n";

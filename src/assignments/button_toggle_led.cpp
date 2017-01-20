@@ -1,9 +1,15 @@
+/*
+ * Copyright (c) 2014-2017 HKUST SmartCar Team
+ * Refer to LICENSE for details
+ */
+
 #include "../../inc/assignments/button_toggle_led.h"
 
 #include <libsc/button.h>
 #include <libsc/led.h>
 
-using namespace libsc;
+using libsc::Button;
+using libsc::Led;
 
 // Pointer to led1, for access to both the listener and the main function
 Led* pLed1;
@@ -28,9 +34,7 @@ void buttonToggleLed() {
     configBtn.listener_trigger = Button::Config::Trigger::kBoth;
     Button btn1(configBtn);
 
-    while (true) {
-
-    }
+    while (true) {}
 }
 
 /**

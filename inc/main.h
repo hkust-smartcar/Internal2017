@@ -5,4 +5,7 @@
 
 #pragma once
 
-void buttonToggleLed();
+#include <libbase/misc_utils.h>
+
+const Uint cameraWidth = 128;
+const Uint cameraHeight = 160;
