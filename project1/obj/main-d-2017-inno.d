@@ -38,4 +38,7 @@ obj/main-d-2017-inno.o: src/main.cpp \
  C:\Users\WONG\git\libsccc\inc/libbase/k60/pwm.h \
  C:\Users\WONG\git\libsccc\inc/libbase/k60/ftm_pwm.h \
  C:\Users\WONG\git\libsccc\inc/libsc/alternate_motor.h \
- C:\Users\WONG\git\libsccc\inc/libsc/motor.h
+ C:\Users\WONG\git\libsccc\inc/libsc/motor.h \
+ C:\Users\WONG\git\libsccc\inc/libsc/lcd_console.h \
+ C:\Users\WONG\git\libsccc\inc/libsc/lcd_typewriter.h \
+ C:\Users\WONG\git\libsccc\inc/libutil/misc.h
