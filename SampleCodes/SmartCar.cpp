@@ -19,9 +19,21 @@
 #include <libsc/alternate_motor.h>
 #include <libsc/futaba_s3010.h>
 
-
 #define CameraW 80
 #define CameraH 60
+
+/* Working Data */
+// initMotorPower; MotorConst; ServoConst 
+// 150; 0; 1.05
+// 200; 0; 1.2
+// 250; 0.1; 1.45
+// 250; 0.15; 1.3
+// 250; 0.1; 1.25
+
+#define initServoAngle 700
+#define initMotorPower 200
+#define MotorConst 0.1
+#define ServoConst 1.3
 
 namespace libbase
 {
@@ -120,11 +132,13 @@ int main(void)
 {
 	/* Inititation of Objects */
 	System::Init();
+
+	/*
 	St7735r::Config ConfigLCD;
 	ConfigLCD.is_revert=true;
 	St7735r Lcd(ConfigLCD);
 	LCDptr = &Lcd;
-
+	*/
 	Ov7725::Config ConfigCam;
 	ConfigCam.id = 0;
 	ConfigCam.w = CameraW;
@@ -134,18 +148,14 @@ int main(void)
 	FutabaS3010::Config ConfigServo;
 	ConfigServo.id = 0;
 	FutabaS3010 Servo(ConfigServo);
+	Servo.SetDegree(initServoAngle);
 
 	AlternateMotor::Config ConfigMotor;
 	ConfigMotor.id = 0;
 	AlternateMotor Motor1(ConfigMotor);
 	ConfigMotor.id = 1;
 	AlternateMotor Motor2(ConfigMotor);
-
-	Motor1.SetPower(250);
-
-	Motor2.SetPower(250);
 	Motor1.SetClockwise(false);
-	Servo.SetDegree(ServoAngle);
 
 	//const Byte* BufferTemp;
 	Timer::TimerInt time_img = 0;
@@ -165,25 +175,21 @@ int main(void)
 				//Print2D();
 				calcRoadArea();
 				RoadAreaDiff = RoadArea[0] - RoadArea[1];
-				newServoAngle = ServoAngle + RoadAreaDiff * 1.24 ;
+				newServoAngle = initServoAngle + RoadAreaDiff * ServoConst ;
 				if (newServoAngle > 900){
 					newServoAngle = 900;
 				} else if (newServoAngle < 430){
 					newServoAngle = 430;
 				}
 				Servo.SetDegree(newServoAngle);
-				MotorDiff = (int) (RoadAreaDiff * 0.08);
-				Motor2.SetPower(275 - MotorDiff);
-				Motor1.SetPower(275 + MotorDiff);
+				MotorDiff = (int) (RoadAreaDiff * MotorConst);
+				Motor2.SetPower(initMotorPower - MotorDiff);
+				Motor1.SetPower(initMotorPower);
 
-
-
-
-				//ServoAngle = Servo.GetDegree();
+				Camera.UnlockBuffer();
 
 				RoadArea[0] = 0;
 				RoadArea[1] = 0;
-				Camera.UnlockBuffer();
 			}
 		}
 	}
