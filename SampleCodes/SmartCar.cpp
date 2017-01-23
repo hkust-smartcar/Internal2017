@@ -22,18 +22,20 @@
 #define CameraW 80
 #define CameraH 60
 
-/* Working Data */
-// initMotorPower; MotorConst; ServoConst 
-// 150; 0; 1.05
-// 200; 0; 1.2
-// 250; 0.1; 1.45
-// 250; 0.15; 1.3
-// 250; 0.1; 1.25
+/** Working Data 
+  * initMotorPower; MotorConst; ServoConst 
+  * 	150;			0;			1.05
+  * 	200;			0;			1.2
+  * 	250;			0.1;		1.45
+  * 	250;			0.15;		1.3
+  * 	250;			0.1;		1.25
+  */
 
 #define initServoAngle 700
-#define initMotorPower 200
+#define initMotorPower 250
+#define stMotorPower 275
 #define MotorConst 0.1
-#define ServoConst 1.3
+#define ServoConst 1.2
 
 namespace libbase
 {
@@ -183,8 +185,13 @@ int main(void)
 				}
 				Servo.SetDegree(newServoAngle);
 				MotorDiff = (int) (RoadAreaDiff * MotorConst);
-				Motor2.SetPower(initMotorPower - MotorDiff);
-				Motor1.SetPower(initMotorPower);
+				if (RoadAreaDiff < 45){
+					Motor2.SetPower(stMotorPower);
+					Motor1.SetPower(stMotorPower);
+				} else {
+					Motor2.SetPower(initMotorPower - MotorDiff);
+					Motor1.SetPower(initMotorPower + MotorDiff);
+				}
 
 				Camera.UnlockBuffer();
 
