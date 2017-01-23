@@ -5,15 +5,23 @@
 
 #include "../inc/unit_tests.h"
 
+#include <libsc/alternate_motor.h>
+#include <libsc/dir_motor.h>
+#include <libsc/futaba_s3010.h>
 #include <libsc/led.h>
 #include <libsc/st7735r.h>
 #include <libsc/system.h>
+#include <libsc/k60/ov7725.h>
 
+using libsc::AlternateMotor;
+using libsc::DirMotor;
+using libsc::FutabaS3010;
 using libsc::Lcd;
 using libsc::Led;
 using libsc::St7735r;
 using libsc::System;
 using libsc::Timer;
+using libsc::k60::Ov7725;
 
 /**
  * Tests the LEDs of the mainboard
@@ -61,17 +69,88 @@ void lcdTest() {
   St7735r lcd(lcdConfig);
   lcd.Clear();
 
-  Timer::TimerInt ticksImg = System::Time();
+  while (true) {
+    lcd.SetRegion(Lcd::Rect(0, 0, 128, 80));
+    lcd.FillColor(Lcd::kWhite);
+    lcd.SetRegion(Lcd::Rect(0, 80, 128, 80));
+    lcd.FillColor(Lcd::kBlack);
+  }
+}
+
+/**
+ * Tests the camera of the mainboard
+ *
+ * Outputs the camera image onto the LCD. Requires a working St7735r panel.
+ *
+ * @note Camera and LCD will be initialized within the function.
+ */
+void cameraTest() {
+  Ov7725::Config cameraConfig;
+  cameraConfig.id = 0;
+  cameraConfig.h = 80;
+  cameraConfig.w = 64;
+  Ov7725 camera(cameraConfig);
+  const Uint kBufferSize = camera.GetBufferSize();
+
+  St7735r::Config lcdConfig;
+  lcdConfig.fps = 10;
+  St7735r lcd(lcdConfig);
+  lcd.Clear();
 
   while (true) {
-    if (ticksImg != System::Time()) {
-      ticksImg = System::Time();
-      if (ticksImg % 500 == 0) {
-        lcd.SetRegion(Lcd::Rect(0, 0, 128, 80));
-        lcd.FillColor(ticksImg / 500 == 0 ? Lcd::kBlack : Lcd::kWhite);
-        lcd.SetRegion(Lcd::Rect(0, 80, 128, 80));
-        lcd.FillColor(ticksImg / 500 == 1 ? Lcd::kBlack : Lcd::kWhite);
-      }
+    const Byte *pArray = camera.LockBuffer();
+    Byte bufferArr[kBufferSize];
+    for (Uint i = 0; i < kBufferSize; ++i) {
+      bufferArr[i] = pArray[i];
     }
+
+    camera.UnlockBuffer();
+
+    lcd.SetRegion(Lcd::Rect(0, 0, 64, 80));
+    lcd.FillBits(Lcd::kBlack, Lcd::kWhite, bufferArr, kBufferSize * 8);
+  }
+}
+
+/**
+ * Tests the servo of the mainboard
+ *
+ * Toggles the servo between 45-degrees and 135-degrees under 2 second intervals.
+ *
+ * @note Servo will be initialized within the function.
+ */
+void servoTest() {
+  FutabaS3010::Config servoConfig;
+  servoConfig.id = 0;
+  FutabaS3010 servo(servoConfig);
+
+  while (true) {
+    servo.SetDegree(450);
+    System::DelayMs(2000);
+    servo.SetDegree(1350);
+    System::DelayMs(2000);
+  }
+}
+
+/**
+ * Tests the alternate-motor of the mainboard
+ *
+ * Turns both alternate motors on at 10%.
+ *
+ * @note Motor will be initialized within the function.
+ */
+void altMotorTest() {
+  AlternateMotor::Config motorConfig;
+  motorConfig.multiplier = 100;
+  motorConfig.id = 0;
+  AlternateMotor motorLeft(motorConfig);
+  motorConfig.id = 1;
+  AlternateMotor motorRight(motorConfig);
+
+  motorLeft.SetClockwise(true);
+  motorRight.SetClockwise(true);
+
+  while (true) {
+    motorLeft.SetPower(100);
+    motorRight.SetPower(100);
   }
 }

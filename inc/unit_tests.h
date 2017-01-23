@@ -5,5 +5,9 @@
 
 #pragma once
 
+void cameraTest();
 void lcdTest();
 void ledTest();
+void servoTest();
+void dirMotorTest();
+void altMotorTest();

@@ -5,7 +5,7 @@ include(CMakeForceCompiler)
 
 # specific what we're working with
 # valid options: david_desktop, david_laptop, xanthe
-set(COMPILE_ENV david_desktop)
+set(COMPILE_ENV david_laptop)
 
 # specify the cross compiler
 set(TOOLCHAIN_PREFIX arm-none-eabi-)
@@ -193,3 +193,5 @@ add_custom_target(2017_INNO_clean
 # configuration enabling all resolutions
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_executable(CurrentConfigSymbols ${SOURCES})
+
+message("${Internal2017_SOURCE_DIR}")
