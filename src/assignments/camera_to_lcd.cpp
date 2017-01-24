@@ -55,7 +55,7 @@ void cameraToLcd() {
 
   Timer::TimerInt timeImg = System::Time();  // current execution time
   Timer::TimerInt startTime;  // starting time for read+copy buffer
-  const uint8_t test_ms = 10;  // testing case in ms
+  const uint16_t test_ms = 10;  // testing case in ms
   const Uint kBufferSize = camera.GetBufferSize();  // size of camera buffer
 
   led1.SetEnable(true);

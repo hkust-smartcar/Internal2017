@@ -85,28 +85,33 @@ void lcdTest() {
  * @note Camera and LCD will be initialized within the function.
  */
 void cameraTest() {
+  // initialize camera
   Ov7725::Config cameraConfig;
   cameraConfig.id = 0;
-  cameraConfig.h = 80;
-  cameraConfig.w = 64;
+  cameraConfig.w = 80;  // downscale the width to 80
+  cameraConfig.h = 60;  // downscale the height to 60
   Ov7725 camera(cameraConfig);
-  const Uint kBufferSize = camera.GetBufferSize();
 
+  // initialize LCD
   St7735r::Config lcdConfig;
-  lcdConfig.fps = 10;
+  lcdConfig.fps = 50;
   St7735r lcd(lcdConfig);
-  lcd.Clear();
+
+  // start the camera and wait until it's ready
+  camera.Start();
+  while (!camera.IsAvailable()) {}
+
+  const Uint kBufferSize = camera.GetBufferSize();  // size of camera buffer
 
   while (true) {
-    const Byte *pArray = camera.LockBuffer();
+    const Byte *pBuffer = camera.LockBuffer();
     Byte bufferArr[kBufferSize];
-    for (Uint i = 0; i < kBufferSize; ++i) {
-      bufferArr[i] = pArray[i];
+    for (uint16_t i = 0; i < kBufferSize; ++i) {
+      bufferArr[i] = pBuffer[i];
     }
 
     camera.UnlockBuffer();
-
-    lcd.SetRegion(Lcd::Rect(0, 0, 64, 80));
+    lcd.SetRegion(Lcd::Rect(0, 0, 80, 60));
     lcd.FillBits(Lcd::kBlack, Lcd::kWhite, bufferArr, kBufferSize * 8);
   }
 }

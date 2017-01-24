@@ -4,3 +4,6 @@
  */
 
 #pragma once
+
+void centerLineMethod();
+void centerLineMethodStaging();
