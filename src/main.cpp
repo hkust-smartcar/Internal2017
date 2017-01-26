@@ -7,6 +7,7 @@
 
 #include <libbase/k60/mcg.h>
 #include <libsc/system.h>
+#include <algorithm/centerline_method.h>
 
 namespace libbase {
 namespace k60 {
@@ -24,6 +25,8 @@ using libsc::System;
 
 int main() {
   System::Init();
+
+  centerLineMethodTest();
 
   while (true) {
   }

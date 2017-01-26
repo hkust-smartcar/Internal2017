@@ -14,18 +14,23 @@
  *
  * Value range: [0, kCameraHeight]
  */
-const Uint kCameraMaxSrcHeight = 40;
+const Uint kCameraMaxSrcHeight = 30;
 /**
  * Minimum number of non-blank rows to mark center line as valid. Higher values
  * imply higher accuracy and higher resistance to change.
  *
- * Value range: [0, kCameraMaxSrcHeight]
+ * Value range: [0, 80-kCameraMaxSrcHeight]
  */
-const Uint kCameraMinSrcConfidence = 4;
+const Uint kCameraMinSrcConfidence = 10;
+/**
+ * Minimum number of white pixels on the same row to mark row as valid. Higher
+ * values imply higher accuracy and higher resistance to change.
+ */
+const Uint kCameraMinPixelCount = 8;
 
 // servo calibration constants
-const Uint kServoLeftBound = 1275;  // Max servo index for left side
-const Uint kServoRightBound = 550;  // Max servo index for right side
+const Uint kServoLeftBound = 1150;  // Max servo index for left side
+const Uint kServoRightBound = 600;  // Max servo index for right side
 /**
  * Servo sensitivity constants - Used to implement pseudo-dynamic servo
  * steering
@@ -34,14 +39,14 @@ const Uint kServoRightBound = 550;  // Max servo index for right side
  * straight lines, and increase steering sensitivity on corners.
  */
 enum ServoSensitivity {
-  kSensitivityLow = 15,
-  kSensitivityMid = 40,
-  kSensitivityHigh = 50,
+  kSensitivityLow = 30,
+  kSensitivityMid = 50,
+  kSensitivityHigh = 75,
   kSensitivityCustom = 60,
 };
 
 // motor calibration constants
-const Uint kMotorPowerMultiplier = 150;
+const Uint kMotorPowerMultiplier = 125;
 /**
  * Motor speed constants - Used to implement pseudo-dynamic motor speeds
  *
@@ -50,9 +55,12 @@ const Uint kMotorPowerMultiplier = 150;
  */
 enum MotorSpeed {
   kSpeedLow = 225,
-  kSpeedMid = 260,
+  kSpeedMid = 250,
   kSpeedHigh = 325,
 };
+
+// LCD constants
+const bool kEnableLcd = true;
 
 // fixed constants - do not edit
 const Uint kCameraWidth = 64;
@@ -63,4 +71,4 @@ const Uint kCameraHeight = 80;
  * Determines the center of the servo. Can be overriden to use a fixed value,
  * or compute using left and right bounds.
  */
-const Uint kServoCenter = (kServoLeftBound + kServoRightBound) / 2;
+const Uint kServoCenter = 950;

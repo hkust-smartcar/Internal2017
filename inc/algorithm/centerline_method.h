@@ -7,3 +7,4 @@
 
 void centerLineMethod();
 void centerLineMethodStaging();
+void centerLineMethodTest();
