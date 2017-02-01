@@ -6,6 +6,11 @@ using namespace std;
 
 int width,height;
 unsigned char* map;
+int vanish_x=0;
+int vanish_y=0;
+
+int max(int a, int b){return (a>b?a:b);}
+int min(int a, int b){return (a<b?a:b);}
 
 unsigned char* readBMP(char* filename)
 {
@@ -36,11 +41,6 @@ unsigned char* readBMP(char* filename)
 bool readbit(int x, int y){
 	return map[3 * width * height - (y*width+x)*3 - 1];
 }
-
-/*unsigned char getdisbit(int eyelevel, int reference,int x, int y){
-	return readbit()
-}*/
-
 void autocal(){
 	
 	int a=height-1,b=0,c=width-1,d=height-1;
@@ -55,29 +55,41 @@ void autocal(){
 	printf("a,b,c,d : %d,%d,%d,%d\n", a,b,c,d);
 	const int A=a,B=b,C=a*b,D=d,E=c-width+1,F=c*d;
 	int det = A*E-B*D;
-	int centerx= -(B*F-C*E)/det;
-	int centery= (A*F-C*D)/det;
 	
-	printf("(%d,%d)\n",centerx,centery);
+	vanish_x = -(B*F-C*E)/det;
+	vanish_y = (A*F-C*D)/det;
+	
+	printf("(%d,%d)\n",vanish_x,vanish_y);
 	
 }
 
+/**
+*
+*@param ry: reference_level
+*/
+bool getfixbit(int ry, int x, int y){
+	int H = vanish_y - ry;
+	int R = width/2 - x;
+	int h = ry - y;
+	int r = R*h/H;
+	readbit(max(0,min(width-1,x-r)),y);
+}
 
 
 int main(){
 	map = readBMP("input.bmp");
-	/*
-	int i=0;
-	while (i<3 * width * height){
-		printf("%d",(map[i]?1:0));
-		i+=3;
-		if (i%(width*3)==0) printf("\n");
-	}*/
 	for (int i =0; i<height ; i++){
 		for (int j=0; j<width; j++)
 			printf("%d",(readbit(j,i)?1:0));
 		printf("\n");
 	}
 	autocal();
+	printf("done\n");
+	
+	for (int i =0; i<height ; i++){
+		for (int j=0; j<width; j++)
+			printf("%d",(getfixbit(0,j,i)?1:0));
+		printf("\n");
+	}
 	printf("done\n");
 }
