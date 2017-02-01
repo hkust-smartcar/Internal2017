@@ -1,0 +1,269 @@
+/*
+ * main.cpp
+ *
+ * Author: Peter
+ * Copyright (c) 2014-2015 HKUST SmartCar Team
+ * Refer to LICENSE for details
+ */
+
+#include <cassert>
+#include <cstring>
+#include <libbase/k60/mcg.h>
+#include <libsc/system.h>
+#include <libsc/led.h>
+#include <libsc/button.h>
+#include <libsc/k60/ov7725.h>
+#include <libsc/k60/ov7725_configurator.h>
+#include <libsc/lcd.h>
+#include <libsc/st7735r.h>
+#include <libsc/system.h>
+#include <libsc/config.h>
+#include <libsc/servo.h>
+#include <libsc/motor.h>
+#include <libsc/futaba_s3010.h>
+#include <libsc/alternate_motor.h>
+
+namespace libbase
+{
+	namespace k60
+	{
+
+		Mcg::Config Mcg::GetMcgConfig()
+		{
+			Mcg::Config config;
+			config.external_oscillator_khz = 50000;
+			config.core_clock_khz = 150000;
+			return config;
+		}
+
+	}
+}
+
+using namespace libsc;
+using namespace k60;
+
+bool image[60][80];
+bool procArray[80];
+Byte* track;
+
+int height = 60;
+int camera_width = 80;
+
+void imageInit();
+void extractArray(int row);
+void getImage(Byte * data);
+double sampling();
+int position_value(bool *readings, int size);
+
+//PID----------------------------------------------------------------------------
+	class PID
+	{
+		private:
+			unsigned char P, I, D;
+			int err_last, err_acc;
+
+		public:
+		PID(void)
+		{	err_last= 0;
+			err_acc = 0;	}
+
+		int control(int error, unsigned char P, unsigned char I, unsigned char D)
+		{
+			int diff;
+			err_acc += error;
+			diff = error - err_last;
+			err_last = error;
+			return P*error + err_acc/I + D*diff;
+		}
+	};
+
+
+int main(void)
+{
+// system init-----------------------------------------
+	System::Init();
+
+// lcd init-----------------------------------------
+/*	St7735r::Config st;
+	st.fps = 100;
+	st.is_revert = true;
+	St7735r lcd1(st);
+*/
+// camera init-----------------------------------------
+	Ov7725::Config ov;
+	ov.id = 0;
+	ov.w = 80;
+	ov.h = 60;
+	ov.fps = Ov7725::Config::Fps::kMid;
+	Ov7725 camera1(ov);
+
+// servo init-----------------------------------------
+	FutabaS3010::Config sv;
+	sv.id = 0;
+	FutabaS3010 servo1(sv);
+
+// motor init-----------------------------------------
+	AlternateMotor::Config mt1;
+	mt1.id = 0;
+	AlternateMotor motorR(mt1);
+
+	AlternateMotor::Config mt2;
+	mt2.id = 1;
+	AlternateMotor motorL(mt2);
+
+// variables init-----------------------------------------
+	int angle = 1000;
+	double steerError = 0;
+	int steerAdjust = 0;
+	PID steerPID;
+
+	camera1.Start();
+//	lcd1.SetRegion(Lcd::Rect(0,0,80,60));
+//	imageInit();
+	servo1.SetDegree(angle);				// servo to mid. position [90]
+	motorR.SetClockwise(false);
+	//	motorL.SetClockwise(false);
+	motorR.SetPower(0);					// power off
+	motorL.SetPower(0);					// power off
+
+	int currentTime = 0;
+
+
+	while (true)
+	{
+		currentTime = System::Time();
+
+		if (System::Time() % 50 == 0)
+		{
+	// Collect camera input & print it on LCD-----------------------------------------
+			track = (Byte*) camera1.LockBuffer();
+			//lcd1.FillBits(lcd1.kBlack, lcd1.kWhite, track, camera1.GetBufferSize()*8);
+	
+	// Signal proc. : Byte to 2D array -----------------------------------------
+			getImage(track);
+			camera1.UnlockBuffer();
+	
+	// Finding central line for certain samples (return 0 to 160, minus width -> -80 to 80)-----------------
+	 //-----use one of the following	
+			
+			//(a)---multiple line processing, return error to middle line
+			steerError = sampling();
+
+			//(b)---PID control
+			//	steerAdjust = steerPID.control(steerError, 10, 0, 5);//8, 0, 20);
+	 		
+	 		//(c)---single line processing
+	 		//	extractArray(30);
+			//	steerError = position_value(procArray, camera_width) - camera_width;
+
+	// Control (Steer) -----------------------------------------
+			steerAdjust = (int)((steerError) * 10);		//10
+
+			angle =  1000 - steerAdjust;
+			
+	// Prevent servo over-driven-----------------------------------------
+			if (angle > 1250)
+			{	angle = 1250;	}
+			else if (angle < 700)
+			{	angle = 700;	}
+			servo1.SetDegree(angle);
+		}
+
+	// Motors start after 2.5s with 25% power -----------------------------------------
+		if (currentTime > 1000)
+		{
+			motorR.SetPower(250);				//9, 150	//200, 250
+			motorL.SetPower(250);
+		}
+	}
+	return 0;
+}
+
+
+void imageInit()
+{
+	for (int i = 0; i < 80; i++)
+	{
+		for (int j =0; j < 60; j++)
+		{	image[i][j] = 0;	}
+		procArray[i] = 0;
+	}
+}
+
+void extractArray(int row)
+{
+	for (int i = 0; i < 80; i++)
+	{	procArray[i] = image[row][i];	}
+}
+
+
+void getImage(Byte * data)
+{
+	int pos = 0, bit_pos = 8;
+
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < camera_width; x++)
+		{
+			if (--bit_pos < 0)
+			{
+				bit_pos = 7;
+				++pos;
+			}
+			if (GET_BIT(data[pos], bit_pos))
+			{	image[y][x] = 1;	}
+			else
+			{	image[y][x] = 0;	}
+		}
+	}
+}
+
+double sampling()
+{
+	int error[40];
+	double val = 0;
+	for (int i = 0; i <40; i++)
+	{
+		extractArray(i+1);
+		error[i] = position_value(procArray, camera_width);
+		val = val + error[i];
+	}
+	val = val/40 - camera_width;
+//	int error[4];
+/*	extractArray(10);	//10	//55	//5
+	error[0] = position_value(procArray, camera_width);
+	extractArray(20);	//20	//50
+	error[1] = position_value(procArray, camera_width);
+	extractArray(25);	//35	//45
+	error[2] = position_value(procArray, camera_width);
+	extractArray(30);	//45	//25
+	error[3] = position_value(procArray, camera_width);
+*/
+//	double val  = (error[0] + error[1] + error[2] + error[3])/4 - camera_width;
+//	double val  = (error[0]*2.5 + error[1]*2 + error[2]*1 + error[3]*0.5)/6 - camera_width;
+	return val;
+}
+
+//---position table (dynaimc sized version)------------------------------------------------
+int position_value(bool *readings, int size)
+{
+	int sum = 0 ;
+	int count = 0;
+
+	for (int shift = 0; shift < size; shift++)
+	{
+		if (readings[shift] == 0 )			//	0 for white pixel
+		{
+			sum = sum + (2*shift + 1);
+			count++;
+		}
+	}
+	if ( count == 0 )
+	{	return size; }
+	else
+	{	if (sum%count > 5)
+		{	return ((sum/count) +1);	}
+		else
+		{	return (sum/count);	}
+	}
+}
