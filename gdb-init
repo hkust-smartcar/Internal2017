@@ -20,5 +20,5 @@ monitor reset
 cont
 
 # uncomment when debugging
-# quit
-# y
+quit
+y

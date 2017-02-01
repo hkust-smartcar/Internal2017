@@ -3,7 +3,7 @@
  * Refer to LICENSE for details
  */
 
-#include "../inc/unit_tests.h"
+#include "util/unit_tests.h"
 
 #include <libsc/alternate_motor.h>
 #include <libsc/dir_motor.h>
@@ -12,6 +12,8 @@
 #include <libsc/st7735r.h>
 #include <libsc/system.h>
 #include <libsc/k60/ov7725.h>
+
+#include <memory>
 
 using libsc::AlternateMotor;
 using libsc::DirMotor;
@@ -22,6 +24,7 @@ using libsc::St7735r;
 using libsc::System;
 using libsc::Timer;
 using libsc::k60::Ov7725;
+using std::unique_ptr;
 
 /**
  * Tests the LEDs of the mainboard
@@ -32,6 +35,7 @@ using libsc::k60::Ov7725;
  */
 void ledTest() {
   Led::Config config;
+  config.is_active_low = true;
   config.id = 0;
   Led led1(config);
   config.id = 1;
@@ -40,7 +44,6 @@ void ledTest() {
   Led led3(config);
   config.id = 3;
   Led led4(config);
-
   led1.SetEnable(true);
   led2.SetEnable(false);
   led3.SetEnable(false);
@@ -64,16 +67,15 @@ void ledTest() {
  * @note LCD will be initialized within the function
  */
 void lcdTest() {
-  St7735r::Config lcdConfig;
-  lcdConfig.fps = 10;
-  St7735r lcd(lcdConfig);
-  lcd.Clear();
+  St7735r::Config config;
+  config.fps = 10;
+  unique_ptr<St7735r> lcd(new St7735r(config));
 
   while (true) {
-    lcd.SetRegion(Lcd::Rect(0, 0, 128, 80));
-    lcd.FillColor(Lcd::kWhite);
-    lcd.SetRegion(Lcd::Rect(0, 80, 128, 80));
-    lcd.FillColor(Lcd::kBlack);
+    lcd->SetRegion(Lcd::Rect(0, 0, 128, 80));
+    lcd->FillColor(Lcd::kWhite);
+    lcd->SetRegion(Lcd::Rect(0, 80, 128, 80));
+    lcd->FillColor(Lcd::kBlack);
   }
 }
 
@@ -86,34 +88,34 @@ void lcdTest() {
  */
 void cameraTest() {
   // initialize camera
-  Ov7725::Config cameraConfig;
-  cameraConfig.id = 0;
-  cameraConfig.w = 80;  // downscale the width to 80
-  cameraConfig.h = 60;  // downscale the height to 60
-  Ov7725 camera(cameraConfig);
+  Ov7725::Config camera_config;
+  camera_config.id = 0;
+  camera_config.w = 80;  // downscale the width to 80
+  camera_config.h = 60;  // downscale the height to 60
+  unique_ptr<Ov7725> camera(new Ov7725(camera_config));
+  camera->Start();
 
   // initialize LCD
-  St7735r::Config lcdConfig;
-  lcdConfig.fps = 50;
-  St7735r lcd(lcdConfig);
+  St7735r::Config lcd_config;
+  lcd_config.fps = 50;
+  unique_ptr<St7735r> lcd(new St7735r(lcd_config));
 
-  // start the camera and wait until it's ready
-  camera.Start();
-  while (!camera.IsAvailable()) {}
+  while (!camera->IsAvailable()) {}
 
-  const Uint kBufferSize = camera.GetBufferSize();  // size of camera buffer
+  const Uint kBufferSize = camera->GetBufferSize();  // size of camera buffer
 
   while (true) {
-    const Byte *pBuffer = camera.LockBuffer();
+    const Byte *pBuffer = camera->LockBuffer();
     Byte bufferArr[kBufferSize];
     for (uint16_t i = 0; i < kBufferSize; ++i) {
       bufferArr[i] = pBuffer[i];
     }
 
-    camera.UnlockBuffer();
-    lcd.SetRegion(Lcd::Rect(0, 0, 80, 60));
-    lcd.FillBits(Lcd::kBlack, Lcd::kWhite, bufferArr, kBufferSize * 8);
+    camera->UnlockBuffer();
+    lcd->SetRegion(Lcd::Rect(0, 0, 80, 60));
+    lcd->FillBits(Lcd::kBlack, Lcd::kWhite, bufferArr, kBufferSize * 8);
   }
+
 }
 
 /**
@@ -124,9 +126,9 @@ void cameraTest() {
  * @note Servo will be initialized within the function.
  */
 void servoTest() {
-  FutabaS3010::Config servoConfig;
-  servoConfig.id = 0;
-  FutabaS3010 servo(servoConfig);
+  FutabaS3010::Config config;
+  config.id = 0;
+  FutabaS3010 servo(config);
 
   while (true) {
     servo.SetDegree(450);
@@ -144,12 +146,12 @@ void servoTest() {
  * @note Motor will be initialized within the function.
  */
 void altMotorTest() {
-  AlternateMotor::Config motorConfig;
-  motorConfig.multiplier = 100;
-  motorConfig.id = 0;
-  AlternateMotor motorLeft(motorConfig);
-  motorConfig.id = 1;
-  AlternateMotor motorRight(motorConfig);
+  AlternateMotor::Config config;
+  config.multiplier = 100;
+  config.id = 0;
+  AlternateMotor motorLeft(config);
+  config.id = 1;
+  AlternateMotor motorRight(config);
 
   motorLeft.SetClockwise(true);
   motorRight.SetClockwise(true);

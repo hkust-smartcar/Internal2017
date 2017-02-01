@@ -5,6 +5,4 @@
 
 #pragma once
 
-void centerLineMethod();
-void centerLineMethodStaging();
-void centerLineMethodTest();
+void CenterLineMethod();

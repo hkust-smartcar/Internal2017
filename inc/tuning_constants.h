@@ -21,16 +21,22 @@ const Uint kCameraMaxSrcHeight = 30;
  *
  * Value range: [0, 80-kCameraMaxSrcHeight]
  */
-const Uint kCameraMinSrcConfidence = 10;
+const Uint kCameraMinSrcConfidence = 15;
 /**
  * Minimum number of white pixels on the same row to mark row as valid. Higher
  * values imply higher accuracy and higher resistance to change.
  */
-const Uint kCameraMinPixelCount = 8;
+const Uint kCameraMinPixelCount = 10;
 
 // servo calibration constants
-const Uint kServoLeftBound = 1150;  // Max servo index for left side
-const Uint kServoRightBound = 600;  // Max servo index for right side
+/**
+ * Maximum servo index for the left side.
+ */
+const int kServoLeftBound = 1200;
+/**
+ * Maximum servo index for the right side.
+ */
+const int kServoRightBound = 550;
 /**
  * Servo sensitivity constants - Used to implement pseudo-dynamic servo
  * steering
@@ -39,14 +45,11 @@ const Uint kServoRightBound = 600;  // Max servo index for right side
  * straight lines, and increase steering sensitivity on corners.
  */
 enum ServoSensitivity {
-  kSensitivityLow = 30,
-  kSensitivityMid = 50,
-  kSensitivityHigh = 75,
-  kSensitivityCustom = 60,
+  kSensitivityLow = 5,
+  kSensitivityHigh = 30,
 };
 
 // motor calibration constants
-const Uint kMotorPowerMultiplier = 125;
 /**
  * Motor speed constants - Used to implement pseudo-dynamic motor speeds
  *
@@ -54,21 +57,27 @@ const Uint kMotorPowerMultiplier = 125;
  * straight lines, and slow down during corners to prevent understeering.
  */
 enum MotorSpeed {
-  kSpeedLow = 225,
-  kSpeedMid = 250,
-  kSpeedHigh = 325,
+  kSpeedLow = 250,
+  kSpeedMid = 275,
+  kSpeedHigh = 300,
 };
 
 // LCD constants
-const bool kEnableLcd = true;
+const bool kEnableLcd = false;
 
 // fixed constants - do not edit
-const Uint kCameraWidth = 64;
-const Uint kCameraHeight = 80;
+/**
+ * Width of camera image. [1, 128]
+ */
+const int kCameraWidth = 64;
+/**
+ * Height of camera image. [1, 160]
+ */
+const int kCameraHeight = 80;
 /**
  * Servo center constant
  *
  * Determines the center of the servo. Can be overriden to use a fixed value,
  * or compute using left and right bounds.
  */
-const Uint kServoCenter = 950;
+const int kServoCenter = 900;
