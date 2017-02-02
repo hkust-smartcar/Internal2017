@@ -5,9 +5,13 @@
 
 #pragma once
 
+namespace util {
+
 void cameraTest();
 void lcdTest();
 void ledTest();
 void servoTest();
 void dirMotorTest();
 void altMotorTest();
+
+}  // namespace util

@@ -74,7 +74,7 @@ void CenterLineMethod() {
   camera_config.h = kCameraHeight;
   unique_ptr<Ov7725> camera(new Ov7725(camera_config));
   camera->Start();
-  while (!(camera->IsAvailable())) {}
+  while (!camera->IsAvailable()) {}
 
   // initialize servo
   FutabaS3010::Config servo_config;

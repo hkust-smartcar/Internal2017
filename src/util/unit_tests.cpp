@@ -26,6 +26,8 @@ using libsc::Timer;
 using libsc::k60::Ov7725;
 using std::unique_ptr;
 
+namespace util {
+
 /**
  * Tests the LEDs of the mainboard
  *
@@ -161,3 +163,5 @@ void altMotorTest() {
     motorRight.SetPower(100);
   }
 }
+
+}  // namespace util
