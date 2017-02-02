@@ -28,13 +28,6 @@ using std::unique_ptr;
 
 namespace util {
 
-/**
- * Tests the LEDs of the mainboard
- *
- * Toggles the LEDs alternately.
- *
- * @note LEDs will be initialized within the function
- */
 void ledTest() {
   Led::Config config;
   config.is_active_low = true;
@@ -60,14 +53,6 @@ void ledTest() {
   }
 }
 
-/**
- * Tests the LCD of the mainboard
- *
- * Toggles the LCD between black and white, with the top and bottom portions of the
- * screen having alternate colors.
- *
- * @note LCD will be initialized within the function
- */
 void lcdTest() {
   St7735r::Config config;
   config.fps = 10;
@@ -81,13 +66,6 @@ void lcdTest() {
   }
 }
 
-/**
- * Tests the camera of the mainboard
- *
- * Outputs the camera image onto the LCD. Requires a working St7735r panel.
- *
- * @note Camera and LCD will be initialized within the function.
- */
 void cameraTest() {
   // initialize camera
   Ov7725::Config camera_config;
@@ -120,13 +98,6 @@ void cameraTest() {
 
 }
 
-/**
- * Tests the servo of the mainboard
- *
- * Toggles the servo between 45-degrees and 135-degrees under 2 second intervals.
- *
- * @note Servo will be initialized within the function.
- */
 void servoTest() {
   FutabaS3010::Config config;
   config.id = 0;
@@ -140,13 +111,6 @@ void servoTest() {
   }
 }
 
-/**
- * Tests the alternate-motor of the mainboard
- *
- * Turns both alternate motors on at 10%.
- *
- * @note Motor will be initialized within the function.
- */
 void altMotorTest() {
   AlternateMotor::Config config;
   config.multiplier = 100;

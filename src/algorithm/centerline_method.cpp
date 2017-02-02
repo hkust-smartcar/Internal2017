@@ -21,6 +21,7 @@
 #include <string>
 
 #include "../../inc/tuning_constants.h"
+#include "../../inc/util/util.h"
 
 struct {
   Uint track_count;    // Number of pixels of the track
@@ -40,16 +41,6 @@ using libsc::TowerProMg995;
 using libsc::k60::Ov7725;
 using std::unique_ptr;
 
-/**
- * 2017 Smartcar Internal - Center Line Method
- *
- * Computes the center line from the image, then uses the values to commit the
- * values to motor and servo.
- *
- * @note Used in the smartcar configuration 2016_INNO during the internal
- * competition.
- * @note All smartcar components are initialized in this method.
- */
 void CenterLineMethod() {
   // initialize LEDs
   Led::Config led_config;
@@ -154,62 +145,47 @@ void CenterLineMethod() {
       for (int rowIndex = kCameraHeight - 1; rowIndex >= 0; --rowIndex) {
         if (rowIndex == kCameraHeight - 1) {  // row closest to car
           if (!image2d_median[rowIndex][kCameraWidth / 2]) {  // middle is track - do normal processing
-            for (int i = kCameraWidth / 2; i < kCameraWidth; ++i) {
-              RowInfo[rowIndex].right_bound = static_cast<Uint>(i);
-              if (image2d_median[rowIndex][i]) {
-                break;
-              }
-            }
-            for (int i = kCameraWidth / 2; i >= 0; --i) {
-              RowInfo[rowIndex].left_bound = static_cast<Uint>(i);
-              if (image2d_median[rowIndex][i]) {
-                break;
-              }
-            }
+            RowInfo[rowIndex].right_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
+                                                                                 kCameraWidth / 2,
+                                                                                 kCameraWidth - 1,
+                                                                                 true,
+                                                                                 true));
+            RowInfo[rowIndex].left_bound =
+                static_cast<Uint>(util::find_element(image2d_median[rowIndex], kCameraWidth / 2, 0, true, true));
           } else {  // middle is not track! - alternate processing
             // take the previous steer_value, and assume the track will be at that side as well
             if (steer_value > kCameraWidth / 2) {  // assumes track at right side
-              for (int i = kCameraWidth / 2; i < kCameraWidth; ++i) {
-                RowInfo[rowIndex].left_bound = static_cast<Uint>(i);
-                if (!image2d_median[rowIndex][i]) {
-                  break;
-                }
-              }
-              for (int i = RowInfo[rowIndex].left_bound; i < kCameraWidth; ++i) {
-                RowInfo[rowIndex].right_bound = static_cast<Uint>(i);
-                if (image2d_median[rowIndex][i]) {
-                  break;
-                }
-              }
+              RowInfo[rowIndex].left_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
+                                                                                  kCameraWidth / 2,
+                                                                                  kCameraWidth - 1,
+                                                                                  false,
+                                                                                  true));
+              RowInfo[rowIndex].right_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
+                                                                                   RowInfo[rowIndex].left_bound,
+                                                                                   kCameraWidth - 1,
+                                                                                   true,
+                                                                                   true));
             } else if (steer_value < kCameraWidth / 2) {  // assumes track at left side
-              for (int i = kCameraWidth / 2; i >= 0; --i) {
-                RowInfo[rowIndex].right_bound = static_cast<Uint>(i);
-                if (!image2d_median[rowIndex][i]) {
-                  break;
-                }
-              }
-              for (int i = RowInfo[rowIndex].right_bound; i >= 0; --i) {
-                RowInfo[rowIndex].left_bound = static_cast<Uint>(i);
-                if (image2d_median[rowIndex][i]) {
-                  break;
-                }
-              }
+              RowInfo[rowIndex].right_bound =
+                  static_cast<Uint>(util::find_element(image2d_median[rowIndex], kCameraWidth / 2, 0, false, true));
+              RowInfo[rowIndex].left_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
+                                                                                  RowInfo[rowIndex].right_bound,
+                                                                                  0,
+                                                                                  true,
+                                                                                  true));
             }
           }
         } else {  // all other rows - dependent on the closest row
-          for (int i = RowInfo[rowIndex + 1].center_point; i < kCameraWidth;
-               ++i) {
-            RowInfo[rowIndex].right_bound = static_cast<Uint>(i);
-            if (image2d_median[rowIndex][i]) {
-              break;
-            }
-          }
-          for (int i = RowInfo[rowIndex + 1].center_point; i >= 0; --i) {
-            RowInfo[rowIndex].left_bound = static_cast<Uint>(i);
-            if (image2d_median[rowIndex][i]) {
-              break;
-            }
-          }
+          RowInfo[rowIndex].right_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
+                                                                               RowInfo[rowIndex + 1].center_point,
+                                                                               kCameraWidth - 1,
+                                                                               true,
+                                                                               true));
+          RowInfo[rowIndex].left_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
+                                                                              RowInfo[rowIndex + 1].center_point,
+                                                                              0,
+                                                                              true,
+                                                                              true));
         }
         // calculate the dependencies
         RowInfo[rowIndex].center_point = (RowInfo[rowIndex].left_bound + RowInfo[rowIndex].right_bound) / 2;

@@ -13,17 +13,6 @@ using libsc::St7735r;
 using libsc::Timer;
 using libsc::k60::Ov7725;
 
-/**
- * 2017 Smartcar Internal - Area Difference Method
- *
- * Computes the area difference between left and right sides, and displays it
- * to the LCD.
- *
- * @param camera Pointer to a camera object
- * @param lcd Pointer to a LCD object
- *
- * @note This function must be put in the main loop for correct execution.
- */
 void areaMethod(Ov7725 *camera, St7735r *lcd) {
   const Byte *pBuffer = camera->LockBuffer();
   const Uint kBufferSize = camera->GetBufferSize();

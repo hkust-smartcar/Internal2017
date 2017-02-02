@@ -8,7 +8,6 @@
 #include <libbase/k60/mcg.h>
 #include <libsc/system.h>
 #include <algorithm/centerline_method.h>
-#include <util/unit_tests.h>
 
 namespace libbase {
 namespace k60 {
