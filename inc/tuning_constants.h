@@ -14,7 +14,7 @@
  *
  * Value range: [0, kCameraHeight]
  */
-const Uint kCameraMaxSrcHeight = 30;
+constexpr Uint kCameraMaxSrcHeight = 30;
 /**
  * Minimum number of non-blank rows to mark center line as valid. Higher values
  * imply higher accuracy and higher resistance to change.
@@ -26,17 +26,17 @@ const Uint kCameraMinSrcConfidence = 15;
  * Minimum number of white pixels on the same row to mark row as valid. Higher
  * values imply higher accuracy and higher resistance to change.
  */
-const Uint kCameraMinPixelCount = 10;
+constexpr Uint kCameraMinPixelCount = 10;
 
 // servo calibration constants
 /**
  * Maximum servo index for the left side.
  */
-const int kServoLeftBound = 1200;
+constexpr int kServoLeftBound = 1200;
 /**
  * Maximum servo index for the right side.
  */
-const int kServoRightBound = 550;
+constexpr int kServoRightBound = 550;
 /**
  * Servo sensitivity constants - Used to implement pseudo-dynamic servo
  * steering
@@ -63,21 +63,25 @@ enum MotorSpeed {
 };
 
 // LCD constants
-const bool kEnableLcd = false;
+constexpr bool kEnableLcd = false;
 
 // fixed constants - do not edit
 /**
  * Width of camera image. [1, 128]
  */
-const int kCameraWidth = 64;
+constexpr int kCameraWidth = 64;
 /**
  * Height of camera image. [1, 160]
  */
-const int kCameraHeight = 80;
+constexpr int kCameraHeight = 80;
+/**
+ * Size of the camera image (in bytes).
+ */
+constexpr int kBufferSize = kCameraWidth * kCameraHeight / 8;
 /**
  * Servo center constant
  *
  * Determines the center of the servo. Can be overriden to use a fixed value,
  * or compute using left and right bounds.
  */
-const int kServoCenter = 900;
+constexpr int kServoCenter = 900;

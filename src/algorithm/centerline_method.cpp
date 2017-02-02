@@ -64,6 +64,9 @@ void CenterLineMethod() {
   camera_config.w = kCameraWidth;
   camera_config.h = kCameraHeight;
   unique_ptr<Ov7725> camera(new Ov7725(camera_config));
+  if (kBufferSize != camera->GetBufferSize()) {
+    return;
+  }
   camera->Start();
   while (!camera->IsAvailable()) {}
 
@@ -87,7 +90,6 @@ void CenterLineMethod() {
   lcd->Clear();
 
   Timer::TimerInt time_img = System::Time();  // current execution time
-  const Uint kBufferSize = camera->GetBufferSize();
   uint32_t steer_value = kCameraWidth / 2;
   int32_t target_degree = kServoCenter;
 
@@ -111,7 +113,7 @@ void CenterLineMethod() {
       led2.SetEnable(true);
 
       // 1d to 2d array
-      bool image2d[kCameraHeight][kCameraWidth];
+      std::array<std::array<bool, kCameraWidth>, kCameraHeight> image2d;
       for (Uint i = 0; i < kBufferSize; ++i) {
         std::string s = std::bitset<8>(image1d[i]).to_string();
         for (uint8_t j = 0; j < 8; ++j) {
@@ -120,7 +122,7 @@ void CenterLineMethod() {
       }
 
       // apply median filter
-      bool image2d_median[kCameraHeight][kCameraWidth];
+      std::array<std::array<bool, kCameraWidth>, kCameraHeight> image2d_median;
       for (Uint i = 0; i < kCameraHeight; ++i) {
         for (Uint j = 0; j < kCameraWidth; ++j) {
           if (i == 0 || i == kCameraHeight || j == 0 || j == kCameraWidth) {
