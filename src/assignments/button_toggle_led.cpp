@@ -15,9 +15,6 @@ using libsc::Led;
 Led *pLed1;
 void B1Listener(const uint8_t);
 
-/**
- * Lights LED up when button is held down
- */
 void buttonToggleLed() {
   Led::Config configLed;
   configLed.id = 0;

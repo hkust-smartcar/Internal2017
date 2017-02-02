@@ -5,4 +5,7 @@
 
 #pragma once
 
+/**
+ * Lights LED up when button is held down
+ */
 void buttonToggleLed();
