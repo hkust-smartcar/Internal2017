@@ -246,11 +246,15 @@ void CenterLineMethod() {
         // insufficient data - use previous data
         target_degree = servo.GetDegree();
       } else if (steer_value < (kCameraWidth * 9 / 20) || steer_value > (kCameraWidth * 11 / 20)) {
-        // edge 40% for either side - steep steering
+        // edge 90% for either side - steep steering
         target_degree = static_cast<int32_t>(
             kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityHigh));
+      } else if (steer_value < (kCameraWidth * 8 / 20) || steer_value > (kCameraHeight * 12 / 20)) {
+        // middle 10% for either side - medium steering
+        target_degree = static_cast<int32_t>(
+            kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityMid));
       } else {
-        // middle 5% for either side - adjustment
+        // center 10% for either side - adjustment
         target_degree = static_cast<int32_t>(
             kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityLow));
       }
@@ -264,14 +268,14 @@ void CenterLineMethod() {
         // value < right bound: higher speed for compensation
         target_degree = kServoRightBound;
         motor.SetPower(MotorSpeed::kSpeedMid);
-      } else if (target_degree < (kServoRightBound - kServoCenter) / 2) {
+      } else if (target_degree < (kServoRightBound - kServoCenter) / 3) {
         // value < half of right steer: slower speed to decrease turning radius
         motor.SetPower(MotorSpeed::kSpeedLow);
-      } else if (target_degree > (kServoCenter - kServoLeftBound) / 2) {
+      } else if (target_degree > (kServoCenter - kServoLeftBound) / 3) {
         // value > half of left steer: slower speed to decrease turning radius
         motor.SetPower(MotorSpeed::kSpeedLow);
       } else {
-        motor.SetPower(MotorSpeed::kSpeedHigh);
+        motor.SetPower(MotorSpeed::kSpeedMid);
       }
       servo.SetDegree(static_cast<uint16_t>(target_degree));
 

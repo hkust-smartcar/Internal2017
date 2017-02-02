@@ -14,19 +14,19 @@
  *
  * Value range: [0, kCameraHeight]
  */
-constexpr Uint kCameraMaxSrcHeight = 30;
+constexpr Uint kCameraMaxSrcHeight = 1;
 /**
  * Minimum number of non-blank rows to mark center line as valid. Higher values
  * imply higher accuracy and higher resistance to change.
  *
  * Value range: [0, 80-kCameraMaxSrcHeight]
  */
-const Uint kCameraMinSrcConfidence = 15;
+const Uint kCameraMinSrcConfidence = 18;
 /**
  * Minimum number of white pixels on the same row to mark row as valid. Higher
  * values imply higher accuracy and higher resistance to change.
  */
-constexpr Uint kCameraMinPixelCount = 10;
+constexpr Uint kCameraMinPixelCount = 12;
 
 // servo calibration constants
 /**
@@ -46,6 +46,7 @@ constexpr int kServoRightBound = 550;
  */
 enum ServoSensitivity {
   kSensitivityLow = 5,
+  kSensitivityMid = 15,
   kSensitivityHigh = 30,
 };
 
