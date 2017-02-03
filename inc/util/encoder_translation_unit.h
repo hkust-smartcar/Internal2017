@@ -25,7 +25,7 @@ class EncoderTranslationUnit {
    * @param s Pointer to a FutubaS3010 object
    */
   EncoderTranslationUnit(libsc::DirEncoder *e, libsc::AlternateMotor *m, libsc::FutabaS3010 *s)
-      : curr_speed(0), target_speed(0), commit_target_flag(false), motor(m), servo(s), encoder(e) {}
+      : curr_speed_(0), target_speed_(0), commit_target_flag_(false), motor_(m), servo_(s), encoder_(e) {}
   /**
    * Constructor which creates an encoder object.
    *
@@ -34,14 +34,14 @@ class EncoderTranslationUnit {
    * @param s Pointer to a FutubaS3010 object
    */
   EncoderTranslationUnit(const uint8_t *id, libsc::AlternateMotor *m, libsc::FutabaS3010 *s)
-      : curr_speed(0), target_speed(0), commit_target_flag(false), motor(m), servo(s) {
+      : curr_speed_(0), target_speed_(0), commit_target_flag_(false), motor_(m), servo_(s) {
     libsc::Encoder::Config e_config;
     e_config.id = *id;
-    encoder.reset(new libsc::DirEncoder(e_config));
+    encoder_.reset(new libsc::DirEncoder(e_config));
   }
 
   ~EncoderTranslationUnit() {
-    encoder.reset(nullptr);
+    encoder_.reset(nullptr);
   }
 
   /**
@@ -57,7 +57,7 @@ class EncoderTranslationUnit {
    * @param b If true, next call to @c DoCorrection() will use the target speed
    * for correction. Otherwise the current speed will be used.
    */
-  void SetCommitFlag(bool b) { commit_target_flag = b; }
+  void SetCommitFlag(bool b) { commit_target_flag_ = b; }
   /**
    * Sets the target speed.
    *
@@ -82,11 +82,11 @@ class EncoderTranslationUnit {
    * @return The time elapsed between now and last time the encoder values
    * were reset.
    */
-  libsc::Timer::TimerInt GetTimeElapsed() const { return libsc::System::Time() - time_encoder_start; }
+  libsc::Timer::TimerInt GetTimeElapsed() const { return libsc::System::Time() - time_encoder_start_; }
   /**
    * @return Current target speed.
    */
-  int16_t GetTargetSpeed() const { return target_speed; }
+  int16_t GetTargetSpeed() const { return target_speed_; }
 
  private:
   /**
@@ -97,15 +97,15 @@ class EncoderTranslationUnit {
    * Resets the encoder and updates the time taken.
    */
   void ResetEncoder() {
-    encoder->Update();
-    time_encoder = GetTimeElapsed();
+    encoder_->Update();
+    time_encoder_ = GetTimeElapsed();
   }
 
   // Getters
   /**
    * @return Speed difference between target and current.
    */
-  int16_t GetSpeedDiff() const { return target_speed - curr_speed; }
+  int16_t GetSpeedDiff() const { return target_speed_ - curr_speed_; }
   /**
    * @return Encoder value in units per second
    */
@@ -126,26 +126,26 @@ class EncoderTranslationUnit {
   /**
    * Current reference target speed
    */
-  int16_t curr_speed;
+  int16_t curr_speed_;
   /**
    * User-defined target speed
    */
-  int16_t target_speed;
+  int16_t target_speed_;
   /**
    * Whether to commit the user-defined target speed on next call to
    * @c DoCorrection()
    */
-  bool commit_target_flag;
+  bool commit_target_flag_;
 
   // Timekeepers
   /**
    * When the current encoder cycle started.
    */
-  libsc::Timer::TimerInt time_encoder_start;
+  libsc::Timer::TimerInt time_encoder_start_;
   /**
    * How long the last encoder cycle lasted.
    */
-  libsc::Timer::TimerInt time_encoder;
+  libsc::Timer::TimerInt time_encoder_;
 
   /**
    * Constants for encoder to motor value conversions
@@ -180,8 +180,8 @@ class EncoderTranslationUnit {
         kMotorUpperHardLimit = 500,
   };
 
-  libsc::AlternateMotor *motor;
-  libsc::FutabaS3010 *servo;
-  std::unique_ptr<libsc::DirEncoder> encoder;
+  libsc::AlternateMotor *motor_;
+  libsc::FutabaS3010 *servo_;
+  std::unique_ptr<libsc::DirEncoder> encoder_;
 };
 }  // namespace util
