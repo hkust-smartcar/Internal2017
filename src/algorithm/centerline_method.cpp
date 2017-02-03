@@ -281,8 +281,7 @@ void CenterLineMethod() {
 
       // render target_degree relative to the image
       if (kEnableLcd) {
-        lcd->SetRegion(Lcd::Rect(static_cast<Uint>(64
-            - (target_degree / 28)), 119, 1, 40));
+        lcd->SetRegion(Lcd::Rect(static_cast<Uint>(64 - (target_degree / 28)), 119, 1, 40));
         lcd->FillColor(Lcd::kWhite);
       }
     }

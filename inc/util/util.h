@@ -65,8 +65,8 @@ int find_element(T *arr, int first, int last, T value, bool return_last = true) 
  * @param return_last If @c true, returns last element if value is not found. Otherwise, returns -1.
  * @return Index of first matching element if found. Otherwise dependent on @p return_last.
  */
-template<std::size_t size, class T, typename = enable_if_t<std::is_integral<T>::value>>
-int find_element(std::array<T, size> &arr, int first, int last, T value, bool return_last = true) {
+template<class T, typename = enable_if_t<std::is_integral<T>::value>, std::size_t size>
+int find_element(const std::array<T, size> &arr, int first, int last, T value, bool return_last = true) {
   if (last > first) {
     for (; first <= last; ++first) {
       if (arr[first] == value) {
