@@ -1,13 +1,14 @@
 /*
  * Copyright (c) 2014-2017 HKUST SmartCar Team
  * Refer to LICENSE for details
+ *
+ * Author: David Mak (Derppening)
  */
-
-#include "../inc/main.h"
 
 #include <libbase/k60/mcg.h>
 #include <libsc/system.h>
-#include <algorithm/centerline_method.h>
+
+#include "algorithm/centerline_method.h"
 
 namespace libbase {
 namespace k60 {

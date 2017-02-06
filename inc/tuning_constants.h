@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2014-2017 HKUST SmartCar Team
  * Refer to LICENSE for details
+ *
+ * Author: David Mak (Derppening)
  */
 
 #pragma once
@@ -70,19 +72,19 @@ constexpr bool kEnableLcd = false;
 /**
  * Width of camera image. [1, 128]
  */
-constexpr int kCameraWidth = 64;
+constexpr uint8_t kCameraWidth = 64;
 /**
  * Height of camera image. [1, 160]
  */
-constexpr int kCameraHeight = 80;
+constexpr uint8_t kCameraHeight = 80;
 /**
  * Size of the camera image (in bytes).
  */
-constexpr int kBufferSize = kCameraWidth * kCameraHeight / 8;
+constexpr Uint kBufferSize = kCameraWidth * kCameraHeight / 8;
 /**
  * Servo center constant
  *
  * Determines the center of the servo. Can be overriden to use a fixed value,
  * or compute using left and right bounds.
  */
-constexpr int kServoCenter = 900;
+constexpr uint16_t kServoCenter = 900;

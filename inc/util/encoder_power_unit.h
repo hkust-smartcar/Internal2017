@@ -1,13 +1,14 @@
 /*
  * Copyright (c) 2014-2017 HKUST SmartCar Team
  * Refer to LICENSE for details
+ *
+ * Author: David Mak (Derppening)
  */
 
 #pragma once
 
 #include <libsc/alternate_motor.h>
 #include <libsc/dir_encoder.h>
-#include <libsc/futaba_s3010.h>
 #include <libsc/system.h>
 #include <memory>
 
@@ -15,33 +16,40 @@ namespace util {
 /**
  * Framework for a one-motor speed setting and correction system using encoders.
  */
-class EncoderTranslationUnit {
+class EncoderPowerUnit {
  public:
   /**
    * Constructor accepting an already-created encoder object.
    *
    * @param e Pointer to an encoder object
    * @param m Pointer to an AlternateMotor object
-   * @param s Pointer to a FutubaS3010 object
    */
-  EncoderTranslationUnit(libsc::DirEncoder *e, libsc::AlternateMotor *m, libsc::FutabaS3010 *s)
-      : curr_speed_(0), target_speed_(0), commit_target_flag_(false), motor_(m), servo_(s), encoder_(e) {}
+  explicit EncoderPowerUnit(libsc::DirEncoder *e, libsc::AlternateMotor *m)
+      : motor_(m), encoder_(e) {
+    motor_->SetPower(0);
+    UpdateEncoder();
+  }
   /**
    * Constructor which creates an encoder object.
    *
+   * @note When creating this object, cast @c id as a @c uint8_t to prevent
+   * ambiguous constructor definition.
+   *
    * @param id ID of the encoder.
    * @param m Pointer to an AlternateMotor object
-   * @param s Pointer to a FutubaS3010 object
    */
-  EncoderTranslationUnit(const uint8_t *id, libsc::AlternateMotor *m, libsc::FutabaS3010 *s)
-      : curr_speed_(0), target_speed_(0), commit_target_flag_(false), motor_(m), servo_(s) {
+  EncoderPowerUnit(const uint8_t id, libsc::AlternateMotor *m)
+      : motor_(m) {
     libsc::Encoder::Config e_config;
-    e_config.id = *id;
+    e_config.id = id;
     encoder_.reset(new libsc::DirEncoder(e_config));
+    motor_->SetPower(0);
+    UpdateEncoder();
   }
 
-  ~EncoderTranslationUnit() {
+  ~EncoderPowerUnit() {
     encoder_.reset(nullptr);
+    motor_.reset(nullptr);
   }
 
   /**
@@ -57,7 +65,7 @@ class EncoderTranslationUnit {
    * @param b If true, next call to @c DoCorrection() will use the target speed
    * for correction. Otherwise the current speed will be used.
    */
-  void SetCommitFlag(bool b) { commit_target_flag_ = b; }
+  void SetCommitFlag(bool flag) { commit_target_flag_ = flag; }
   /**
    * Sets the target speed.
    *
@@ -66,7 +74,12 @@ class EncoderTranslationUnit {
    * @param commit_now Whether to commit the target speed immediately. This will
    * also reset the encoder values.
    */
-  void SetTargetSpeed(const int16_t speed, bool commit_now = true);
+  void SetTargetSpeed(const int16_t speed, bool commit_now = true) {
+    target_speed_ = speed;
+    if (commit_now) {
+      CommitTargetSpeed();
+    }
+  }
   /**
    * Adds to the target speed.
    *
@@ -75,41 +88,41 @@ class EncoderTranslationUnit {
    * @param commit_now Whether to commit the target speed immediately. This will
    * also reset the encoder values.
    */
-  void AddToTargetSpeed(const int16_t d_speed, bool commit_now = true);
+  void AddToTargetSpeed(const int16_t d_speed, bool commit_now = true) {
+    target_speed_ += d_speed;
+    if (commit_now) {
+      CommitTargetSpeed();
+    }
+  }
 
   // Getters
   /**
    * @return The time elapsed between now and last time the encoder values
    * were reset.
    */
-  libsc::Timer::TimerInt GetTimeElapsed() const { return libsc::System::Time() - time_encoder_start_; }
+  inline libsc::Timer::TimerInt GetTimeElapsed() const { return libsc::System::Time() - time_encoder_start_; }
   /**
    * @return Current target speed.
    */
-  int16_t GetTargetSpeed() const { return target_speed_; }
+  inline int16_t GetTargetSpeed() const { return target_speed_; }
 
- private:
+ protected:
   /**
    * Commits the target speed.
    */
-  void CommitTargetSpeed();
-  /**
-   * Resets the encoder and updates the time taken.
-   */
-  void ResetEncoder() {
-    encoder_->Update();
-    time_encoder_ = GetTimeElapsed();
+  void CommitTargetSpeed() {
+    commit_target_flag_ = true;
+    DoCorrection();
   }
-
-  // Getters
   /**
-   * @return Speed difference between target and current.
+   * Updates the encoder value and resets the encoder
    */
-  int16_t GetSpeedDiff() const { return target_speed_ - curr_speed_; }
-  /**
-   * @return Encoder value in units per second
-   */
-  int32_t GetEncoderVal();
+  void UpdateEncoder() {
+    last_encoder_duration_ = GetTimeElapsed();
+    encoder_->Update();
+    last_encoder_val_ = encoder_->GetCount() * 1000 / static_cast<int32_t>(last_encoder_duration_);
+    time_encoder_start_ = libsc::System::Time();
+  }
 
   /**
    * Compares if two variables have the same sign.
@@ -126,27 +139,35 @@ class EncoderTranslationUnit {
   /**
    * Current reference target speed
    */
-  int16_t curr_speed_;
+  int16_t curr_speed_ = 0;
   /**
    * User-defined target speed
    */
-  int16_t target_speed_;
+  int16_t target_speed_ = 0;
   /**
-   * Whether to commit the user-defined target speed on next call to
-   * @c DoCorrection()
+   * The value of the encoder in units per second
    */
-  bool commit_target_flag_;
+  int32_t last_encoder_val_ = 0;
 
   // Timekeepers
   /**
    * When the current encoder cycle started.
    */
-  libsc::Timer::TimerInt time_encoder_start_;
+  libsc::Timer::TimerInt time_encoder_start_ = 0;
   /**
    * How long the last encoder cycle lasted.
    */
-  libsc::Timer::TimerInt time_encoder_;
+  libsc::Timer::TimerInt last_encoder_duration_ = 0;
 
+  std::unique_ptr<libsc::AlternateMotor> motor_;
+  std::unique_ptr<libsc::DirEncoder> encoder_;
+
+ private:
+  /**
+   * Whether to commit the user-defined target speed on next call to
+   * @c DoCorrection()
+   */
+  bool commit_target_flag_ = false;
   /**
    * Constants for encoder to motor value conversions
    */
@@ -162,7 +183,7 @@ class EncoderTranslationUnit {
      * Lower bound of motor power which should not be used for extended periods
      * of time. [0,1000]
      */
-        kMotorLowerBound = 10,
+        kMotorLowerBound = 75,
     /**
      * Upper bound of motor power which should not be used for extended periods
      * of time. [0,1000]
@@ -172,16 +193,12 @@ class EncoderTranslationUnit {
      * Lower bound of motor power which should never be exceeded.
      * [0,kMotorLowerBound]
      */
-        kMotorLowerHardLimit = 10,
+        kMotorLowerHardLimit = 75,
     /**
      * Upper bound of motor power which should never be exceeded.
      * [kMotorUpperBound,1000]
      */
         kMotorUpperHardLimit = 500,
   };
-
-  libsc::AlternateMotor *motor_;
-  libsc::FutabaS3010 *servo_;
-  std::unique_ptr<libsc::DirEncoder> encoder_;
 };
 }  // namespace util

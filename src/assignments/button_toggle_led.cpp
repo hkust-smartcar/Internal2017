@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2014-2017 HKUST SmartCar Team
  * Refer to LICENSE for details
+ *
+ * Author: David Mak (Derppening)
  */
 
 #include "../../inc/assignments/button_toggle_led.h"

@@ -14,9 +14,7 @@
  * Computes the area difference between left and right sides, and displays it
  * to the LCD.
  *
- * @param camera Pointer to a camera object
- * @param lcd Pointer to a LCD object
- *
  * @note This function must be put in the main loop for correct execution.
+ * @note All smartcar components are initialized in this method.
  */
-void areaMethod(libsc::k60::Ov7725 *camera, libsc::St7735r *lcd);
+void AreaMethod();

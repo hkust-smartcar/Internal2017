@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2014-2017 HKUST SmartCar Team
  * Refer to LICENSE for details
+ *
+ * Author: David Mak (Derppening)
  */
 
 #include "../../inc/algorithm/centerline_method.h"
@@ -20,8 +22,8 @@
 #include <numeric>
 #include <string>
 
-#include "../../inc/tuning_constants.h"
-#include "../../inc/util/util.h"
+#include "tuning_constants.h"
+#include "util/util.h"
 
 struct {
   Uint track_count;    // Number of pixels of the track
@@ -39,7 +41,55 @@ using libsc::System;
 using libsc::Timer;
 using libsc::TowerProMg995;
 using libsc::k60::Ov7725;
+using std::array;
+using std::bitset;
+using std::string;
 using std::unique_ptr;
+using util::ByteTo2DBitArray;
+using util::CopyByteArray;
+using util::FindElement;
+using util::MedianFilter;
+
+void CommitParameters(AlternateMotor *motor, FutabaS3010 *servo, uint16_t *steer_value, int32_t *target_degree,
+                      uint8_t *valid_count) {
+  // set the target degree
+  if (*steer_value == 0) {
+    // no valid data - use previous data
+    *target_degree = servo->GetDegree();
+  } else if (*valid_count < kCameraMinSrcConfidence) {
+    // insufficient data - use previous data
+    *target_degree = servo->GetDegree();
+  } else if (*steer_value < (kCameraWidth * 9 / 20) || *steer_value > (kCameraWidth * 11 / 20)) {
+    // edge 90% for either side - steep steering
+    *target_degree = kServoCenter - ((*steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityHigh);
+  } else if (*steer_value < (kCameraWidth * 8 / 20) || *steer_value > (kCameraHeight * 12 / 20)) {
+    // middle 10% for either side - medium steering
+    *target_degree = kServoCenter - ((*steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityMid);
+  } else {
+    // center 10% for either side - adjustment
+    *target_degree = kServoCenter - ((*steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityLow);
+  }
+
+  // commit motor and servo changes
+  if (*target_degree > kServoLeftBound) {
+    // value > left bound: higher speed for compensation
+    *target_degree = kServoLeftBound;
+    motor->SetPower(MotorSpeed::kSpeedMid);
+  } else if (*target_degree < kServoRightBound) {
+    // value < right bound: higher speed for compensation
+    *target_degree = kServoRightBound;
+    motor->SetPower(MotorSpeed::kSpeedMid);
+  } else if (*target_degree < (kServoRightBound - kServoCenter) / 3) {
+    // value < half of right steer: slower speed to decrease turning radius
+    motor->SetPower(MotorSpeed::kSpeedLow);
+  } else if (*target_degree > (kServoCenter - kServoLeftBound) / 3) {
+    // value > half of left steer: slower speed to decrease turning radius
+    motor->SetPower(MotorSpeed::kSpeedLow);
+  } else {
+    motor->SetPower(MotorSpeed::kSpeedMid);
+  }
+  servo->SetDegree(static_cast<uint16_t>(*target_degree));
+}
 
 void CenterLineMethod() {
   // initialize LEDs
@@ -90,7 +140,7 @@ void CenterLineMethod() {
   lcd->Clear();
 
   Timer::TimerInt time_img = System::Time();  // current execution time
-  uint32_t steer_value = kCameraWidth / 2;
+  uint16_t steer_value = kCameraWidth / 2;
   int32_t target_degree = kServoCenter;
 
   led4.SetEnable(false);
@@ -105,89 +155,46 @@ void CenterLineMethod() {
       // copy the buffer for processing
       const Byte *pbuffer = camera->LockBuffer();
       Byte image1d[kBufferSize];
-      for (Uint i = 0; i < kBufferSize; ++i) {
-        image1d[i] = pbuffer[i];
-      }
+      CopyByteArray(pbuffer, image1d, kBufferSize);
       camera->UnlockBuffer();
 
       led2.SetEnable(true);
 
       // 1d to 2d array
-      std::array<std::array<bool, kCameraWidth>, kCameraHeight> image2d;
-      for (Uint i = 0; i < kBufferSize; ++i) {
-        std::string s = std::bitset<8>(image1d[i]).to_string();
-        for (uint8_t j = 0; j < 8; ++j) {
-          image2d[i * 8 / kCameraWidth][(i * 8 % kCameraWidth) + j] = static_cast<Uint>(s.at(j) - '0') == 1;
-        }
-      }
+      array<array<bool, kCameraWidth>, kCameraHeight> image2d;
+      ByteTo2DBitArray(pbuffer, &image2d);
 
       // apply median filter
-      std::array<std::array<bool, kCameraWidth>, kCameraHeight> image2d_median;
-      for (Uint i = 0; i < kCameraHeight; ++i) {
-        for (Uint j = 0; j < kCameraWidth; ++j) {
-          if (i == 0 || i == kCameraHeight || j == 0 || j == kCameraWidth) {
-            image2d_median[i][j] = image2d[i][j];
-          } else {
-            image2d_median[i][j] = static_cast<bool>((
-                image2d[i - 1][j - 1] +
-                    image2d[i - 1][j] +
-                    image2d[i - 1][j + 1] +
-                    image2d[i][j - 1] +
-                    image2d[i][j] +
-                    image2d[i][j + 1] +
-                    image2d[i + 1][j - 1] +
-                    image2d[i + 1][j] +
-                    image2d[i + 1][j + 1])
-                / 5);
-          }
-        }
-      }
+      array<array<bool, kCameraWidth>, kCameraHeight> image2d_median;
+      MedianFilter(&image2d, &image2d_median);
 
       // fill in row information
       for (int rowIndex = kCameraHeight - 1; rowIndex >= 0; --rowIndex) {
         if (rowIndex == kCameraHeight - 1) {  // row closest to car
           if (!image2d_median[rowIndex][kCameraWidth / 2]) {  // middle is track - do normal processing
-            RowInfo[rowIndex].right_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
-                                                                                 kCameraWidth / 2,
-                                                                                 kCameraWidth - 1,
-                                                                                 true,
-                                                                                 true));
-            RowInfo[rowIndex].left_bound =
-                static_cast<Uint>(util::find_element(image2d_median[rowIndex], kCameraWidth / 2, 0, true, true));
+            RowInfo[rowIndex].right_bound = static_cast<Uint>(
+                FindElement(image2d_median[rowIndex], kCameraWidth / 2, kCameraWidth - 1, true, true));
+            RowInfo[rowIndex].left_bound = static_cast<Uint>(
+                FindElement(image2d_median[rowIndex], kCameraWidth / 2, 0, true, true));
           } else {  // middle is not track! - alternate processing
             // take the previous steer_value, and assume the track will be at that side as well
             if (steer_value > kCameraWidth / 2) {  // assumes track at right side
-              RowInfo[rowIndex].left_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
-                                                                                  kCameraWidth / 2,
-                                                                                  kCameraWidth - 1,
-                                                                                  false,
-                                                                                  true));
-              RowInfo[rowIndex].right_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
-                                                                                   RowInfo[rowIndex].left_bound,
-                                                                                   kCameraWidth - 1,
-                                                                                   true,
-                                                                                   true));
+              RowInfo[rowIndex].left_bound = static_cast<Uint>(
+                  FindElement(image2d_median[rowIndex], kCameraWidth / 2, kCameraWidth - 1, false, true));
+              RowInfo[rowIndex].right_bound = static_cast<Uint>(
+                  FindElement(image2d_median[rowIndex], RowInfo[rowIndex].left_bound, kCameraWidth - 1, true, true));
             } else if (steer_value < kCameraWidth / 2) {  // assumes track at left side
               RowInfo[rowIndex].right_bound =
-                  static_cast<Uint>(util::find_element(image2d_median[rowIndex], kCameraWidth / 2, 0, false, true));
-              RowInfo[rowIndex].left_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
-                                                                                  RowInfo[rowIndex].right_bound,
-                                                                                  0,
-                                                                                  true,
-                                                                                  true));
+                  static_cast<Uint>(FindElement(image2d_median[rowIndex], kCameraWidth / 2, 0, false, true));
+              RowInfo[rowIndex].left_bound = static_cast<Uint>(
+                  FindElement(image2d_median[rowIndex], RowInfo[rowIndex].right_bound, 0, true, true));
             }
           }
         } else {  // all other rows - dependent on the closest row
-          RowInfo[rowIndex].right_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
-                                                                               RowInfo[rowIndex + 1].center_point,
-                                                                               kCameraWidth - 1,
-                                                                               true,
-                                                                               true));
-          RowInfo[rowIndex].left_bound = static_cast<Uint>(util::find_element(image2d_median[rowIndex],
-                                                                              RowInfo[rowIndex + 1].center_point,
-                                                                              0,
-                                                                              true,
-                                                                              true));
+          RowInfo[rowIndex].right_bound = static_cast<Uint>(
+              FindElement(image2d_median[rowIndex], RowInfo[rowIndex + 1].center_point, kCameraWidth - 1, true, true));
+          RowInfo[rowIndex].left_bound = static_cast<Uint>(
+              FindElement(image2d_median[rowIndex], RowInfo[rowIndex + 1].center_point, 0, true, true));
         }
         // calculate the dependencies
         RowInfo[rowIndex].center_point = (RowInfo[rowIndex].left_bound + RowInfo[rowIndex].right_bound) / 2;
@@ -238,46 +245,7 @@ void CenterLineMethod() {
         lcd->FillColor(Lcd::kBlack);
       }
 
-      // set the target degree
-      if (steer_value == 0) {
-        // no valid data - use previous data
-        target_degree = servo.GetDegree();
-      } else if (valid_count < kCameraMinSrcConfidence) {
-        // insufficient data - use previous data
-        target_degree = servo.GetDegree();
-      } else if (steer_value < (kCameraWidth * 9 / 20) || steer_value > (kCameraWidth * 11 / 20)) {
-        // edge 90% for either side - steep steering
-        target_degree = static_cast<int32_t>(
-            kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityHigh));
-      } else if (steer_value < (kCameraWidth * 8 / 20) || steer_value > (kCameraHeight * 12 / 20)) {
-        // middle 10% for either side - medium steering
-        target_degree = static_cast<int32_t>(
-            kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityMid));
-      } else {
-        // center 10% for either side - adjustment
-        target_degree = static_cast<int32_t>(
-            kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityLow));
-      }
-
-      // commit motor and servo changes
-      if (target_degree > kServoLeftBound) {
-        // value > left bound: higher speed for compensation
-        target_degree = kServoLeftBound;
-        motor.SetPower(MotorSpeed::kSpeedMid);
-      } else if (target_degree < kServoRightBound) {
-        // value < right bound: higher speed for compensation
-        target_degree = kServoRightBound;
-        motor.SetPower(MotorSpeed::kSpeedMid);
-      } else if (target_degree < (kServoRightBound - kServoCenter) / 3) {
-        // value < half of right steer: slower speed to decrease turning radius
-        motor.SetPower(MotorSpeed::kSpeedLow);
-      } else if (target_degree > (kServoCenter - kServoLeftBound) / 3) {
-        // value > half of left steer: slower speed to decrease turning radius
-        motor.SetPower(MotorSpeed::kSpeedLow);
-      } else {
-        motor.SetPower(MotorSpeed::kSpeedMid);
-      }
-      servo.SetDegree(static_cast<uint16_t>(target_degree));
+      CommitParameters(&motor, &servo, &steer_value, &target_degree, &valid_count);
 
       // render target_degree relative to the image
       if (kEnableLcd) {

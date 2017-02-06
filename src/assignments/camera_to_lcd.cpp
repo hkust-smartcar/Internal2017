@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2014-2017 HKUST SmartCar Team
  * Refer to LICENSE for details
+ *
+ * Author: David Mak (Derppening)
  */
 
 #include "../../inc/assignments/camera_to_lcd.h"
@@ -10,7 +12,6 @@
 #include <libsc/st7735r.h>
 #include <libsc/system.h>
 #include <libsc/k60/ov7725.h>
-#include "../../inc/main.h"
 
 using libsc::Lcd;
 using libsc::Led;
