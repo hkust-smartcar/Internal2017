@@ -3,9 +3,18 @@ import java.util.*;
 
 Serial myPort;
 
+int pixelSide = 5;
+Boolean[][] pixelArray = new Boolean[globalHeight][globalWidth];
+int imageX = 10, imageY = 10;
+
 int globalWidth = 80;
 int globalHeight = 60;
 int arrayPosX, arrayPosY;
+
+int leftX = 600, leftY = 600;
+int middleX = 700, middleY = 600;
+int rightX = 800, rightY = 600;
+int diameter = 50;
 
 void setup() {
   
