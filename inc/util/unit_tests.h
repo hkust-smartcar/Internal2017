@@ -16,7 +16,7 @@ namespace util {
  *
  * @note Camera and LCD will be initialized within the function.
  */
-void cameraTest();
+void CameraTest();
 /**
  * Tests the LCD of the mainboard
  *
@@ -25,7 +25,7 @@ void cameraTest();
  *
  * @note LCD will be initialized within the function
  */
-void lcdTest();
+void LcdTest();
 /**
  * Tests the LEDs of the mainboard
  *
@@ -33,7 +33,7 @@ void lcdTest();
  *
  * @note LEDs will be initialized within the function
  */
-void ledTest();
+void LedTest();
 /**
  * Tests the servo of the mainboard
  *
@@ -41,7 +41,7 @@ void ledTest();
  *
  * @note Servo will be initialized within the function.
  */
-void servoTest();
+void ServoTest();
 /**
  * Tests the alternate-motor of the mainboard
  *
@@ -49,6 +49,6 @@ void servoTest();
  *
  * @note Motor will be initialized within the function.
  */
-void altMotorTest();
+void AltMotorTest();
 
 }  // namespace util

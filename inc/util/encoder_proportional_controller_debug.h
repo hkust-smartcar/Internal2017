@@ -14,17 +14,17 @@
 #include <libsc/system.h>
 #include <memory>
 
-#include "encoder_power_unit.h"
+#include "encoder_proportional_controller.h"
 
 namespace util {
 /**
- * Test class for @c EncoderPowerUnit. Provides access to private variables for
+ * Test class for @c EncoderProportionalController. Provides access to private variables for
  * debugging purposes.
  *
- * To use methods in this class, declare an @c EncoderPowerUnitTest object and
- * use it like an @c EncoderPowerUnit.
+ * To use methods in this class, declare an @c EncoderProportionalControllerDebug object and
+ * use it like an @c EncoderProportionalController.
  */
-class EncoderPowerUnitDebug final : public EncoderPowerUnit {
+class EncoderProportionalControllerDebug final : public EncoderProportionalController {
  public:
   /**
  * Constructor accepting an already-created encoder object.
@@ -32,8 +32,8 @@ class EncoderPowerUnitDebug final : public EncoderPowerUnit {
  * @param e Pointer to an encoder object
  * @param m Pointer to an AlternateMotor object
  */
-  explicit EncoderPowerUnitDebug(libsc::DirEncoder *e, libsc::AlternateMotor *m, libsc::FutabaS3010 *s)
-      : EncoderPowerUnit(e, m) {};
+  explicit EncoderProportionalControllerDebug(libsc::DirEncoder *e, libsc::AlternateMotor *m, libsc::FutabaS3010 *s)
+      : EncoderProportionalController(e, m) {};
   /**
    * Constructor which creates an encoder object.
    *
@@ -41,8 +41,8 @@ class EncoderPowerUnitDebug final : public EncoderPowerUnit {
    * @param m Pointer to an AlternateMotor object
    * @param s Pointer to a FutubaS3010 object
    */
-  EncoderPowerUnitDebug(const uint8_t id, libsc::AlternateMotor *m, libsc::FutabaS3010 *s)
-      : EncoderPowerUnit(static_cast<uint8_t>(id), m) {};
+  EncoderProportionalControllerDebug(const uint8_t id, libsc::AlternateMotor *m, libsc::FutabaS3010 *s)
+      : EncoderProportionalController(static_cast<uint8_t>(id), m) {};
 
   /**
    * Outputs the encoder value (in units per second) and power of the managed motor.

@@ -20,7 +20,7 @@ using libsc::System;
 using libsc::Timer;
 using libsc::k60::Ov7725;
 
-void cameraToLcd() {
+void CameraToLcd() {
   // initialize LEDs
   Led::Config ledConfig;
   ledConfig.is_active_low = true;

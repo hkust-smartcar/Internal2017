@@ -16,7 +16,7 @@ namespace util {
 /**
  * Framework for a one-motor speed setting and correction system using encoders.
  */
-class EncoderPowerUnit {
+class EncoderProportionalController {
  public:
   /**
    * Constructor accepting an already-created encoder object.
@@ -24,7 +24,7 @@ class EncoderPowerUnit {
    * @param e Pointer to an encoder object
    * @param m Pointer to an AlternateMotor object
    */
-  explicit EncoderPowerUnit(libsc::DirEncoder *e, libsc::AlternateMotor *m)
+  explicit EncoderProportionalController(libsc::DirEncoder *e, libsc::AlternateMotor *m)
       : motor_(m), encoder_(e) {
     motor_->SetPower(0);
     UpdateEncoder();
@@ -38,7 +38,7 @@ class EncoderPowerUnit {
    * @param id ID of the encoder.
    * @param m Pointer to an AlternateMotor object
    */
-  EncoderPowerUnit(const uint8_t id, libsc::AlternateMotor *m)
+  EncoderProportionalController(const uint8_t id, libsc::AlternateMotor *m)
       : motor_(m) {
     libsc::Encoder::Config e_config;
     e_config.id = id;
@@ -47,7 +47,7 @@ class EncoderPowerUnit {
     UpdateEncoder();
   }
 
-  ~EncoderPowerUnit() {
+  ~EncoderProportionalController() {
     encoder_.reset(nullptr);
     motor_.reset(nullptr);
   }

@@ -17,7 +17,7 @@ using libsc::Led;
 Led *pLed1;
 void B1Listener(const uint8_t);
 
-void buttonToggleLed() {
+void ButtonToggleLed() {
   Led::Config configLed;
   configLed.id = 0;
   configLed.is_active_low = true;

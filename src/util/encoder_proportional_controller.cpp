@@ -5,14 +5,14 @@
  * Author: David Mak (Derppening)
  */
 
-#include "util/encoder_power_unit.h"
+#include "util/encoder_proportional_controller.h"
 
 using libsc::AlternateMotor;
 using libsc::System;
 using libsc::Timer;
 
 namespace util {
-void EncoderPowerUnit::DoCorrection() {
+void EncoderProportionalController::DoCorrection() {
   // cleanup from previous cycle if it is out of range
   // [kMotorLowerBound,kMotorUpperBound]
   if (motor_->GetPower() > kMotorUpperBound) {

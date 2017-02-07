@@ -30,7 +30,7 @@ using std::unique_ptr;
 
 namespace util {
 
-void ledTest() {
+void LedTest() {
   Led::Config config;
   config.is_active_low = true;
   config.id = 0;
@@ -55,7 +55,7 @@ void ledTest() {
   }
 }
 
-void lcdTest() {
+void LcdTest() {
   St7735r::Config config;
   config.fps = 10;
   unique_ptr<St7735r> lcd(new St7735r(config));
@@ -68,7 +68,7 @@ void lcdTest() {
   }
 }
 
-void cameraTest() {
+void CameraTest() {
   // initialize camera
   Ov7725::Config camera_config;
   camera_config.id = 0;
@@ -100,7 +100,7 @@ void cameraTest() {
 
 }
 
-void servoTest() {
+void ServoTest() {
   FutabaS3010::Config config;
   config.id = 0;
   FutabaS3010 servo(config);
@@ -113,7 +113,7 @@ void servoTest() {
   }
 }
 
-void altMotorTest() {
+void AltMotorTest() {
   AlternateMotor::Config config;
   config.multiplier = 100;
   config.id = 0;

@@ -14,4 +14,4 @@
  *
  * @note Camera and LCD will be initialized in the function.
  */
-void cameraToLcd();
+void CameraToLcd();
