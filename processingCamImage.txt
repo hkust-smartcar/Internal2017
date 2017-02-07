@@ -1,0 +1,110 @@
+import processing.serial.*;
+import java.util.*;
+
+Serial myPort;
+
+int globalWidth = 80;
+int globalHeight = 60;
+int arrayPosX, arrayPosY;
+
+void setup() {
+  
+  printArray(Serial.list());
+  myPort = new Serial(this, Serial.list()[1], 115200);
+  myPort.buffer(1);
+  size(900, 650);
+  arrayPosX = 0;
+  arrayPosY = 0;
+  
+  for (int y=0; y<globalHeight; y++) {
+    for (int x=0; x<globalWidth; x++) {
+      pixelArray[y][x] = false;
+    }
+  }
+  
+  fill(0);
+  ellipse(leftX, leftY, diameter, diameter);
+  ellipse(middleX, middleY, diameter, diameter);
+  ellipse(rightX, rightY, diameter, diameter);
+
+}
+
+void getImage(int data) {
+
+  String binData = "";
+  int strLen = 0;
+  
+  binData = Integer.toBinaryString(data);
+  strLen = binData.length();
+  //println(binData);
+  
+  for (int i=0; i<8; i++) {
+    
+    if (i < strLen) {
+      
+      if (binData.charAt(strLen-1-i) == '1') {
+        pixelArray[arrayPosY][arrayPosX+7-i] = true;
+      } else {
+        pixelArray[arrayPosY][arrayPosX+7-i] = false;
+      }
+      
+    } else {
+      pixelArray[arrayPosY][arrayPosX+7-i] = false;
+    }
+    
+  }
+  
+  arrayPosX += 8;
+  
+  if (arrayPosX >= globalWidth) {
+    arrayPosX = 0;
+    arrayPosY++;
+  }
+  if (arrayPosY >= globalHeight) {
+    arrayPosY = 0;
+  }
+
+}
+
+void outputImage() {
+  
+  for (int y=0; y<globalHeight; y++) {
+    for (int x=0; x<globalWidth; x++) {
+      if (pixelArray[y][x]) {
+        fill(0);
+      } else {
+        fill(255);
+      }
+      noStroke();
+      rect(imageX + pixelSide*x, imageY + pixelSide*y, pixelSide, pixelSide);
+    }
+  }
+  
+}
+
+void draw() {
+  
+  while (myPort.available() > 0) {
+    
+    int inputInt = myPort.read();
+    
+    if (inputInt == 170) {
+      int i = 0;
+      arrayPosX = 0;
+      arrayPosY = 0;
+      while (i<globalWidth*globalHeight/8) {
+        print(' ');
+        if (myPort.available() > 0) {
+          inputInt = myPort.read();
+          getImage(inputInt);
+          i++;
+        }
+      }
+      outputImage();
+      delay(1);
+      
+    }
+    
+  }
+  
+}
