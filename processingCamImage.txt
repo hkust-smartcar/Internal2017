@@ -1,3 +1,27 @@
+/*
+
+//plase include the following code in you smartcar program
+
+//include bluetooth
+#include <libsc/k60/jy_mcu_bt_106.h>
+
+//initialize
+JyMcuBt106::Config BluetoothConfig;
+BluetoothConfig.id = 0;
+BluetoothConfig.baud_rate = libbase::k60::Uart::Config::BaudRate::k115200;
+JyMcuBt106 bluetooth1(BluetoothConfig);
+
+//starting signal telling processing to start receiving the image
+//please help me to improve this method...^,^
+const Byte imageByte = 170;
+const Byte * imageBytePtr = &imageByte;
+
+//in the main loop
+bluetooth1.SendBuffer(imageBytePtr, 1);
+bluetooth1.SendBuffer(camInput, Cam1.GetBufferSize());
+
+*/
+
 import processing.serial.*;
 import java.util.*;
 
