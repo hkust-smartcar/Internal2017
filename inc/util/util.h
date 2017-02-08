@@ -7,14 +7,14 @@
 
 #pragma once
 
-#include <libbase/misc_types.h>
-
 #include <algorithm>
 #include <array>
 #include <bitset>
 #include <iterator>
-#include <type_traits>
 #include <string>
+#include <type_traits>
+
+#include "libbase/misc_types.h"
 
 namespace util {
 /**
@@ -24,7 +24,7 @@ namespace util {
  * @param dest Destination (C-style) array
  * @param size Size (i.e. number of elements) of the arrays
  */
-void CopyByteArray(const Byte *src, Byte *dest, size_t size);
+void CopyByteArray(const Byte &src, Byte *dest, const size_t size);
 /**
  * Converts a byte array to a C-style 1D bit array
  *
@@ -32,7 +32,7 @@ void CopyByteArray(const Byte *src, Byte *dest, size_t size);
  * @param bit_arr Destination 1D bit (C-style) array
  * @param size Size (i.e. number of elements) of @c src array
  */
-void ByteTo1DBitArray(const Byte *src, bool *dest, size_t size);
+void ByteTo1DBitArray(const Byte &src, bool *dest, const size_t size);
 /**
  * Converts a byte array to a C++11-style 1D bit array
  *
@@ -41,7 +41,7 @@ void ByteTo1DBitArray(const Byte *src, bool *dest, size_t size);
  * @param dest Destination 1D bit (C++11-style) array
  */
 template<size_t size>
-void ByteTo1DBitArray(const Byte *src, std::array<bool, size> *dest);
+void ByteTo1DBitArray(const Byte &src, std::array<bool, size> *dest);
 
 /**
  * Converts a byte array to a C++11-style 2D bit array
@@ -52,7 +52,7 @@ void ByteTo1DBitArray(const Byte *src, std::array<bool, size> *dest);
  * @param dest Destination bit (C++11-style) array
  */
 template<size_t width, size_t height>
-void ByteTo2DBitArray(const Byte *src, std::array<std::array<bool, width>, height> *dest);
+void ByteTo2DBitArray(const Byte &src, std::array<std::array<bool, width>, height> *dest);
 
 /**
  * Applies median filter to a C++11-style 2D bit array
@@ -63,7 +63,8 @@ void ByteTo2DBitArray(const Byte *src, std::array<std::array<bool, width>, heigh
  * @param dest Destination bit (C++11-style) array
  */
 template<size_t width, size_t height>
-void MedianFilter(std::array<std::array<bool, width>, height> *src, std::array<std::array<bool, width>, height> *dest);
+void MedianFilter(const std::array<std::array<bool, width>, height> &src,
+                  std::array<std::array<bool, width>, height> *dest);
 
 /**
  * Backport of @c std::enable_if_t from C++14
@@ -86,7 +87,7 @@ using enable_if_t = typename std::enable_if<B, T>::type;
  * @return Index of first matching element if found. Otherwise dependent on @p return_last.
  */
 template<class T, typename = enable_if_t<std::is_integral<T>::value>>
-int FindElement(T *arr, int first, int last, T value, bool return_last = true);
+int FindElement(const T &arr, int first, int last, T value, bool return_last = true);
 
 /**
  * Finds a specified element in an integer-typed C++ standard array. Searches indices @c [start,end].

@@ -7,10 +7,12 @@
 
 #pragma once
 
-#include <libsc/alternate_motor.h>
-#include <libsc/dir_encoder.h>
-#include <libsc/system.h>
 #include <memory>
+
+#include "libsc/alternate_motor.h"
+#include "libsc/dir_encoder.h"
+#include "libsc/lcd_console.h"
+#include "libsc/system.h"
 
 namespace util {
 /**
@@ -29,6 +31,7 @@ class EncoderProportionalController {
     motor_->SetPower(0);
     UpdateEncoder();
   }
+
   /**
    * Constructor which creates an encoder object.
    *
@@ -38,7 +41,7 @@ class EncoderProportionalController {
    * @param id ID of the encoder.
    * @param m Pointer to an AlternateMotor object
    */
-  EncoderProportionalController(const uint8_t id, libsc::AlternateMotor *m)
+  EncoderProportionalController(const uint8_t &id, libsc::AlternateMotor *m)
       : motor_(m) {
     libsc::Encoder::Config e_config;
     e_config.id = id;
@@ -47,16 +50,13 @@ class EncoderProportionalController {
     UpdateEncoder();
   }
 
-  ~EncoderProportionalController() {
-    encoder_.reset(nullptr);
-    motor_.reset(nullptr);
-  }
+  // Disable copy constructor
+  EncoderProportionalController &operator=(const EncoderProportionalController &) = delete;
 
-  /**
-   * Does motor power correction using encoder, and resets the encoder count.
-   * Also commits the user-given target speed if @c commit_target_flag is true.
-   */
-  void DoCorrection();
+  ~EncoderProportionalController() {
+    encoder_.reset();
+    motor_.reset();
+  }
 
   // Setters
   /**
@@ -106,7 +106,46 @@ class EncoderProportionalController {
    */
   inline int16_t GetTargetSpeed() const { return target_speed_; }
 
- protected:
+  /**
+ * Does motor power correction using encoder, and resets the encoder count.
+ * Also commits the user-given target speed if @c commit_target_flag is true.
+ */
+  void DoCorrection();
+
+ private:
+  /**
+   * Constants for encoder to motor value conversions
+   */
+  enum MotorConstants {
+    /**
+     * Conversion factor from encoder difference to motor power difference.
+     *
+     * @example If set to 50, for every encoder value difference of 50, the
+     * motor power will increase/decrease by 1.
+     */
+        kMotorDFactor = 50,
+    /**
+     * Lower bound of motor power which should not be used for extended periods
+     * of time. [0,1000]
+     */
+        kMotorLowerBound = 75,
+    /**
+     * Upper bound of motor power which should not be used for extended periods
+     * of time. [0,1000]
+     */
+        kMotorUpperBound = 500,
+    /**
+     * Lower bound of motor power which should never be exceeded.
+     * [0,kMotorLowerBound]
+     */
+        kMotorLowerHardLimit = 75,
+    /**
+     * Upper bound of motor power which should never be exceeded.
+     * [kMotorUpperBound,1000]
+     */
+        kMotorUpperHardLimit = 500,
+  };
+
   /**
    * Commits the target speed.
    */
@@ -159,46 +198,66 @@ class EncoderProportionalController {
    */
   libsc::Timer::TimerInt last_encoder_duration_ = 0;
 
-  std::unique_ptr<libsc::AlternateMotor> motor_;
-  std::unique_ptr<libsc::DirEncoder> encoder_;
-
- private:
   /**
    * Whether to commit the user-defined target speed on next call to
    * @c DoCorrection()
    */
   bool commit_target_flag_ = false;
+
+  std::shared_ptr<libsc::AlternateMotor> motor_;
+  std::shared_ptr<libsc::DirEncoder> encoder_;
+
+  friend class EncoderProportionalControllerDebug;
+};
+
+/**
+ * Debug class for @c EncoderProportionalController. Provides access to private variables for
+ * debugging purposes.
+ */
+class EncoderProportionalControllerDebug final {
+ public:
   /**
-   * Constants for encoder to motor value conversions
+   * Constructor which accepts an already-created @c EncoderProportionalController
+   * object.
+   *
+   * @param epc Pointer to the @c EncoderProportionalController object.
    */
-  enum MotorConstants {
-    /**
-     * Conversion factor from encoder difference to motor power difference.
-     *
-     * @example If set to 50, for every encoder value difference of 50, the
-     * motor power will increase/decrease by 1.
-     */
-        kMotorDFactor = 50,
-    /**
-     * Lower bound of motor power which should not be used for extended periods
-     * of time. [0,1000]
-     */
-        kMotorLowerBound = 75,
-    /**
-     * Upper bound of motor power which should not be used for extended periods
-     * of time. [0,1000]
-     */
-        kMotorUpperBound = 500,
-    /**
-     * Lower bound of motor power which should never be exceeded.
-     * [0,kMotorLowerBound]
-     */
-        kMotorLowerHardLimit = 75,
-    /**
-     * Upper bound of motor power which should never be exceeded.
-     * [kMotorUpperBound,1000]
-     */
-        kMotorUpperHardLimit = 500,
-  };
+  explicit EncoderProportionalControllerDebug(EncoderProportionalController *epc) : epc(epc) {};
+  /**
+   * Outputs the encoder value (in units per second) and power of the managed motor.
+   *
+   * @param console Pointer to a console object
+   */
+  void OutputEncoderValues(libsc::LcdConsole *console) const {
+    std::string s = std::to_string(epc->last_encoder_val_) + " " + std::to_string(epc->motor_->GetPower()) + "\n";
+    console->WriteString(s.c_str());
+  }
+
+  // Setters
+  /**
+   * Manually sets the power of the motor. [0,1000]
+   *
+   * @note Motor power will be overriden when next @c DoCorrection() is called
+   *
+   * @param pwr Power of the motor
+   * @param is_clockwise True if the motor should be spinning clockwise
+   */
+  void SetMotorPower(uint16_t power, bool is_clockwise) {
+    epc->motor_->SetClockwise(is_clockwise);
+    epc->motor_->SetPower(power);
+  }
+
+  // Getters
+  /**
+   * @return The period of the last encoder execution.
+   */
+  inline libsc::Timer::TimerInt GetLastRunDuration() const { return epc->last_encoder_duration_; }
+  /**
+   * @return The encoder value in units per second
+   */
+  inline int32_t GetEncoderVal() const { return epc->last_encoder_val_; }
+
+ private:
+  std::unique_ptr<EncoderProportionalController> epc;
 };
 }  // namespace util

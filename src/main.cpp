@@ -5,8 +5,8 @@
  * Author: David Mak (Derppening)
  */
 
-#include <libbase/k60/mcg.h>
-#include <libsc/system.h>
+#include "libbase/k60/mcg.h"
+#include "libsc/system.h"
 
 namespace libbase {
 namespace k60 {

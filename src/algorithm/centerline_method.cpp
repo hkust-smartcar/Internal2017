@@ -5,16 +5,7 @@
  * Author: David Mak (Derppening)
  */
 
-#include "../../inc/algorithm/centerline_method.h"
-
-#include <libsc/alternate_motor.h>
-#include <libsc/futaba_s3010.h>
-#include <libsc/lcd.h>
-#include <libsc/led.h>
-#include <libsc/st7735r.h>
-#include <libsc/system.h>
-#include <libsc/tower_pro_mg995.h>
-#include <libsc/k60/ov7725.h>
+#include "algorithm/centerline_method.h"
 
 #include <algorithm>
 #include <cmath>
@@ -22,15 +13,17 @@
 #include <numeric>
 #include <string>
 
+#include "libsc/alternate_motor.h"
+#include "libsc/futaba_s3010.h"
+#include "libsc/lcd.h"
+#include "libsc/led.h"
+#include "libsc/st7735r.h"
+#include "libsc/system.h"
+#include "libsc/tower_pro_mg995.h"
+#include "libsc/k60/ov7725.h"
+
 #include "tuning_constants.h"
 #include "util/util.h"
-
-struct {
-  Uint track_count;    // Number of pixels of the track
-  Uint left_bound;    // Left boundary of the track
-  Uint right_bound;   // Right boundary of the track
-  Uint center_point;  // Index of the center point
-} RowInfo[kCameraHeight];
 
 using libsc::AlternateMotor;
 using libsc::FutabaS3010;
@@ -50,13 +43,21 @@ using util::CopyByteArray;
 using util::FindElement;
 using util::MedianFilter;
 
+namespace {
+struct {
+  Uint track_count;    // Number of pixels of the track
+  Uint left_bound;    // Left boundary of the track
+  Uint right_bound;   // Right boundary of the track
+  Uint center_point;  // Index of the center point
+} RowInfo[kCameraHeight];
+
 void CommitParameters(AlternateMotor *motor, FutabaS3010 *servo, uint16_t *steer_value, int32_t *target_degree,
-                      uint8_t *valid_count) {
+                      uint8_t valid_count) {
   // set the target degree
   if (*steer_value == 0) {
     // no valid data - use previous data
     *target_degree = servo->GetDegree();
-  } else if (*valid_count < kCameraMinSrcConfidence) {
+  } else if (valid_count < kCameraMinSrcConfidence) {
     // insufficient data - use previous data
     *target_degree = servo->GetDegree();
   } else if (*steer_value < (kCameraWidth * 9 / 20) || *steer_value > (kCameraWidth * 11 / 20)) {
@@ -90,6 +91,7 @@ void CommitParameters(AlternateMotor *motor, FutabaS3010 *servo, uint16_t *steer
   }
   servo->SetDegree(static_cast<uint16_t>(*target_degree));
 }
+}  // namespace
 
 void CenterLineMethod() {
   // initialize LEDs
@@ -155,18 +157,18 @@ void CenterLineMethod() {
       // copy the buffer for processing
       const Byte *pbuffer = camera->LockBuffer();
       Byte image1d[kBufferSize];
-      CopyByteArray(pbuffer, image1d, kBufferSize);
+      CopyByteArray(*pbuffer, image1d, kBufferSize);
       camera->UnlockBuffer();
 
       led2.SetEnable(true);
 
       // 1d to 2d array
       array<array<bool, kCameraWidth>, kCameraHeight> image2d;
-      ByteTo2DBitArray(pbuffer, &image2d);
+      ByteTo2DBitArray(*pbuffer, &image2d);
 
       // apply median filter
       array<array<bool, kCameraWidth>, kCameraHeight> image2d_median;
-      MedianFilter(&image2d, &image2d_median);
+      MedianFilter(image2d, &image2d_median);
 
       // fill in row information
       for (int rowIndex = kCameraHeight - 1; rowIndex >= 0; --rowIndex) {
@@ -245,7 +247,7 @@ void CenterLineMethod() {
         lcd->FillColor(Lcd::kBlack);
       }
 
-      CommitParameters(&motor, &servo, &steer_value, &target_degree, &valid_count);
+      CommitParameters(&motor, &servo, &steer_value, &target_degree, valid_count);
 
       // render target_degree relative to the image
       if (kEnableLcd) {

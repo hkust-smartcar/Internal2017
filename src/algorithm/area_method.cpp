@@ -5,11 +5,15 @@
  * Author: David Mak (Derppening)
  */
 
-#include "../../inc/algorithm/area_method.h"
+#include "algorithm/area_method.h"
 
-#include <libsc/system.h>
 #include <cstring>
+#include <memory>
 #include <string>
+
+#include "libsc/st7735r.h"
+#include "libsc/system.h"
+#include "libsc/k60/ov7725.h"
 
 #include "util/util.h"
 
@@ -26,6 +30,10 @@ void AreaMethod() {
   camera_config.w = 80;
   camera_config.h = 60;
   unique_ptr<Ov7725> camera(new Ov7725(camera_config));
+  constexpr Uint kBufferSize = 80 * 60 / 8;
+  if (kBufferSize != camera->GetBufferSize()) {
+    return;
+  }
   camera->Start();
   while (!camera->IsAvailable()) {}
 
@@ -37,16 +45,15 @@ void AreaMethod() {
 
   while (true) {
     const Byte *pBuffer = camera->LockBuffer();
-    const Uint kBufferSize = camera->GetBufferSize();
     Byte bufferArr[kBufferSize];
     bool image1d[kBufferSize * 8];
-    util::CopyByteArray(pBuffer, bufferArr, kBufferSize);
+    util::CopyByteArray(*pBuffer, bufferArr, kBufferSize);
 
     // unlock the buffer now that we have the data
     camera->UnlockBuffer();
 
     // 1d to 1d array
-    util::ByteTo1DBitArray(bufferArr, image1d, kBufferSize);
+    util::ByteTo1DBitArray(*bufferArr, image1d, kBufferSize);
 
     uint16_t leftCount = 0;
     uint16_t rightCount = 0;

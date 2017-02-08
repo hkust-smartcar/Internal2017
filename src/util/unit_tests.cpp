@@ -7,15 +7,15 @@
 
 #include "util/unit_tests.h"
 
-#include <libsc/alternate_motor.h>
-#include <libsc/dir_motor.h>
-#include <libsc/futaba_s3010.h>
-#include <libsc/led.h>
-#include <libsc/st7735r.h>
-#include <libsc/system.h>
-#include <libsc/k60/ov7725.h>
-
 #include <memory>
+
+#include "libsc/alternate_motor.h"
+#include "libsc/dir_motor.h"
+#include "libsc/futaba_s3010.h"
+#include "libsc/led.h"
+#include "libsc/st7735r.h"
+#include "libsc/system.h"
+#include "libsc/k60/ov7725.h"
 
 using libsc::AlternateMotor;
 using libsc::DirMotor;
@@ -66,6 +66,8 @@ void LcdTest() {
     lcd->SetRegion(Lcd::Rect(0, 80, 128, 80));
     lcd->FillColor(Lcd::kBlack);
   }
+
+  lcd.reset(nullptr);
 }
 
 void CameraTest() {
@@ -76,6 +78,10 @@ void CameraTest() {
   camera_config.h = 60;  // downscale the height to 60
   unique_ptr<Ov7725> camera(new Ov7725(camera_config));
   camera->Start();
+  constexpr Uint kBufferSize = 80 * 60 / 8;
+  if (kBufferSize != camera->GetBufferSize()) {
+    return;
+  }
 
   // initialize LCD
   St7735r::Config lcd_config;
@@ -83,8 +89,6 @@ void CameraTest() {
   unique_ptr<St7735r> lcd(new St7735r(lcd_config));
 
   while (!camera->IsAvailable()) {}
-
-  const Uint kBufferSize = camera->GetBufferSize();  // size of camera buffer
 
   while (true) {
     const Byte *pBuffer = camera->LockBuffer();
@@ -98,6 +102,9 @@ void CameraTest() {
     lcd->FillBits(Lcd::kBlack, Lcd::kWhite, bufferArr, kBufferSize * 8);
   }
 
+  camera->Stop();
+  camera.reset(nullptr);
+  lcd.reset(nullptr);
 }
 
 void ServoTest() {

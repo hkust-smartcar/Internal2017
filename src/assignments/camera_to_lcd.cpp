@@ -5,13 +5,13 @@
  * Author: David Mak (Derppening)
  */
 
-#include "../../inc/assignments/camera_to_lcd.h"
+#include "assignments/camera_to_lcd.h"
 
-#include <libbase/k60/mcg.h>
-#include <libsc/led.h>
-#include <libsc/st7735r.h>
-#include <libsc/system.h>
-#include <libsc/k60/ov7725.h>
+#include "libbase/k60/mcg.h"
+#include "libsc/led.h"
+#include "libsc/st7735r.h"
+#include "libsc/system.h"
+#include "libsc/k60/ov7725.h"
 
 using libsc::Lcd;
 using libsc::Led;

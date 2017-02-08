@@ -5,9 +5,6 @@
 
 #pragma once
 
-#include <libsc/k60/ov7725.h>
-#include <libsc/st7735r.h>
-
 /**
  * 2017 Smartcar Internal - Area Difference Method
  *
