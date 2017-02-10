@@ -222,14 +222,14 @@ class EncoderProportionalControllerDebug final {
    *
    * @param epc Pointer to the @c EncoderProportionalController object.
    */
-  explicit EncoderProportionalControllerDebug(EncoderProportionalController *epc) : epc(epc) {};
+  explicit EncoderProportionalControllerDebug(EncoderProportionalController *epc) : epc_(epc) {};
   /**
    * Outputs the encoder value (in units per second) and power of the managed motor.
    *
    * @param console Pointer to a console object
    */
   void OutputEncoderValues(libsc::LcdConsole *console) const {
-    std::string s = std::to_string(epc->last_encoder_val_) + " " + std::to_string(epc->motor_->GetPower()) + "\n";
+    std::string s = std::to_string(epc_->last_encoder_val_) + " " + std::to_string(epc_->motor_->GetPower()) + "\n";
     console->WriteString(s.c_str());
   }
 
@@ -243,21 +243,21 @@ class EncoderProportionalControllerDebug final {
    * @param is_clockwise True if the motor should be spinning clockwise
    */
   void SetMotorPower(uint16_t power, bool is_clockwise) {
-    epc->motor_->SetClockwise(is_clockwise);
-    epc->motor_->SetPower(power);
+    epc_->motor_->SetClockwise(is_clockwise);
+    epc_->motor_->SetPower(power);
   }
 
   // Getters
   /**
    * @return The period of the last encoder execution.
    */
-  inline libsc::Timer::TimerInt GetLastRunDuration() const { return epc->last_encoder_duration_; }
+  inline libsc::Timer::TimerInt GetLastRunDuration() const { return epc_->last_encoder_duration_; }
   /**
    * @return The encoder value in units per second
    */
-  inline int32_t GetEncoderVal() const { return epc->last_encoder_val_; }
+  inline int32_t GetEncoderVal() const { return epc_->last_encoder_val_; }
 
  private:
-  std::unique_ptr<EncoderProportionalController> epc;
+  std::unique_ptr<EncoderProportionalController> epc_;
 };
 }  // namespace util

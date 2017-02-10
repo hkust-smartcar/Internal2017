@@ -5,7 +5,7 @@ include(CMakeForceCompiler)
 
 # specific what we're working with
 # valid options: david_desktop, david_laptop, xanthe
-set(COMPILE_ENV david_desktop)
+set(COMPILE_ENV david_laptop)
 
 # specify the cross compiler
 set(TOOLCHAIN_PREFIX arm-none-eabi-)
@@ -124,6 +124,9 @@ add_custom_target(2016_MAGNETIC_YANG_make
 add_custom_target(2017_INNO_make
         COMMAND ${MAKE_PATH} ${MAKE_ARGS} ${MAKE_VARS} SCCC_CONFIG=2017_INNO all
         WORKING_DIRECTORY ${Internal2017_SOURCE_DIR})
+add_custom_target(2017_CHASING_make
+        COMMAND ${MAKE_PATH} ${MAKE_ARGS} ${MAKE_VARS} SCCC_CONFIG=2017_CHASING all
+        WORKING_DIRECTORY ${Internal2017_SOURCE_DIR})
 
 # cleaners
 add_custom_target(clean_only
@@ -188,6 +191,9 @@ add_custom_target(2016_MAGNETIC_YANG_clean
         WORKING_DIRECTORY ${Internal2017_SOURCE_DIR})
 add_custom_target(2017_INNO_clean
         COMMAND ${MAKE_PATH} ${MAKE_ARGS} ${MAKE_VARS} SCCC_CONFIG=2017_INNO clean
+        WORKING_DIRECTORY ${Internal2017_SOURCE_DIR})
+add_custom_target(2017_CHASING_clean
+        COMMAND ${MAKE_PATH} ${MAKE_ARGS} ${MAKE_VARS} SCCC_CONFIG=2017_CHASING clean
         WORKING_DIRECTORY ${Internal2017_SOURCE_DIR})
 
 # configuration enabling all resolutions
