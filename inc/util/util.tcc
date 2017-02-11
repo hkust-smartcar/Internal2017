@@ -20,7 +20,7 @@ void ByteTo1DBitArray(const Byte &src, std::array<bool, size> *dest) {
 
 template<size_t width, size_t height>
 void ByteTo2DBitArray(const Byte &src, std::array<std::array<bool, width>, height> *dest) {
-  for (Uint i = 0; i < width * height; ++i) {
+  for (Uint i = 0; i < width * height / 8; ++i) {
     std::string s = std::bitset<8>((&src)[i]).to_string();
     for (uint8_t j = 0; j < 8; ++j) {
       dest->at(i * 8 / width).at((i * 8 % width) + j) = static_cast<Uint>(s.at(j) - '0') == 1;
