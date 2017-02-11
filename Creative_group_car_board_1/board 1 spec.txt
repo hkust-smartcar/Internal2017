@@ -1,0 +1,21 @@
+Creative Car Board Spec:
+-------------------------------------------------------
+Bluetooth port		1
+Button			2 + 1 reset
+Buzzer			1
+Camera port		1 -> 0
+CCD port			0 -> 2
+Encoder port		2 -> 1
+LCD port			1
+LED (exclude power on [D5])	4 -> 2
+LED + IR LED port		0 -> 2
+JTAG port		1
+IMU port			2 -> 1
+Motor driver		1 in + 1 out
+Motor H-bridge		1
+Pin: 3.3v			3
+Pin: 5v			4 -> 3
+Pin: GND			3
+Servo			1
+-------------------------------------------------------
+To be added: compass
