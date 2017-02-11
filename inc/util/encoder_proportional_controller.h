@@ -50,9 +50,6 @@ class EncoderProportionalController {
     UpdateEncoder();
   }
 
-  // Disable copy constructor
-  EncoderProportionalController &operator=(const EncoderProportionalController &) = delete;
-
   ~EncoderProportionalController() {
     encoder_.reset();
     motor_.reset();
@@ -228,8 +225,17 @@ class EncoderProportionalControllerDebug final {
    *
    * @param console Pointer to a console object
    */
-  void OutputEncoderValues(libsc::LcdConsole *console) const {
+  void OutputEncoderMotorValues(libsc::LcdConsole *console) const {
     std::string s = std::to_string(epc_->last_encoder_val_) + " " + std::to_string(epc_->motor_->GetPower()) + "\n";
+    console->WriteString(s.c_str());
+  }
+  /**
+   * Outputs the previous encoder duration and value.
+   *
+   * @param console Pointer to a console object
+   */
+  void OutputLastEncoderValues(libsc::LcdConsole *console) const {
+    std::string s = std::to_string(epc_->last_encoder_duration_) + " " + std::to_string(epc_->last_encoder_val_) + "\n";
     console->WriteString(s.c_str());
   }
 

@@ -9,6 +9,7 @@
 
 #include "libbase/misc_utils.h"
 
+namespace calibration {
 // camera calibration constants
 /**
  * Maximum camera row index that the camera will use to determine the center
@@ -88,3 +89,4 @@ constexpr Uint kBufferSize = kCameraWidth * kCameraHeight / 8;
  * or compute using left and right bounds.
  */
 constexpr uint16_t kServoCenter = 900;
+}
