@@ -18,7 +18,7 @@ namespace util {
 /**
  * Framework for a one-motor speed setting and correction system using encoders.
  */
-class EncoderProportionalController {
+class EncoderPController {
  public:
   /**
    * Constructor accepting an already-created encoder object.
@@ -26,7 +26,7 @@ class EncoderProportionalController {
    * @param e Pointer to an encoder object
    * @param m Pointer to an AlternateMotor object
    */
-  explicit EncoderProportionalController(libsc::DirEncoder *e, libsc::AlternateMotor *m)
+  explicit EncoderPController(libsc::DirEncoder *e, libsc::AlternateMotor *m)
       : motor_(m), encoder_(e) {
     motor_->SetPower(0);
     UpdateEncoder();
@@ -41,7 +41,7 @@ class EncoderProportionalController {
    * @param id ID of the encoder.
    * @param m Pointer to an AlternateMotor object
    */
-  EncoderProportionalController(const uint8_t &id, libsc::AlternateMotor *m)
+  EncoderPController(const uint8_t &id, libsc::AlternateMotor *m)
       : motor_(m) {
     libsc::Encoder::Config e_config;
     e_config.id = id;
@@ -50,7 +50,7 @@ class EncoderProportionalController {
     UpdateEncoder();
   }
 
-  ~EncoderProportionalController() {
+  ~EncoderPController() {
     encoder_.reset();
     motor_.reset();
   }
@@ -204,14 +204,14 @@ class EncoderProportionalController {
   std::shared_ptr<libsc::AlternateMotor> motor_;
   std::shared_ptr<libsc::DirEncoder> encoder_;
 
-  friend class EncoderProportionalControllerDebug;
+  friend class EncoderPControllerDebug;
 };
 
 /**
  * Debug class for @c EncoderProportionalController. Provides access to private variables for
  * debugging purposes.
  */
-class EncoderProportionalControllerDebug final {
+class EncoderPControllerDebug final {
  public:
   /**
    * Constructor which accepts an already-created @c EncoderProportionalController
@@ -219,7 +219,7 @@ class EncoderProportionalControllerDebug final {
    *
    * @param epc Pointer to the @c EncoderProportionalController object.
    */
-  explicit EncoderProportionalControllerDebug(EncoderProportionalController *epc) : epc_(epc) {};
+  explicit EncoderPControllerDebug(EncoderPController *epc) : epc_(epc) {};
   /**
    * Outputs the encoder value (in units per second) and power of the managed motor.
    *
@@ -264,6 +264,6 @@ class EncoderProportionalControllerDebug final {
   inline int32_t GetEncoderVal() const { return epc_->last_encoder_val_; }
 
  private:
-  std::unique_ptr<EncoderProportionalController> epc_;
+  std::unique_ptr<EncoderPController> epc_;
 };
 }  // namespace util

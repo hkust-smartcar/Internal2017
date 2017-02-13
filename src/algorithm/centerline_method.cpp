@@ -43,8 +43,8 @@ using std::string;
 using std::unique_ptr;
 using util::ByteTo2DBitArray;
 using util::CopyByteArray;
-using util::EncoderProportionalController;
-using util::EncoderProportionalControllerDebug;
+using util::EncoderPController;
+using util::EncoderPControllerDebug;
 using util::FindElement;
 using util::MedianFilter;
 
@@ -54,11 +54,11 @@ struct {
   Uint left_bound;    // Left boundary of the track
   Uint right_bound;   // Right boundary of the track
   Uint center_point;  // Index of the center point
-} RowInfo[calibration::kCameraHeight];
+} RowInfo[tuning::kCameraHeight];
 
 void CommitParameters(AlternateMotor *motor, FutabaS3010 *servo, uint16_t *steer_value, int32_t *target_degree,
                       uint8_t valid_count) {
-  using namespace calibration;
+  using namespace tuning;
 
   // set the target degree
   if (*steer_value == 0) {
@@ -69,13 +69,13 @@ void CommitParameters(AlternateMotor *motor, FutabaS3010 *servo, uint16_t *steer
     *target_degree = servo->GetDegree();
   } else if (*steer_value < (kCameraWidth * 9 / 20) || *steer_value > (kCameraWidth * 11 / 20)) {
     // edge 90% for either side - steep steering
-    *target_degree = kServoCenter - ((*steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityHigh);
+    *target_degree = kServoCenter - ((*steer_value - (kCameraWidth / 2)) * ServoFactor::kFactorHigh);
   } else if (*steer_value < (kCameraWidth * 8 / 20) || *steer_value > (kCameraHeight * 12 / 20)) {
     // middle 10% for either side - medium steering
-    *target_degree = kServoCenter - ((*steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityMid);
+    *target_degree = kServoCenter - ((*steer_value - (kCameraWidth / 2)) * ServoFactor::kFactorMid);
   } else {
     // center 10% for either side - adjustment
-    *target_degree = kServoCenter - ((*steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityLow);
+    *target_degree = kServoCenter - ((*steer_value - (kCameraWidth / 2)) * ServoFactor::kFactorLow);
   }
 
   // commit motor and servo changes
@@ -87,10 +87,10 @@ void CommitParameters(AlternateMotor *motor, FutabaS3010 *servo, uint16_t *steer
     // value < right bound: higher speed for compensation
     *target_degree = kServoRightBound;
     motor->SetPower(MotorSpeed::kSpeedMid);
-  } else if (*target_degree < (kServoRightBound - kServoCenter) / 3) {
+  } else if (*target_degree < (kServoCenter + kServoRightBound) / 2) {
     // value < half of right steer: slower speed to decrease turning radius
     motor->SetPower(MotorSpeed::kSpeedLow);
-  } else if (*target_degree > (kServoCenter - kServoLeftBound) / 3) {
+  } else if (*target_degree > (kServoCenter + kServoLeftBound) / 2) {
     // value > half of left steer: slower speed to decrease turning radius
     motor->SetPower(MotorSpeed::kSpeedLow);
   } else {
@@ -101,7 +101,7 @@ void CommitParameters(AlternateMotor *motor, FutabaS3010 *servo, uint16_t *steer
 }  // namespace
 
 void CenterLineMethod() {
-  using namespace calibration;
+  using namespace tuning;
 
   // initialize LEDs
   Led::Config led_config;
@@ -268,14 +268,16 @@ void CenterLineMethod() {
 }
 
 void CenterLineMethodTest() {
-  using calibration::kBufferSize;
-  using calibration::kCameraHeight;
-  using calibration::kCameraMaxSrcHeight;
-  using calibration::kCameraMinSrcConfidence;
-  using calibration::kCameraMinPixelCount;
-  using calibration::kCameraWidth;
-  using calibration::ServoSensitivity;
+  // import constants from tuning_constants.h
+  using tuning::kBufferSize;
+  using tuning::kCameraHeight;
+  using tuning::kCameraMaxSrcHeight;
+  using tuning::kCameraMinSrcConfidence;
+  using tuning::kCameraMinPixelCount;
+  using tuning::kCameraWidth;
+  using tuning::ServoFactor;
 
+  // define new parameters for Leslie's car
   enum EncoderSpeed {
     kSpeedLow = 4500,
     kSpeedMid = 5000,
@@ -284,6 +286,7 @@ void CenterLineMethodTest() {
   constexpr int kServoCenter = 665;
   constexpr int kServoLeftBound = 900;
   constexpr int kServoRightBound = 430;
+  constexpr bool kEnableLcd = false;
 
   // initialize LEDs
   Led::Config led_config;
@@ -337,16 +340,16 @@ void CenterLineMethodTest() {
   unique_ptr<St7735r> lcd(new St7735r(lcd_config));
   lcd->Clear();
 
-  // initialize encoder
-  unique_ptr<EncoderProportionalController> epc1(new EncoderProportionalController((uint8_t) 0, &motor1));
-  unique_ptr<EncoderProportionalController> epc2(new EncoderProportionalController((uint8_t) 1, &motor2));
-
-  unique_ptr<EncoderProportionalControllerDebug> epc1_d(new EncoderProportionalControllerDebug(epc1.get()));
-  unique_ptr<EncoderProportionalControllerDebug> epc2_d(new EncoderProportionalControllerDebug(epc2.get()));
-
+  // initialize lcd console
   LcdConsole::Config console_config;
   console_config.lcd = lcd.get();
   unique_ptr<LcdConsole> console(new LcdConsole(console_config));
+
+  // initialize encoder
+  unique_ptr<EncoderPController> epc1(new EncoderPController((uint8_t) 0, &motor1));
+  unique_ptr<EncoderPController> epc2(new EncoderPController((uint8_t) 1, &motor2));
+  unique_ptr<EncoderPControllerDebug> epc1_d(new EncoderPControllerDebug(epc1.get()));
+  unique_ptr<EncoderPControllerDebug> epc2_d(new EncoderPControllerDebug(epc2.get()));
 
   Timer::TimerInt time_img = System::Time();  // current execution time
   uint16_t steer_value = kCameraWidth / 2;
@@ -413,22 +416,24 @@ void CenterLineMethodTest() {
       led2.SetEnable(false);
 
       // render center line on lcd
-      /*lcd->SetRegion(Lcd::Rect(0, 0, kCameraWidth, kCameraHeight));
-      lcd->FillColor(Lcd::kWhite);
-      // lcd->FillBits(Lcd::kBlack, Lcd::kWhite, image1d,  kBufferSize * 8);
-      for (Uint i = kCameraHeight - 1; i > 0; --i) {
-        if (RowInfo[i].track_count < kCameraMinPixelCount) {
-          break;
+      if (kEnableLcd) {
+        lcd->SetRegion(Lcd::Rect(0, 0, kCameraWidth, kCameraHeight));
+        lcd->FillColor(Lcd::kWhite);
+        // lcd->FillBits(Lcd::kBlack, Lcd::kWhite, image1d,  kBufferSize * 8);
+        for (Uint i = kCameraHeight - 1; i > 0; --i) {
+          if (RowInfo[i].track_count < kCameraMinPixelCount) {
+            break;
+          }
+          lcd->SetRegion(Lcd::Rect(RowInfo[i].center_point, i, 1, 1));
+          lcd->FillColor(Lcd::kRed);
+          lcd->SetRegion(Lcd::Rect(RowInfo[i].left_bound, i, 1, 1));
+          lcd->FillColor(Lcd::kBlack);
+          lcd->SetRegion(Lcd::Rect(RowInfo[i].right_bound, i, 1, 1));
+          lcd->FillColor(Lcd::kBlack);
         }
-        lcd->SetRegion(Lcd::Rect(RowInfo[i].center_point, i, 1, 1));
-        lcd->FillColor(Lcd::kRed);
-        lcd->SetRegion(Lcd::Rect(RowInfo[i].left_bound, i, 1, 1));
-        lcd->FillColor(Lcd::kBlack);
-        lcd->SetRegion(Lcd::Rect(RowInfo[i].right_bound, i, 1, 1));
+        lcd->SetRegion(Lcd::Rect(steer_value, 79, 1, 40));
         lcd->FillColor(Lcd::kBlack);
       }
-      lcd->SetRegion(Lcd::Rect(steer_value, 79, 1, 40));
-      lcd->FillColor(Lcd::kBlack);*/
 
       // average the center points to construct an average direction to move in
       uint8_t valid_count = 0;
@@ -455,13 +460,13 @@ void CenterLineMethodTest() {
         target_degree = servo.GetDegree();
       } else if (steer_value < (kCameraWidth * 6 / 20) || steer_value > (kCameraWidth * 14 / 20)) {
         // edge 90% for either side - steep steering
-        target_degree = kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityHigh);
+        target_degree = kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoFactor::kFactorHigh);
       } else if (steer_value < (kCameraWidth * 8 / 20) || steer_value > (kCameraWidth * 12 / 20)) {
         // middle 10% for either side - medium steering
-        target_degree = kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityMid);
+        target_degree = kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoFactor::kFactorMid);
       } else {
         // center 10% for either side - adjustment
-        target_degree = kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoSensitivity::kSensitivityLow);
+        target_degree = kServoCenter - ((steer_value - (kCameraWidth / 2)) * ServoFactor::kFactorLow);
       }
 
       // commit motor and servo changes

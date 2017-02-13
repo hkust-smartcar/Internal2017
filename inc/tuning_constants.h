@@ -9,7 +9,7 @@
 
 #include "libbase/misc_utils.h"
 
-namespace calibration {
+namespace tuning {
 // camera calibration constants
 /**
  * Maximum camera row index that the camera will use to determine the center
@@ -47,10 +47,10 @@ constexpr int kServoRightBound = 550;
  * Current implementation uses these values to reduce zig-zag patterns on
  * straight lines, and increase steering sensitivity on corners.
  */
-enum ServoSensitivity {
-  kSensitivityLow = 5,
-  kSensitivityMid = 15,
-  kSensitivityHigh = 30,
+enum ServoFactor {
+  kFactorLow = 5,
+  kFactorMid = 15,
+  kFactorHigh = 30,
 };
 
 // motor calibration constants
@@ -89,4 +89,4 @@ constexpr Uint kBufferSize = kCameraWidth * kCameraHeight / 8;
  * or compute using left and right bounds.
  */
 constexpr uint16_t kServoCenter = 900;
-}
+}  // namespace tuning

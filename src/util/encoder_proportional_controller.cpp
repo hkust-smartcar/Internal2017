@@ -12,7 +12,7 @@ using libsc::System;
 using libsc::Timer;
 
 namespace util {
-void EncoderProportionalController::DoCorrection() {
+void EncoderPController::DoCorrection() {
   // cleanup from previous cycle if it is out of range
   // [kMotorLowerBound,kMotorUpperBound]
   if (motor_->GetPower() > kMotorUpperBound) {
