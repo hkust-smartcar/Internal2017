@@ -8,7 +8,6 @@
 #pragma once
 
 namespace util {
-
 /**
  * Tests the camera of the mainboard
  *
@@ -50,5 +49,22 @@ void ServoTest();
  * @note Motor will be initialized within the function.
  */
 void AltMotorTest();
-
+/**
+ * Tests the direct-encoder of the mainboard
+ *
+ * Turns on both alternate motors on at 10%, and displays raw encoder values
+ * every ~100ms.
+ *
+ * @note Motor, encoder and LCD will be initialized within the function.
+ */
+void DirEncoderTest();
+/**
+ * Tests the EncoderPController class
+ *
+ * Turns on both alternate motors, keep the motor running at 4500 val/sec,
+ * and displays the encoder value (in val/sec) and motor power on the LCD.
+ *
+ * @note Motor, encoder, and LCD will be initialized within the function.
+ */
+void EncoderPControllerTest();
 }  // namespace util
