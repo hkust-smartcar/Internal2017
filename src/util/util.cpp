@@ -27,4 +27,25 @@ void ByteTo1DBitArray(const Byte &byte_arr, bool *bit_arr, const size_t size) {
     }
   }
 }
+
+float CalcLinearRegressionSlope(const int *x, const int *y, size_t size) {
+  int lhs_matrix[2][2] = {{0, 0}, {0, 0}};
+  int rhs_matrix[2] = {0, 0};
+
+  // least squares method approximation
+  for (unsigned int i = 0; i < size; ++i) {
+    lhs_matrix[0][0] += (x[i] * x[i]);
+    lhs_matrix[0][1] += x[i];
+    lhs_matrix[1][0] += x[i];
+    lhs_matrix[1][1] += 1;
+    rhs_matrix[0] += (x[i] * y[i]);
+    rhs_matrix[1] += y[i];
+  }
+
+  // cramer's rule
+  float det = lhs_matrix[0][0] * lhs_matrix[1][1] - lhs_matrix[1][0] * lhs_matrix[0][1];
+  float m = (rhs_matrix[0] * lhs_matrix[1][1] - lhs_matrix[0][1] * rhs_matrix[1]) / det;
+
+  return det != 0 ? m : std::numeric_limits<float>::infinity();
+}
 }  // namespace util

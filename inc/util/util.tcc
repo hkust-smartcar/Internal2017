@@ -165,4 +165,26 @@ int FindElement(const std::array<T, size> &arr, int first, int last, T value, bo
   }
   return return_last ? last : -1;
 }
+
+template<size_t size>
+float CalcLinearRegressionSlope(const std::array<int, size> &x, const std::array<int, size> &y) {
+  std::array<std::array<int, 2>, 2> lhs_matrix{{{0, 0}, {0, 0}}};
+  std::array<int, 2> rhs_matrix{{0, 0}};
+
+  // least squares method approximation
+  for (unsigned int i = 0; i < size; ++i) {
+    lhs_matrix.at(0).at(0) += (x.at(i) * x.at(i));
+    lhs_matrix.at(0).at(1) += x.at(i);
+    lhs_matrix.at(1).at(0) += x.at(i);
+    lhs_matrix.at(1).at(1) += 1;
+    rhs_matrix.at(0) += (x.at(i) * y.at(i));
+    rhs_matrix.at(1) += y.at(i);
+  }
+
+  // cramer's rule
+  float det = (lhs_matrix.at(0).at(0) * lhs_matrix.at(1).at(1)) - (lhs_matrix.at(1).at(0) * lhs_matrix.at(0).at(1));
+  float m = ((rhs_matrix.at(0) * lhs_matrix.at(1).at(1)) - (lhs_matrix.at(0).at(1) * rhs_matrix.at(1))) / det;
+
+  return det != 0 ? m : std::numeric_limits<float>::infinity();
+}
 }  // namespace util
