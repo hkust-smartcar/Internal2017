@@ -365,7 +365,7 @@ void checkOver() {
   } else if (overCircle(modeButtonX, modeButtonY, diameter)) {
     modeButtonOver = true;
   } else {
-    leftOver = middleOver = rightOver = false;
+    leftOver = middleOver = rightOver = modeButtonOver = false;
   }
 }
 
