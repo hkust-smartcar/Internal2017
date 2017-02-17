@@ -1,7 +1,7 @@
 /*
  * main.cpp
  *
- * Author: Dipsy
+ * Author: Gordon
  * Copyright (c) 2014-2017 HKUST SmartCar Team
  * Refer to LICENSE for details
  */
@@ -62,6 +62,7 @@ bool get_bit(const Byte* buff, int x, int y){
 void find_vanish(const Byte* buff);
 bool get_fixedbit(const Byte* buff, int, int, int);
 int16_t vanish_x=0,vanish_y=0;
+int yL=0,yR=0;
 
 
 int max(int a,int b){return (a>b?a:b);}
@@ -77,6 +78,7 @@ int servo_target=900, servo_pos=900, motor_target = 200, motor_speed = 200;
 bool map[HEIGHT][WIDTH];
 
 int main(void)
+
 {
    	System::Init();
 
@@ -183,8 +185,9 @@ int main(void)
 				int start = System::Time();
 				analysis(cam->LockBuffer());
 				int end = System::Time();
-				char c[20];
-				sprintf(c,"t:%d",end-start);
+				char c[200];
+				sprintf(c,"vx:%d",vanish_x);//t:%d
+				//lcd->SetRegion(Lcd::Rect(0,150,200,15));
 				writer.WriteString(c);
 				//to2D(cam->LockBuffer());
 				//char buff[50];
@@ -241,7 +244,7 @@ void analysis(const Byte* buff){
 	for (int i=0 ; i<HEIGHT; i++){
 		for (int j=0 ; j<WIDTH; j++){
 			buff2[i*WIDTH/8+j/8]<<=1;
-			buff2[i*WIDTH/8+j/8]+=get_fixedbit(buff,0,j,i);
+			buff2[i*WIDTH/8+j/8]+=get_fixedbit(buff,max(yL,yR),j,i);
 			//Lcd::Rect r(i,j,1,1);
 			//lcd->SetRegion(r);
 			//lcd->FillColor((get_bit(buff,i,j)?0x0000:0xFFFF));
@@ -266,6 +269,8 @@ void find_vanish(const Byte* buff){
 	while(get_bit(buff,--c,0)!=WHITE);
 	while(get_bit(buff,WIDTH-1,d--)==WHITE);
 	//printf("a,b,c,d : %d,%d,%d,%d\n", a,b,c,d);
+
+	yL=a;yR=d;
 	const int A=a,B=b,C=a*b,D=d,E=c-WIDTH+1,F=c*d;
 	int det = A*E-B*D;
 	vanish_x = -(B*F-C*E)/det;
@@ -344,258 +349,3 @@ bool median_filter(int i, int j){
 	}
 	return sum*10/count<=5;
 }
-
-
-/*
-#include <cassert>
-#include <cstring>
-#include <libbase/k60/mcg.h>
-#include <libsc/system.h>
-#include <libsc/led.h>
-#include <libsc/button.h>
-#include <libbase/k60/gpio.h>
-#include <libbase/k60/pin.h>
-#include <libsc/st7735r.h>
-#include <libsc/k60/ov7725.h>
-#include <libsc/lcd.h>
-#include <libsc/servo.h>
-#include <libsc/alternate_motor.h>
-#include <libsc/motor.h>
-#include <libsc/lcd_console.h>
-//#include <algorithm>
-
-#define WIDTH 80
-#define HEIGHT 60
-#define AREA_KP 2		//for servo turn
-#define BL_KP 10		//for speed by black line
-
-namespace libbase
-{
-	namespace k60
-	{
-
-		Mcg::Config Mcg::GetMcgConfig()
-		{
-			Mcg::Config config;
-			config.external_oscillator_khz = 50000;
-			config.core_clock_khz = 150000;
-			return config;
-		}
-
-	}
-}
-
-using namespace libsc;
-using namespace libbase::k60;
-
-
-
-void to2D(const Byte* buff);
-void areaAnalysis();
-bool median_filter(int,int);
-int max(int a,int b){return (a>b?a:b);}
-int min(int a,int b){return (a<b?a:b);}
-int abs(int a){return (a>0?a:-a);}
-
-
-
-k60::Ov7725* cam;
-St7735r* lcd;
-AlternateMotor* motor;
-Servo* servo;
-
-int servo_target=900, servo_pos=900;
-int blackLineSum = 0;
-
-bool map[HEIGHT][WIDTH];
-
-int time_next = 0;
-
-int main(void)
-{
-	System::Init();
-
-	//init LED
-	Led::Config config;
-	config.id=0;
-	Led led1(config);
-	config.id=1;
-	Led led2(config);
-	config.id=2;
-	Led led3(config);
-	config.id=3;
-	Led led4(config);
-
-	led1.SetEnable(true);
-	led2.SetEnable(false);
-	led3.SetEnable(false);
-	led4.SetEnable(true);
-
-
-	//init MOTOR
-	AlternateMotor::Config motor_config;
-	motor_config.id=1;
-	AlternateMotor motor1(motor_config);
-	motor = &motor1;
-
-	motor->SetPower(200);
-
-
-	//init servo
-	Servo::Config servo_config;
-	servo_config.id=0;
-	servo_config.period=40000;
-	servo_config.min_pos_width=915;
-	servo_config.max_pos_width=2100;
-	Servo servo1(servo_config);
-	servo = &servo1;
-
-	servo->SetDegree(900);
-
-
-	//init LCD
-	St7735r::Config lcd_config;
-	St7735r lcd1(lcd_config);
-	lcd = &lcd1;
-
-	Lcd::Rect r(0,0,WIDTH,HEIGHT);
-	lcd->SetRegion(r);
-
-	uint32_t time_img=0;
-
-	//LcdConsole::Config console_config;
-	//console_config.lcd=&lcd1;
-	//LcdConsole console(console_config);
-
-
-	//init camera
-	k60::Ov7725::Config cam_config;
-	cam_config.id=0;
-	cam_config.w=WIDTH;
-	cam_config.h=HEIGHT;
-	cam_config.fps = k60::Ov7725::Config::Fps::kHigh;
-	k60::Ov7725 cam1(cam_config);
-	cam = &cam1;
-
-	cam->Start();
-
-
-	while(true){
-
-		if (System::Time()%250==0){
-			led1.Switch();
-		    led2.Switch();
-		    led3.Switch();
-		    led4.Switch();
-		}
-
-		if (cam->IsAvailable()&&System::Time()%20){
-			to2D(cam->LockBuffer());
-			areaAnalysis();
-		}
-
-		if (System::Time()!=time_img){
-			time_img=System::Time();
-
-			if (time_img==0){
-				//console.Clear(true);
-				//console.WriteChar(System::Time()/1000%10+48);
-			}
-
-
-		}
-
-		if (System::Time()%10==0){
-			//update servo position
-			if (servo_pos!=servo_target){
-				//servo_pos+=(servo_target-servo_pos)/10;
-				servo_pos = servo_target;
-				servo->SetDegree(servo_pos);
-				//motor->SetPower(100+(100*(900-abs(servo_target-900)))/900-min(BL_KP*blackLineSum,200));
-			}
-		}
-
-		//System::DelayMs(250);
-	}
-
-	return 0;
-}
-
-//convert camera buffer to 2D array
-void to2D(const Byte* buff){
-	cam->UnlockBuffer();
-	//lcd->FillBits(0x0000,0xFFFF,buff,cam->GetBufferSize()*8);
-	cam->Stop();
-	cam->Start();
-
-	int count=0;
-	Byte mask=0;
-
-	//thanks Leslie's help
-	for (int i=0; i<HEIGHT; i++){
-		for (int j=0; j<WIDTH; j+=8){
-			mask=0x40;
-			for(int k=0; k<8; k++){
-				map[i][j+k] = buff[count]&mask;
-
-
-				mask>>=1;
-			}
-
-			count++;
-		}
-	}
-}
-
-void areaAnalysis(){
-	int left=0,right=0;
-	blackLineSum=0;
-
-	for (int i=0; i<HEIGHT; i++){
-		bool wholeBlack = true;			//flag to decide whether to see whole line is black
-		for (int j=0; j<WIDTH; j++){
-			for(int k=0; k<8; k++){
-				if (!map[i][j]){//black
-					if (true){
-						if(j<WIDTH/2){
-							left+=1;//median_filter(i,j);
-						}else{
-							right+=1;//median_filter(i,j);
-						}
-					}
-
-				}
-				else{//white
-					if (wholeBlack){
-						if (median_filter(i,j+k)) //after filter still white
-							wholeBlack=false;			  //stop seeing pixel if white, this is not whole black
-					}
-				}
-
-			}
-		}
-
-		if (wholeBlack)
-			blackLineSum++;
-	}
-	int delta = AREA_KP*(right-left);
-	delta = ((delta>900?900:delta)<-900?-900:delta);
-	servo_target=900+delta;
-}
-
-
-bool median_filter(int i, int j){
-	int sum=0,count=0;
-
-	//sum up the boolean around (x,y)
-	for (int a = -1; a<=1; a++){
-		for (int b= -1; b<=1; b++){
-			if (i+a>=0&&i+a<HEIGHT&&j+b>=0&&j+b<WIDTH){ //make sure the index is within range of map
-				sum+=map[i+a][j+b];
-				count++;
-			}
-		}
-	}
-	return sum*10/count>5;
-}
-*/
