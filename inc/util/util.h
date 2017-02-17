@@ -67,6 +67,27 @@ void MedianFilter(const std::array<std::array<bool, width>, height> &src,
                   std::array<std::array<bool, width>, height> *dest);
 
 /**
+ * Calculates the slope of the linear regression line from a given set of points.
+ *
+ * @tparam size Size of the arrays
+ * @param x Array of x values
+ * @param y Array of y values
+ * @return Slope of regression line
+ */
+template<size_t size>
+float CalcLinearRegressionSlope(const std::array<int, size> &x, const std::array<int, size> &y);
+
+/**
+ * Calculates the slope of the linear regression line from a given set of points.
+ *
+ * @param x Array of x values
+ * @param y Array of y values
+ * @param size Size of the arrays
+ * @return Slope of regression line
+ */
+float CalcLinearRegressionSlope(const int *x, const int *y, size_t size);
+
+/**
  * Backport of @c std::enable_if_t from C++14
  */
 template<bool B, class T = void>
@@ -103,27 +124,9 @@ int FindElement(const T &arr, int first, int last, T value, bool return_last = t
  * @param return_last If @c true, returns last element if value is not found. Otherwise, returns -1.
  * @return Index of first matching element if found. Otherwise dependent on @p return_last.
  */
+
 template<class T, typename = enable_if_t<std::is_integral<T>::value>, std::size_t size>
 int FindElement(const std::array<T, size> &arr, int first, int last, T value, bool return_last = true);
-/**
- * Calculates the slope of the linear regression line from a given set of points.
- *
- * @tparam size Size of the arrays
- * @param x Array of x values
- * @param y Array of y values
- * @return Slope of regression line
- */
-template<size_t size>
-float CalcLinearRegressionSlope(const std::array<int, size> &x, const std::array<int, size> &y);
-/**
- * Calculates the slope of the linear regression line from a given set of points.
- *
- * @param x Array of x values
- * @param y Array of y values
- * @param size Size of the arrays
- * @return Slope of regression line
- */
-float CalcLinearRegressionSlope(const int *x, const int *y, size_t size);
 }  // namespace util
 
 #include "util/util.tcc"
