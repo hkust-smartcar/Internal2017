@@ -16,19 +16,15 @@
 #include <libsc/lcd_typewriter.h>
 #include <libsc/ab_encoder.h>
 
-namespace libbase
-{
-	namespace k60
-	{
+namespace libbase{
+	namespace k60{
 
-		Mcg::Config Mcg::GetMcgConfig()
-		{
+		Mcg::Config Mcg::GetMcgConfig(){
 			Mcg::Config config;
 			config.external_oscillator_khz = 50000;
 			config.core_clock_khz = 150000;
 			return config;
 		}
-
 	}
 }
 
@@ -38,8 +34,8 @@ using namespace libbase::k60;
 // do initializations and definitions here
 
 //define
-#define WIDTH = 80
-#define HEIGHT = 60
+#define WIDTH 80
+#define HEIGHT 60
 
 //variables
 k60::Ov7725* cam;
@@ -53,7 +49,8 @@ void init();
 
 int main(void){
 	System::Init();
-
+	init();
+	
 	while (true);
 
 	return 0;
@@ -101,7 +98,7 @@ void init(){
 	St7735r::Config lcd_config;
 	St7735r lcd1(lcd_config);
 	lcd = &lcd1;
-	lcd->SetRegion(Rect(0,0,WIDTH,HEIGHT));
+	lcd->SetRegion(Lcd::Rect(0,0,WIDTH,HEIGHT));
 	
 
 	//init type writer
@@ -119,5 +116,5 @@ void init(){
 	k60::Ov7725 cam1(cam_config);
 	cam = &cam1;
 	
-	cam->Stert();
+	cam->Start();
 }
