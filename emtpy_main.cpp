@@ -31,7 +31,7 @@ namespace libbase{
 using namespace libsc;
 using namespace libbase::k60;
 
-// do initializations and definitions here
+// do initializations and definitions here -------------
 
 //define
 #define WIDTH 80
@@ -43,38 +43,57 @@ St7735r* lcd;
 AlternateMotor* motor;
 Servo* servo;
 LcdTypewriter* typeWriter;
+Led* led1;
+Led* led2;
+Led* led3;
+Led* led4;
 
 //functions
 void init();
 
+
+//main function ---------------
 int main(void){
 	System::Init();
 	init();
-	
-	while (true);
+
+	while (true){
+		led1->Switch();
+		led2->Switch();
+		led3->Switch();
+		led4->Switch();
+	}
 
 	return 0;
 }
 
-//function definition
+
+
+//function definition -------------
 
 //init function
 void init(){
 	//init LED
 	Led::Config config;
 	config.id=0;
-	Led led1(config);
+	Led led_1(config);
 	config.id=1;
-	Led led2(config);
+	Led led_2(config);
 	config.id=2;
-	Led led3(config);
+	Led led_3(config);
 	config.id=3;
-	Led led4(config);
+	Led led_4(config);
+	led1 = &led_1;
+	led2 = &led_2;
+	led3 = &led_3;
+	led4 = &led_4;
 
-	led1.SetEnable(true);
-	led2.SetEnable(false);
-	led3.SetEnable(false);
-	led4.SetEnable(true);
+	led1->SetEnable(true);
+	led2->SetEnable(false);
+	led3->SetEnable(false);
+	led4->SetEnable(true);
+
+	return;
 
 	//init MOTOR
 	AlternateMotor::Config motor_config;
@@ -99,7 +118,7 @@ void init(){
 	St7735r lcd1(lcd_config);
 	lcd = &lcd1;
 	lcd->SetRegion(Lcd::Rect(0,0,WIDTH,HEIGHT));
-	
+
 
 	//init type writer
 	LcdTypewriter::Config writer_config;
@@ -115,6 +134,6 @@ void init(){
 	cam_config.fps = k60::Ov7725::Config::Fps::kHigh;
 	k60::Ov7725 cam1(cam_config);
 	cam = &cam1;
-	
+
 	cam->Start();
 }
