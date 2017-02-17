@@ -158,6 +158,9 @@ int main(void)
 	while(!cam->IsAvailable()){}
 	find_vanish(cam->LockBuffer());
 
+	//test:
+	//vanish_y = -51;
+
 	while(true){
 
 
@@ -181,13 +184,13 @@ int main(void)
 			}
 
 			if (cam->IsAvailable()&&time_img%50==0){
-				lcd->SetRegion(Lcd::Rect(0,130,200,15));
+				//lcd->SetRegion(Lcd::Rect(0,130,200,15));
 				int start = System::Time();
 				analysis(cam->LockBuffer());
 				int end = System::Time();
 				char c[200];
-				sprintf(c,"vx:%d",vanish_x);//t:%d
-				//lcd->SetRegion(Lcd::Rect(0,150,200,15));
+				sprintf(c,"t:%d,vy:%d",end-start,vanish_y);//t:%d
+				lcd->SetRegion(Lcd::Rect(0,130,100,15));
 				writer.WriteString(c);
 				//to2D(cam->LockBuffer());
 				//char buff[50];
@@ -236,7 +239,7 @@ void analysis(const Byte* buff){
 	cam->Start();
 	//print raw
 	lcd->SetRegion(Lcd::Rect(0,0,80,60));
-	lcd->FillBits(0x0000,0xFFFF,buff,cam->GetBufferSize()*8);
+	//lcd->FillBits(0x0000,0xFFFF,buff,cam->GetBufferSize()*8);
 	lcd->SetRegion(Lcd::Rect(0,61,80,60));
 
 	//print distortion solved
@@ -250,7 +253,7 @@ void analysis(const Byte* buff){
 			//lcd->FillColor((get_bit(buff,i,j)?0x0000:0xFFFF));
 		}
 	}
-	lcd->FillBits(0x0000,0xFFFF,buff2,cam->GetBufferSize()*8);
+	//lcd->FillBits(0x0000,0xFFFF,buff2,cam->GetBufferSize()*8);
 	delete [] buff2;
 }
 
