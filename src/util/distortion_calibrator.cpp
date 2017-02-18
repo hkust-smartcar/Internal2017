@@ -38,7 +38,9 @@ using std::unique_ptr;
 using std::vector;
 
 namespace util {
-float DistortionCalibrator() {
+std::array<float, 2> distortion_slope{};
+
+bool DistortionCalibrator() {
   // initialize LEDs
   Led::Config led_config;
   led_config.is_active_low = true;
@@ -77,10 +79,13 @@ float DistortionCalibrator() {
   LcdConsole console(console_config);
 
   Timer::TimerInt time_img = System::Time();  // current execution time
+  float stretch_left_slope = 0.0;
+  float stretch_right_slope = 0.0;
 
   led4.SetEnable(false);
 
   while (true) {
+
     if (time_img != System::Time()) {
       time_img = System::Time();
 
@@ -128,9 +133,9 @@ float DistortionCalibrator() {
 
       // y-values to take to calculate regression
       array<unsigned int, 9> sample_y{79, 74, 69, 64, 59, 54, 49, 44, 39};
-      vector<int> x_left;
-      vector<int> x_right;
-      vector<int> y;
+      vector<int> x_left{};
+      vector<int> x_right{};
+      vector<int> y{};
 
       // fill in the sample points
       for (unsigned int i : sample_y) {
@@ -143,9 +148,32 @@ float DistortionCalibrator() {
       float left_slope = 1 / util::CalcLinearRegressionSlope(x_left.data(), y.data(), y.size());
       float right_slope = 1 / util::CalcLinearRegressionSlope(x_right.data(), y.data(), y.size());
 
+      // calculate the top left/right corners of the track when slope is
+      // extrapolated to the bottom corners
+      float stretch_track_top_left =
+          (32 - (RowInfo[79].left_bound - (left_slope * 79))) / (32 - RowInfo[79].left_bound) * 32;
+      float stretch_track_top_right =
+          ((RowInfo[79].right_bound - (right_slope * 79)) - 32) / (RowInfo[79].right_bound - 32) * 32;
+
+      // calculate the newly extrapolated slopes
+      stretch_left_slope = (stretch_track_top_left - 32.0) / 80.0;
+      stretch_right_slope = (32.0 - stretch_track_top_right) / 80;
+
       Timer::TimerInt cycle_end_time = System::Time();
 
-      auto cycle_time = cycle_end_time - cycle_start_time;
+      auto cycle_time = cycle_end_time - cycle_start_time;  // currently takes 58ms
+
+      // write the perspective-distorted image to a new array
+      array<array<bool, 64>, 80> image2d_undistort;
+      /*for (int i = 79; i-- > 0;) {
+        for (int j = 0; j < 32; ++j) {
+          unsigned int left = static_cast<unsigned>(0 - stretch_left_slope * (79 - i));
+          image2d_undistort.at(i).at(31 - j) = image2d_median.at(i).at(left > 63 ? 0 : left);
+          unsigned int right = static_cast<unsigned>(63 - stretch_right_slope * (79 - i));
+          image2d_undistort.at(i).at(32 + j) = image2d_median.at(i).at(right > 63 ? 63 : right);
+        }
+      }*/
+      ApplyDistortionFilter(image2d_median, &image2d_undistort);
 
       // render the image and absolute center line
       lcd->SetRegion(Lcd::Rect(0, 0, 64, 80));
@@ -153,30 +181,55 @@ float DistortionCalibrator() {
       lcd->SetRegion(Lcd::Rect(32, 0, 1, 80));
       lcd->FillColor(Lcd::kBlack);
 
-      // render the linear regression lines
+      // render different parts
       for (int i = 79; i >= 0; --i) {
+        // render left/right bound
+        lcd->FillColor(Lcd::kRed);
         lcd->SetRegion(Lcd::Rect(RowInfo[i].left_bound, i, 1, 1));
-        lcd->FillColor(Lcd::kWhite);
+        lcd->FillColor(Lcd::kBlack);
         lcd->SetRegion(Lcd::Rect(RowInfo[i].right_bound, i, 1, 1));
-        lcd->FillColor(Lcd::kWhite);
+        lcd->FillColor(Lcd::kBlack);
+
+        // render center line
+        lcd->FillColor(Lcd::kRed);
+        lcd->SetRegion(Lcd::Rect(RowInfo[i].center_point, i, 1, 1));
+
+        // render unadjusted distortion line
         unsigned int left = static_cast<unsigned>(RowInfo[79].left_bound - left_slope * (79 - i));
         lcd->SetRegion(Lcd::Rect(left > 63 ? 63 : left, i, 1, 1));
         lcd->FillColor(Lcd::kRed);
         unsigned int right = static_cast<unsigned>(RowInfo[79].right_bound - right_slope * (79 - i));
         lcd->SetRegion(Lcd::Rect(right > 63 ? 63 : right, i, 1, 1));
         lcd->FillColor(Lcd::kRed);
+
+        // render adjusted distortion line
+        left = static_cast<unsigned>(0 - stretch_left_slope * (79 - i));
+        lcd->SetRegion(Lcd::Rect(left > 63 ? 63 : left, i, 1, 1));
+        lcd->FillColor(Lcd::kYellow);
+        right = static_cast<unsigned>(63 - stretch_right_slope * (79 - i));
+        lcd->SetRegion(Lcd::Rect(right > 63 ? 63 : right, i, 1, 1));
+        lcd->FillColor(Lcd::kYellow);
       }
 
       // display slope values and cycle times
       console.Clear(false);
       std::string s = "L: " + std::to_string(left_slope) + "\nR: " + std::to_string(right_slope)
-          + "\nCycle: " + std::to_string(cycle_time);
+          + "\nCL: "
+          + std::to_string(stretch_left_slope)
+          + "\nCR: "
+          + std::to_string(stretch_right_slope)
+          + "\nCycle: " + std::to_string(cycle_time) + " ms";
       console.WriteString(s.c_str());
+
+      // TODO: Break from loop after button/joystick press
     }
 
-    // TODO: Second part of processing: return slope
+    distortion_slope.at(0) = stretch_left_slope;
+    distortion_slope.at(1) = stretch_right_slope;
 
-    return 0.0;
+    // TODO: Allow user to enter calibration mode again
   }
+
+  return true;
 }
 }  // namespace util
