@@ -26,7 +26,6 @@ int diameter = 50;
 Boolean stop = false;
 String dir = " ";
 char c = 'x';
-char keyPress = ' ';
 
 void setup() {
   
@@ -107,36 +106,31 @@ void outputImage() {
 
 void keyPressed() {
   
-  keyPress = key;
-  background(255);
-  background(background_color);
-  if(keyPress == ' ') {
+  if(key == ' ') {
     myPort.write(' ');
     stop = true;
   }
   else {
     stop = false;
-    
-    if(keyPress == 'w') myPort.write('w');
-    else if(keyPress == 'a') myPort.write('a');
-    else if(keyPress == 's') myPort.write('s');
-    else if(keyPress == 'd') myPort.write('d');
-    else if(keyPress == ',') {
+    if(key == 'w') myPort.write('w');
+    else if(key == 'a') myPort.write('a');
+    else if(key == 's') myPort.write('s');
+    else if(key == 'd') myPort.write('d');
+    else if(key == ',') {
       myPort.write(',');
       if(globalSpeed-20>=0) globalSpeed-=20;
     }
-    else if(keyPress == '.') {
+    else if(key == '.') {
       myPort.write('.');
       if(globalSpeed+20<=450) globalSpeed+=20;
     }
   }
 }
 void keyReleased(){
-  if(key != '.' && key!= ','){
+  if(key != ',' && key != '.') {
     myPort.write('r');
     stop = true;
   }
-  
 }
 
 void draw() {
@@ -157,32 +151,32 @@ void draw() {
   
   textSize(32);
   fill(0);
-  switch(keyPress){
+  switch(key){
     case 'w':
       dir = "forward";
       break;
-    case 'a':
+     case 'a':
       dir = "left";
       break;
-    case 's':
+     case 's':
       dir = "backward";
       break;
-    case 'd':
+     case 'd':
       dir = "right";
       break;
-    case '.':
+     case '.':
       dir = ">";
       break;
-    case ',':
+     case ',':
       dir = "<";
       break;
-    case ' ':
+     case ' ':
       dir = " ";
       break;
   }
   text(dir, 580, 200);
   
-  if (myPort.available() > 0) {
+  while (myPort.available() > 0) {
     int inputInt = myPort.read();
     
     if (inputInt == 170) {
@@ -200,6 +194,14 @@ void draw() {
       outputImage();
       delay(1);
       
+    }
+    else if(inputInt == 171){
+      if(myPort.available() > 0) {
+        //c = myPort.readChar();
+        textSize(32);
+        fill(0);
+        text(myPort.readChar(), 580, 250);
+      }
     }
     
   }
