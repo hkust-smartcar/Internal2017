@@ -59,3 +59,19 @@ int main(){
 }
 ```
 BTW, an item can have multiple listener
+
+### Nested debug console
+```C++
+void nextPage();
+DebugConsole* page2;
+int main(){
+    DebugConsole console1;
+    DebugConsole console2;
+    page2=&console2;
+    DebugConsole::Item item("next page");
+    item.setListener(DOWN_SELECT,nextPage);
+    console1.pushItem(item);
+    console1.enterDebug();
+}
+void nextPage(){page2->enterDebug();}
+```
