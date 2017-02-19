@@ -91,9 +91,9 @@ class DebugConsole{
 			
 			//value methods
 			void setValuePtr(int* v){value=v;}
-			void setValue(int v){*value=v;}
+			void setValue(int v){if(value==NULL)return;*value=v;}
 			int* getValuePtr(){return value;}
-			int getValue(){return *value;}
+			int getValue(){if(value==NULL)return 0;return *value;}
 			
 			bool isReadOnly(){return readOnly;}
 			void setReadOnly(bool isReadOnly){readOnly=isReadOnly;}
@@ -113,7 +113,7 @@ class DebugConsole{
 		
 		
 		DebugConsole():length(0),focus(0),topIndex(0){
-			Item item("exit");
+			Item item(">>exit debug<<");
 			pushItem(item);
 		}
 		
@@ -131,7 +131,7 @@ class DebugConsole{
 						time_next=GET_TIME+threshold;
 					}
 					else if(GET_TIME>time_next){
-						flag = listen(key,LONG);
+						//flag = listen(key,LONG);
 					}
 					
 				}
@@ -201,19 +201,40 @@ class DebugConsole{
 			Item item=items[focus];
 			switch(key){
 				case's':
-					if(state!=UP)
+					if(state!=UP){
 						focus=(focus+1)%length;
+						if(focus-topIndex>8&&focus!=length-1){
+							topIndex++;
+						}else if(focus==0){
+							topIndex=0;
+						}
+					}
+						
 					break;
 				case'w':
-					if(state!=UP)
-						focus=(focus-1+length)%length;
+					if(state!=UP){
+						if (focus==0){
+							focus=length-1;
+							if(length>9){
+								topIndex=length-10;
+							}
+						}else{
+							focus--;
+							if(focus-topIndex<1&&topIndex>0){
+								topIndex--;
+							}
+						}
+						
+						
+					}
+						
 					break;
 				case' ':
 					if(item.getListener(SELECT+state*4)!=NULL){
 						item.getListener(SELECT+state*4)();
 						//listItems(topIndex);
 					}
-					else if(item.getText()=="exit")
+					else if(item.getText()==">>exit debug<<")
 						return 0;
 					break;
 				case'a':
@@ -247,12 +268,16 @@ class DebugConsole{
 		}
 };
 
+
 void display(){
 	system("CLS");
 	printf("type any key return to debug console");
 	getch();
 	return;
 }
+
+void displayx();
+int* k;
 
 void gt();
 DebugConsole page2;
@@ -264,23 +289,36 @@ int main(){
 	console.insertItem(DebugConsole::Item("display x",&x,true));
 	console.insertItem(DebugConsole::Item("nope"));
 	console.insertItem(DebugConsole::Item("xddd"));
+	console.insertItem(DebugConsole::Item("xddd1"));
+	console.insertItem(DebugConsole::Item("xddd3"));
+	console.insertItem(DebugConsole::Item("xddd5"));
+	console.insertItem(DebugConsole::Item("xddd7"));
 	console.insertItem(DebugConsole::Item("adjust x",&x));
 	DebugConsole::Item item("trapper");
 	item.setListener(UP_SELECT,&display);
 	console.insertItem(item);
 	item.setText("another trapper");
 	console.pushItem(item);
-	
-	
 	DebugConsole::Item gtp2("goto page2");
-	
 	gtp2.setListener(DOWN_SELECT,&gt);
 	console.insertItem(gtp2);
-	
+	DebugConsole::Item showx("show x",&x,true);
+	showx.setListener(UP,displayx);
+	k=&x;
+	console.pushItem(showx);
+	console.insertItem(DebugConsole::Item("thrid item"),0);
+	console.pushItem(DebugConsole::Item("last item"));
 	console.enterDebug();
 	
+	system("CLS");
 	cout<<"debug end";
 }
 void gt(){
 		page2.enterDebug();
+}
+
+void displayx(){
+	system("CLS");
+	cout<<"x = "<<*k;
+	getch();
 }
