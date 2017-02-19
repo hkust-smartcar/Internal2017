@@ -1,6 +1,7 @@
 # Debug Console
 for fun debugging
 console version is done in commit [39c70f0 ](https://github.com/hkust-smartcar/Internal2017/commit/09093f3420c14adf03c32004ad762ef9dd9e06ca)
+
 MCU version is still on development, anyone can feel free to play with console version first
 
 # How to Use
