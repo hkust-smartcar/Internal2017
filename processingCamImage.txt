@@ -11,14 +11,18 @@ BluetoothConfig.id = 0;
 BluetoothConfig.baud_rate = libbase::k60::Uart::Config::BaudRate::k115200;
 JyMcuBt106 bluetooth1(BluetoothConfig);
 
-//starting signal telling processing to start receiving the image
-//please help me to improve this method...^,^
-const Byte imageByte = 170;
-const Byte * imageBytePtr = &imageByte;
-
 //in the main loop
-bluetooth1.SendBuffer(imageBytePtr, 1);
+const Byte imageByte = 170;
+bluetooth1.SendBuffer(&imageByte, 1);
 bluetooth1.SendBuffer(camInput, Cam1.GetBufferSize());
+
+char speedChar[15] = {};
+sprintf(speedChar, "%.2f,%.2f\n", leftSpeed, rightSpeed);
+string speedStr = speedChar;
+
+const Byte speedByte = 171;
+bluetooth1.SendBuffer(&speedByte, 1);
+bluetooth1.SendStr(speedStr);
 
 */
 
@@ -26,28 +30,28 @@ import processing.serial.*;
 import java.util.*;
 
 Serial myPort;
-BufferedReader reader;
-PrintWriter writer;
 
-int globalWidth = 80;
-int globalHeight = 60;
-int arrayPosX, arrayPosY;
+int startTime = 0, currentTime = 0;
 
 Boolean overviewMode = true;
 
+int camWidth = 80, camHeight = 60;
+int arrayPosX, arrayPosY;
+
 int pixelSide = 4;
-Boolean[][] pixelArray = new Boolean[globalHeight][globalWidth];
+Boolean[][] pixelArray = new Boolean[camHeight][camWidth];
 int imageX = 10, imageY = 10;
 
-Boolean[][] boundaryArray = new Boolean[globalHeight][globalWidth];
+Boolean[][] boundaryArray = new Boolean[camHeight][camWidth];
 int boundaryX = 710, boundaryY = 10;
 
 int regionSide = 5;
-int regionSize = (globalHeight*globalWidth) / (regionSide*regionSide);
+int regionSize = (camHeight*camWidth) / (regionSide*regionSide);
 int[] regionArray = new int[regionSize];
 int regionX = 360, regionY = 10;
+BufferedReader reader;
+PrintWriter writer;
 
-int inputValue;
 double[] leftSpeedValue, rightSpeedValue;
 double leftSpeed = 0, rightSpeed = 0;
 
@@ -119,11 +123,11 @@ void getImage(int data) {
   
   arrayPosX += 8;
   
-  if (arrayPosX >= globalWidth) {
+  if (arrayPosX >= camWidth) {
     arrayPosX = 0;
     arrayPosY++;
   }
-  if (arrayPosY >= globalHeight) {
+  if (arrayPosY >= camHeight) {
     arrayPosY = 0;
   }
 
@@ -131,8 +135,8 @@ void getImage(int data) {
 
 void outputImage() {
   
-  for (int y=0; y<globalHeight; y++) {
-    for (int x=0; x<globalWidth; x++) {
+  for (int y=0; y<camHeight; y++) {
+    for (int x=0; x<camWidth; x++) {
       if (pixelArray[y][x]) {
         fill(0);
       } else {
@@ -149,11 +153,11 @@ void getBoundary() {
   
   Boolean previous;
   
-  for (int y = 0; y < globalHeight; y++) {
+  for (int y = 0; y < camHeight; y++) {
 
     previous = pixelArray[y][0];
 
-    for (int x = 0; x < globalWidth; x++) {
+    for (int x = 0; x < camWidth; x++) {
 
       if (pixelArray[y][x] != previous) {
 
@@ -173,11 +177,11 @@ void getBoundary() {
 
   }
 
-  for (int x = 0; x < globalWidth; x++) {
+  for (int x = 0; x < camWidth; x++) {
 
     previous = pixelArray[0][x];
 
-    for (int y = 0; y < globalHeight; y++) {
+    for (int y = 0; y < camHeight; y++) {
 
       if (pixelArray[y][x] != previous) {
 
@@ -199,8 +203,8 @@ void getBoundary() {
 
 void outputBoundary() {
   
-  for (int y=0; y<globalHeight; y++) {
-    for (int x=0; x<globalWidth; x++) {
+  for (int y=0; y<camHeight; y++) {
+    for (int x=0; x<camWidth; x++) {
       if (boundaryArray[y][x]) {
         fill(0);
       } else {
@@ -217,8 +221,8 @@ void getRegion() {
   
   int counter = 0;
   
-  for (int y=0; y<globalHeight; y+=regionSide) {
-    for (int x=0; x<globalWidth; x+=regionSide) {
+  for (int y=0; y<camHeight; y+=regionSide) {
+    for (int x=0; x<camWidth; x+=regionSide) {
       
       int sum = 0;
       
@@ -246,8 +250,8 @@ void outputRegion() {
   
   for (int i=0; i<regionSize; i++) {
     
-    x = i % (globalWidth/regionSide);
-    y = i / (globalWidth/regionSide);
+    x = i % (camWidth/regionSide);
+    y = i / (camWidth/regionSide);
     
     fill((int)((1 - ((double)regionArray[i]/10)) * 255));
     noStroke();
@@ -312,63 +316,6 @@ void turningResult() {
 
 }
 
-void plotGraph() {
-  
-  fill(#404040);
-  stroke(0);
-  rect(graphOneX, graphOneY, graphWidth, graphHeight);
-  rect(graphTwoX, graphTwoY, graphWidth, graphHeight);
-  stroke(255);
-  strokeWeight(0);
-  line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
-  line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
-  
-  for(int i = 1; i < graphLength; i++) {
-    leftSpeedValue[i-1] = leftSpeedValue[i];
-    rightSpeedValue[i-1] = rightSpeedValue[i];
-  }
-  
-  println();
-  println(leftSpeed);
-  println(rightSpeed);
-  
-  leftSpeedValue[graphLength-1] = map((float)leftSpeed, -2000, 2000, -graphHeight/2, graphHeight/2);
-  rightSpeedValue[graphLength-1] = map((float)rightSpeed, -2000, 2000, -graphHeight/2, graphHeight/2);
-
-  stroke(60, 3, 255);
-  strokeWeight(3);
-
-  for(int i=1; i<graphWidth; i++) {
-    point(graphOneX+i, graphOneY+graphHeight/2-(int)leftSpeedValue[graphLength-graphWidth+i]);
-    point(graphTwoX+i, graphTwoY+graphHeight/2-(int)rightSpeedValue[graphLength-graphWidth+i]);
-  }
-  
-}
-
-boolean overCircle(int x, int y, int diameter) {
-  float disX = x - mouseX;
-  float disY = y - mouseY;
-  if (sqrt(sq(disX) + sq(disY)) < diameter/2 ) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-void checkOver() {
-  if (overCircle(leftX, leftY, diameter)) {
-    leftOver = true;
-  } else if (overCircle(middleX, middleY, diameter)) {
-    middleOver = true;
-  } else if (overCircle(rightX, rightY, diameter)) {
-    rightOver = true;
-  } else if (overCircle(modeButtonX, modeButtonY, diameter)) {
-    modeButtonOver = true;
-  } else {
-    leftOver = middleOver = rightOver = modeButtonOver = false;
-  }
-}
-
 void save(String filename) {
   
   List<String> stringList = new ArrayList();
@@ -410,6 +357,77 @@ void save(String filename) {
   writer.flush();
   writer.close();
   
+}
+
+void stringToDouble(String inputString) {
+  
+  int strLength = inputString.length();
+  int index1 = inputString.indexOf(',');
+  
+  String leftStr = inputString.substring(0, index1-1);
+  String rightStr = inputString.substring(index1+1, strLength-2);
+  
+  leftStr = leftStr.replaceAll("[^0-9.-]+","");
+  rightStr = rightStr.replaceAll("[^0-9.-]+","");
+  
+  leftSpeed = Double.parseDouble(leftStr);
+  rightSpeed = Double.parseDouble(rightStr);
+  
+}
+
+void plotGraph() {
+  
+  int range = 50;
+  
+  fill(#404040);
+  stroke(0);
+  rect(graphOneX, graphOneY, graphWidth, graphHeight);
+  rect(graphTwoX, graphTwoY, graphWidth, graphHeight);
+  stroke(255);
+  strokeWeight(0);
+  line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
+  line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
+  
+  for(int i = 1; i < graphLength; i++) {
+    leftSpeedValue[i-1] = leftSpeedValue[i];
+    rightSpeedValue[i-1] = rightSpeedValue[i];
+  }
+  
+  leftSpeedValue[graphLength-1] = map((float)leftSpeed, 0-range, range, -graphHeight/2, graphHeight/2);
+  rightSpeedValue[graphLength-1] = map((float)rightSpeed, 0-range, range, -graphHeight/2, graphHeight/2);
+
+  stroke(60, 3, 255);
+  strokeWeight(3);
+
+  for(int i=1; i<graphWidth; i++) {
+    point(graphOneX+i, graphOneY+graphHeight/2-(int)leftSpeedValue[graphLength-graphWidth+i]);
+    point(graphTwoX+i, graphTwoY+graphHeight/2-(int)rightSpeedValue[graphLength-graphWidth+i]);
+  }
+  
+}
+
+boolean overCircle(int x, int y, int diameter) {
+  float disX = x - mouseX;
+  float disY = y - mouseY;
+  if (sqrt(sq(disX) + sq(disY)) < diameter/2 ) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void checkOver() {
+  if (overCircle(leftX, leftY, diameter)) {
+    leftOver = true;
+  } else if (overCircle(middleX, middleY, diameter)) {
+    middleOver = true;
+  } else if (overCircle(rightX, rightY, diameter)) {
+    rightOver = true;
+  } else if (overCircle(modeButtonX, modeButtonY, diameter)) {
+    modeButtonOver = true;
+  } else {
+    leftOver = middleOver = rightOver = modeButtonOver = false;
+  }
 }
 
 void keyPressed() {
@@ -465,9 +483,9 @@ void mousePressed() {
       
       fill(#898989);
       noStroke();
-      rect(imageX, imageY, globalWidth*pixelSide, globalHeight*pixelSide);
-      rect(boundaryX, boundaryY, globalWidth*pixelSide, globalHeight*pixelSide);
-      rect(regionX, regionY, globalWidth*pixelSide, globalHeight*pixelSide);
+      rect(imageX, imageY, camWidth*pixelSide, camHeight*pixelSide);
+      rect(boundaryX, boundaryY, camWidth*pixelSide, camHeight*pixelSide);
+      rect(regionX, regionY, camWidth*pixelSide, camHeight*pixelSide);
       
       fill(#404040);
       rect(graphOneX, graphOneY, graphWidth, graphHeight);
@@ -498,14 +516,13 @@ void mousePressed() {
 void setup() {
   
   printArray(Serial.list());
-  myPort = new Serial(this, Serial.list()[6], 115200);
+  myPort = new Serial(this, Serial.list()[1], 115200);
+  startTime = millis();
   size(1150, 650);
   background(#04001F);
-  arrayPosX = 0;
-  arrayPosY = 0;
   
-  for (int y=0; y<globalHeight; y++) {
-    for (int x=0; x<globalWidth; x++) {
+  for (int y=0; y<camHeight; y++) {
+    for (int x=0; x<camWidth; x++) {
       pixelArray[y][x] = false;
     }
   }
@@ -519,9 +536,9 @@ void setup() {
   
   fill(#898989);
   noStroke();
-  rect(imageX, imageY, globalWidth*pixelSide, globalHeight*pixelSide);
-  rect(boundaryX, boundaryY, globalWidth*pixelSide, globalHeight*pixelSide);
-  rect(regionX, regionY, globalWidth*pixelSide, globalHeight*pixelSide);
+  rect(imageX, imageY, camWidth*pixelSide, camHeight*pixelSide);
+  rect(boundaryX, boundaryY, camWidth*pixelSide, camHeight*pixelSide);
+  rect(regionX, regionY, camWidth*pixelSide, camHeight*pixelSide);
   
   fill(#404040);
   rect(graphOneX, graphOneY, graphWidth, graphHeight);
@@ -532,7 +549,6 @@ void setup() {
   ellipse(rightX, rightY, diameter, diameter);
   fill(#6F0000);
   ellipse(modeButtonX, modeButtonY, diameter, diameter);
-  
 
 }
 
@@ -548,16 +564,13 @@ void draw() {
       arrayPosX = 0;
       arrayPosY = 0;
       
-      while (i < globalWidth*globalHeight/8) {
-        
+      while (i < camWidth*camHeight/8) {
         print('.');
-        
         if (myPort.available() > 0) {
           inputInt = myPort.read();
           getImage(inputInt);
           i++;
         }
-      
       }
       
       if (overviewMode) {
@@ -568,39 +581,31 @@ void draw() {
         outputRegion();
         turningResult();
       }
-      delay(1);
       
-    }
-    if (inputInt == 171) {
+    } else if (inputInt == 171) {
       
-      String inputString;
-      int i = 0;
+      String inputString = "";
       
-      while (i < 2) {
-        
-        print(',');
-        
-        inputString = myPort.readStringUntil('\n');
-        inputString = inputString.replaceAll("[^0-9]", "");
-        
-        if (inputString != null) {
-          if (i == 0) {
-            leftSpeed = Double.parseDouble(inputString);
-            println(leftSpeed);
-          } else if (i == 1) {
-            rightSpeed = Double.parseDouble(inputString);
-            println(rightSpeed);
-          }
-          i++;
+      while (true) {
+        if (myPort.available() > 0) {
+          inputString = myPort.readStringUntil('\n');
+          break;
         }
-        
       }
+      
+      stringToDouble(inputString);
+      
+      delay(1);
       
     }
   
   }
   
-  checkOver();  
-  plotGraph();
+  currentTime = millis();
+  if (currentTime-startTime >= 10) {
+    checkOver();
+    plotGraph();
+    startTime = currentTime;
+  }
   
 }
