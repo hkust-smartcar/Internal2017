@@ -63,7 +63,6 @@ using namespace std;
 
 
 //TODO 1 srink in LCD displayable
-//TODO 2 readOnly
 
 class DebugConsole{
 	public:
@@ -72,7 +71,7 @@ class DebugConsole{
 			public:
 			
 			//Item(char* n):text(n){init();}
-			Item(char* text=NULL,int* value=NULL,bool readOnly=true):text(text),value(value),readOnly(readOnly){init();}
+			Item(char* text=NULL,int* value=NULL,bool readOnly=false):text(text),value(value),readOnly(readOnly){init();}
 			//Item(){init();}
 			/*Item(const Item &item){
 				this->setText(item.getText());
@@ -136,8 +135,11 @@ class DebugConsole{
 					}
 					
 				}
-				flag = listen(key_img,UP);
-				key_img='\o';
+				else{
+					flag = listen(key_img,UP);
+					key_img='\o';
+				}
+				
 				
 			}
 		}
@@ -165,7 +167,7 @@ class DebugConsole{
 		void printItem(int index){
 			if(items[index].getValuePtr()!=NULL){
 					char buff[20];
-					sprintf(buff,"%s = %d      ",items[index].getText(),items[index].getValue());
+					sprintf(buff,"%s%d      ",items[index].getText(),items[index].getValue());
 					printxy(1,index-topIndex,buff);
 				}else
 					printxy(1,index-topIndex,items[index].getText());
@@ -245,6 +247,13 @@ class DebugConsole{
 		}
 };
 
+void display(){
+	system("CLS");
+	printf("type any key return to debug console");
+	getch();
+	return;
+}
+
 void gt();
 DebugConsole page2;
 int main(){
@@ -252,9 +261,15 @@ int main(){
 	
 	int x=0;
 	
-	console.insertItem(DebugConsole::Item("hi",&x));
+	console.insertItem(DebugConsole::Item("display x",&x,true));
 	console.insertItem(DebugConsole::Item("nope"));
 	console.insertItem(DebugConsole::Item("xddd"));
+	console.insertItem(DebugConsole::Item("adjust x",&x));
+	DebugConsole::Item item("trapper");
+	item.setListener(UP_SELECT,&display);
+	console.insertItem(item);
+	item.setText("another trapper");
+	console.pushItem(item);
 	
 	
 	DebugConsole::Item gtp2("goto page2");
