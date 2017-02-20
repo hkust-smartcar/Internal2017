@@ -48,6 +48,27 @@ void MedianFilter(const std::array<std::array<bool, width>, height> &src,
   }
 }
 
+template<size_t width, size_t height>
+void MedianFilter(std::array<std::array<bool, width>, height> *arr) {
+  std::array<std::array<bool, width>, height> tmp{};
+  for (Uint i = 1; i < height - 1; ++i) {
+    for (Uint j = 1; j < width - 1; ++j) {
+      tmp.at(i).at(j) = static_cast<bool>((
+          arr->at(i - 1).at(j - 1) +
+              arr->at(i - 1).at(j) +
+              arr->at(i - 1).at(j + 1) +
+              arr->at(i).at(j - 1) +
+              arr->at(i).at(j) +
+              arr->at(i).at(j + 1) +
+              arr->at(i + 1).at(j - 1) +
+              arr->at(i + 1).at(j) +
+              arr->at(i + 1).at(j + 1))
+          / 5);
+    }
+  }
+  *arr = tmp;
+}
+
 template<class T, typename = enable_if_t <std::is_integral<T>::value>>
 int FindElement(const T &arr, int first, int last, T value, bool return_last) {
   if (last > first) {

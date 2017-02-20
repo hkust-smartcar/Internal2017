@@ -67,6 +67,16 @@ void MedianFilter(const std::array<std::array<bool, width>, height> &src,
                   std::array<std::array<bool, width>, height> *dest);
 
 /**
+ * Applies median filter to a C++11-style 2D bit array
+ *
+ * @tparam width Width of the array (size of the interior array)
+ * @tparam height Height of the array (size of the exterior array)
+ * @param arr Bit array (C++11-style) to apply filter to
+ */
+template<size_t width, size_t height>
+void MedianFilter(std::array<std::array<bool, width>, height> *arr);
+
+/**
  * Calculates the slope of the linear regression line from a given set of points.
  *
  * @tparam size Size of the arrays
