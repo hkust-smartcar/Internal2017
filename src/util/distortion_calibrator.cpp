@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "libsc/joystick.h"
 #include "libsc/lcd_console.h"
 #include "libsc/led.h"
 #include "libsc/st7735r.h"
@@ -26,6 +27,7 @@ struct {
 } RowInfo[80];
 }  // namespace
 
+using libsc::Joystick;
 using libsc::Lcd;
 using libsc::LcdConsole;
 using libsc::Led;
@@ -78,158 +80,268 @@ bool DistortionCalibrator() {
   console_config.region = Lcd::Rect(0, 80, 128, 80);
   LcdConsole console(console_config);
 
+  // initialize joystick
+  Joystick::Config joystick_config;
+  joystick_config.id = 0;
+  joystick_config.is_active_low = true;
+  Joystick joystick(joystick_config);
+
   Timer::TimerInt time_img = System::Time();  // current execution time
   float stretch_left_slope = 0.0;
   float stretch_right_slope = 0.0;
 
   led4.SetEnable(false);
 
-  while (true) {
+  bool calibration_mode_flag = true;
 
+  while (true) {
     if (time_img != System::Time()) {
       time_img = System::Time();
 
       // heartbeat
       led1.SetEnable(time_img % 1000 >= 500);
 
-      // force 500ms execution cycle
-      if (time_img % 500 != 0) continue;
+      // calibration mode
+      if (calibration_mode_flag) {
 
-      Timer::TimerInt cycle_start_time = System::Time();
-
-      // copy the buffer for processing
-      const Byte *pbuffer = camera->LockBuffer();
-      Byte image1d[640];
-      util::CopyByteArray(*pbuffer, image1d, 640);
-      camera->UnlockBuffer();
-
-      led2.SetEnable(true);
-
-      // 1d to 2d array
-      array<array<bool, 64>, 80> image2d;
-      util::ByteTo2DBitArray(*pbuffer, &image2d);
-
-      // apply median filter
-      array<array<bool, 64>, 80> image2d_median;
-      util::MedianFilter(image2d, &image2d_median);
-
-      // fill in row information
-      for (int rowIndex = 79; rowIndex >= 0; --rowIndex) {
-        if (rowIndex == 79) {
-          RowInfo[rowIndex].right_bound = static_cast<Uint>(
-              util::FindElement(image2d_median[rowIndex], 32, 63, true, true));
-          RowInfo[rowIndex].left_bound = static_cast<Uint>(
-              util::FindElement(image2d_median[rowIndex], 32, 0, true, true));
-        } else {
-          RowInfo[rowIndex].right_bound = static_cast<Uint>(
-              util::FindElement(image2d_median[rowIndex], RowInfo[rowIndex + 1].center_point, 63, true, true));
-          RowInfo[rowIndex].left_bound = static_cast<Uint>(
-              util::FindElement(image2d_median[rowIndex], RowInfo[rowIndex + 1].center_point, 0, true, true));
+        // jump to preview mode after this calculation
+        if (joystick.GetState() == Joystick::State::kDown) {
+          calibration_mode_flag = false;
         }
-        // calculate the dependencies
-        RowInfo[rowIndex].center_point = (RowInfo[rowIndex].left_bound + RowInfo[rowIndex].right_bound) / 2;
-        RowInfo[rowIndex].track_count = RowInfo[rowIndex].right_bound - RowInfo[rowIndex].left_bound;
+
+        // force 500ms execution cycle
+        if (time_img % 500 != 0) continue;
+
+        Timer::TimerInt cycle_start_time = System::Time();
+
+        // copy the buffer for processing
+        const Byte *pbuffer = camera->LockBuffer();
+        Byte image1d[640];
+        util::CopyByteArray(*pbuffer, image1d, 640);
+        camera->UnlockBuffer();
+
+        led2.SetEnable(true);
+
+        // 1d to 2d array
+        array<array<bool, 64>, 80> image2d;
+        util::ByteTo2DBitArray(*pbuffer, &image2d);
+
+        // apply median filter
+        array<array<bool, 64>, 80> image2d_median;
+        util::MedianFilter(image2d, &image2d_median);
+
+        // fill in row information
+        for (int rowIndex = 79; rowIndex-- > 0;) {
+          if (rowIndex == 79) {
+            RowInfo[rowIndex].right_bound = static_cast<Uint>(
+                util::FindElement(image2d_median[rowIndex], 32, 63, true, true));
+            RowInfo[rowIndex].left_bound = static_cast<Uint>(
+                util::FindElement(image2d_median[rowIndex], 32, 0, true, true));
+          } else {
+            RowInfo[rowIndex].right_bound = static_cast<Uint>(
+                util::FindElement(image2d_median[rowIndex], RowInfo[rowIndex + 1].center_point, 63, true, true));
+            RowInfo[rowIndex].left_bound = static_cast<Uint>(
+                util::FindElement(image2d_median[rowIndex], RowInfo[rowIndex + 1].center_point, 0, true, true));
+          }
+          // calculate the dependencies
+          RowInfo[rowIndex].center_point = (RowInfo[rowIndex].left_bound + RowInfo[rowIndex].right_bound) / 2;
+          RowInfo[rowIndex].track_count = RowInfo[rowIndex].right_bound - RowInfo[rowIndex].left_bound;
+        }
+
+        // y-values to take to calculate regression
+        array<unsigned int, 9> sample_y{79, 74, 69, 64, 59, 54, 49, 44, 39};
+        vector<int> x_left{};
+        vector<int> x_right{};
+        vector<int> y{};
+
+        // fill in the sample points
+        for (unsigned int i : sample_y) {
+          x_left.emplace_back(RowInfo[i].left_bound);
+          x_right.emplace_back(RowInfo[i].right_bound);
+          y.emplace_back(i);
+        }
+
+        // calculate the linear regression slope
+        float left_slope = 1 / util::CalcLinearRegressionSlope(x_left.data(), y.data(), y.size());
+        float right_slope = 1 / util::CalcLinearRegressionSlope(x_right.data(), y.data(), y.size());
+
+        // calculate the top left/right corners of the track when slope is
+        // extrapolated to the bottom corners
+        float stretch_track_top_left =
+            (32 - (RowInfo[79].left_bound - (left_slope * 79))) / (32 - RowInfo[79].left_bound) * 32;
+        float stretch_track_top_right =
+            ((RowInfo[79].right_bound - (right_slope * 79)) - 32) / (RowInfo[79].right_bound - 32) * 32;
+
+        // calculate the newly extrapolated slopes
+        stretch_left_slope = (stretch_track_top_left - 32.0) / 80.0;
+        stretch_right_slope = (32.0 - stretch_track_top_right) / 80;
+
+        Timer::TimerInt cycle_end_time = System::Time();
+
+        auto cycle_time = cycle_end_time - cycle_start_time;  // currently takes 58ms
+
+        // write the perspective-distorted image to a new array
+        array<array<bool, 64>, 80> image2d_undistort;
+        /*for (int i = 79; i-- > 0;) {
+          for (int j = 0; j < 32; ++j) {
+            unsigned int left = static_cast<unsigned>(0 - stretch_left_slope * (79 - i));
+            image2d_undistort.at(i).at(31 - j) = image2d_median.at(i).at(left > 63 ? 0 : left);
+            unsigned int right = static_cast<unsigned>(63 - stretch_right_slope * (79 - i));
+            image2d_undistort.at(i).at(32 + j) = image2d_median.at(i).at(right > 63 ? 63 : right);
+          }
+        }*/
+        ApplyDistortionFilter(image2d_median, &image2d_undistort);
+
+        // render the image and absolute center line
+        lcd->SetRegion(Lcd::Rect(0, 0, 64, 80));
+        lcd->FillBits(Lcd::kBlue, Lcd::kWhite, image1d, 640 * 8);
+        lcd->SetRegion(Lcd::Rect(32, 0, 1, 80));
+        lcd->FillColor(Lcd::kBlack);
+
+        // render different parts
+        for (int i = 79; i-- > 0;) {
+          // render left/right bound
+          lcd->FillColor(Lcd::kRed);
+          lcd->SetRegion(Lcd::Rect(RowInfo[i].left_bound, i, 1, 1));
+          lcd->FillColor(Lcd::kBlack);
+          lcd->SetRegion(Lcd::Rect(RowInfo[i].right_bound, i, 1, 1));
+          lcd->FillColor(Lcd::kBlack);
+
+          // render center line
+          lcd->FillColor(Lcd::kRed);
+          lcd->SetRegion(Lcd::Rect(RowInfo[i].center_point, i, 1, 1));
+
+          // render unadjusted distortion line
+          unsigned int left = static_cast<unsigned>(RowInfo[79].left_bound - left_slope * (79 - i));
+          lcd->SetRegion(Lcd::Rect(left > 63 ? 63 : left, i, 1, 1));
+          lcd->FillColor(Lcd::kRed);
+          unsigned int right = static_cast<unsigned>(RowInfo[79].right_bound - right_slope * (79 - i));
+          lcd->SetRegion(Lcd::Rect(right > 63 ? 63 : right, i, 1, 1));
+          lcd->FillColor(Lcd::kRed);
+
+          // render adjusted distortion line
+          left = static_cast<unsigned>(0 - stretch_left_slope * (79 - i));
+          lcd->SetRegion(Lcd::Rect(left > 63 ? 63 : left, i, 1, 1));
+          lcd->FillColor(Lcd::kYellow);
+          right = static_cast<unsigned>(63 - stretch_right_slope * (79 - i));
+          lcd->SetRegion(Lcd::Rect(right > 63 ? 63 : right, i, 1, 1));
+          lcd->FillColor(Lcd::kYellow);
+        }
+
+        // display slope values and cycle times
+        console.Clear(false);
+        std::string s = "L: " + std::to_string(left_slope) + "\nR: " + std::to_string(right_slope)
+            + "\nCL: "
+            + std::to_string(stretch_left_slope)
+            + "\nCR: "
+            + std::to_string(stretch_right_slope)
+            + "\nCycle: " + std::to_string(cycle_time) + " ms";
+        console.WriteString(s.c_str());
+
+        distortion_slope.at(0) = stretch_left_slope;
+        distortion_slope.at(1) = stretch_right_slope;
+
+        // skip preview mode if we are not signaled to break
+        if (calibration_mode_flag) {
+          continue;
+        }
       }
 
-      // y-values to take to calculate regression
-      array<unsigned int, 9> sample_y{79, 74, 69, 64, 59, 54, 49, 44, 39};
-      vector<int> x_left{};
-      vector<int> x_right{};
-      vector<int> y{};
+      // sleep 2s while we get things set up
+      lcd->Clear();
+      console.WriteString("Please wait...");
+      System::DelayMs(2000);
+      lcd->Clear();
+      console.WriteString("[PH] Verification Mode");
 
-      // fill in the sample points
-      for (unsigned int i : sample_y) {
-        x_left.emplace_back(RowInfo[i].left_bound);
-        x_right.emplace_back(RowInfo[i].right_bound);
-        y.emplace_back(i);
-      }
+      // preview mode
+      if (!calibration_mode_flag) {
+        // handle joystick actions
+        switch (joystick.GetState()) {
+          case Joystick::State::kDown:  // return to calibration mode
+            calibration_mode_flag = true;
+            lcd->Clear();
+            break;
+          case Joystick::State::kLeft:  // discard changes
+            lcd->Clear();
+            console.WriteString("Please wait...");
+            System::DelayMs(2000);
+            lcd->Clear();
+            return false;
+          case Joystick::State::kRight:  // save changes
+            lcd->Clear();
+            console.WriteString("Please wait...");
+            System::DelayMs(2000);
+            lcd->Clear();
+            return true;
+          default:
+            // not handled
+            break;
+        }
 
-      // calculate the linear regression slope
-      float left_slope = 1 / util::CalcLinearRegressionSlope(x_left.data(), y.data(), y.size());
-      float right_slope = 1 / util::CalcLinearRegressionSlope(x_right.data(), y.data(), y.size());
+        // force 500ms execution cycle
+        if (time_img % 500 != 0) continue;
 
-      // calculate the top left/right corners of the track when slope is
-      // extrapolated to the bottom corners
-      float stretch_track_top_left =
-          (32 - (RowInfo[79].left_bound - (left_slope * 79))) / (32 - RowInfo[79].left_bound) * 32;
-      float stretch_track_top_right =
-          ((RowInfo[79].right_bound - (right_slope * 79)) - 32) / (RowInfo[79].right_bound - 32) * 32;
+        // copy the buffer for processing
+        const Byte *pbuffer = camera->LockBuffer();
+        Byte image1d[640];
+        util::CopyByteArray(*pbuffer, image1d, 640);
+        camera->UnlockBuffer();
 
-      // calculate the newly extrapolated slopes
-      stretch_left_slope = (stretch_track_top_left - 32.0) / 80.0;
-      stretch_right_slope = (32.0 - stretch_track_top_right) / 80;
+        led2.SetEnable(true);
 
-      Timer::TimerInt cycle_end_time = System::Time();
+        // 1d to 2d array
+        array<array<bool, 64>, 80> image2d;
+        util::ByteTo2DBitArray(*pbuffer, &image2d);
 
-      auto cycle_time = cycle_end_time - cycle_start_time;  // currently takes 58ms
+        // apply median filter
+        array<array<bool, 64>, 80> image2d_median;
+        util::MedianFilter(image2d, &image2d_median);
 
-      // write the perspective-distorted image to a new array
-      array<array<bool, 64>, 80> image2d_undistort;
-      /*for (int i = 79; i-- > 0;) {
-        for (int j = 0; j < 32; ++j) {
+        // write the perspective-distorted image to a new array
+        array<array<bool, 64>, 80> image2d_undistort;
+        ApplyDistortionFilter(image2d_median, &image2d_undistort);
+
+        // render the image and absolute center line
+        lcd->SetRegion(Lcd::Rect(0, 0, 64, 80));
+        lcd->FillBits(Lcd::kBlue, Lcd::kWhite, image1d, 640 * 8);
+        lcd->SetRegion(Lcd::Rect(32, 0, 1, 80));
+        lcd->FillColor(Lcd::kBlack);
+
+        // render the undistorted image and absolute center line
+        lcd->SetRegion(Lcd::Rect(63, 0, 64, 80));
+        for (int i = 80; i < 160; ++i) {
+          for (int j = 64; j < 128; ++j) {
+            lcd->SetRegion(Lcd::Rect(j, i, 1, 1));
+            lcd->FillColor(image2d_undistort.at(i).at(j) ? Lcd::kBlue : Lcd::kWhite);
+          }
+        }
+        lcd->SetRegion(Lcd::Rect(96, 0, 1, 80));
+        lcd->FillColor(Lcd::kBlack);
+
+        // render different parts
+        for (int i = 79; i-- > 0;) {
+          // render left/right bound
+          lcd->FillColor(Lcd::kRed);
+          lcd->SetRegion(Lcd::Rect(RowInfo[i].left_bound, i, 1, 1));
+          lcd->FillColor(Lcd::kBlack);
+          lcd->SetRegion(Lcd::Rect(RowInfo[i].right_bound, i, 1, 1));
+          lcd->FillColor(Lcd::kBlack);
+
+          // render center line
+          lcd->FillColor(Lcd::kRed);
+          lcd->SetRegion(Lcd::Rect(RowInfo[i].center_point, i, 1, 1));
+
+          // render adjusted distortion line
           unsigned int left = static_cast<unsigned>(0 - stretch_left_slope * (79 - i));
-          image2d_undistort.at(i).at(31 - j) = image2d_median.at(i).at(left > 63 ? 0 : left);
+          lcd->SetRegion(Lcd::Rect(left > 63 ? 63 : left, i, 1, 1));
+          lcd->FillColor(Lcd::kYellow);
           unsigned int right = static_cast<unsigned>(63 - stretch_right_slope * (79 - i));
-          image2d_undistort.at(i).at(32 + j) = image2d_median.at(i).at(right > 63 ? 63 : right);
+          lcd->SetRegion(Lcd::Rect(right > 63 ? 63 : right, i, 1, 1));
+          lcd->FillColor(Lcd::kYellow);
         }
-      }*/
-      ApplyDistortionFilter(image2d_median, &image2d_undistort);
-
-      // render the image and absolute center line
-      lcd->SetRegion(Lcd::Rect(0, 0, 64, 80));
-      lcd->FillBits(Lcd::kBlue, Lcd::kWhite, image1d, 640 * 8);
-      lcd->SetRegion(Lcd::Rect(32, 0, 1, 80));
-      lcd->FillColor(Lcd::kBlack);
-
-      // render different parts
-      for (int i = 79; i >= 0; --i) {
-        // render left/right bound
-        lcd->FillColor(Lcd::kRed);
-        lcd->SetRegion(Lcd::Rect(RowInfo[i].left_bound, i, 1, 1));
-        lcd->FillColor(Lcd::kBlack);
-        lcd->SetRegion(Lcd::Rect(RowInfo[i].right_bound, i, 1, 1));
-        lcd->FillColor(Lcd::kBlack);
-
-        // render center line
-        lcd->FillColor(Lcd::kRed);
-        lcd->SetRegion(Lcd::Rect(RowInfo[i].center_point, i, 1, 1));
-
-        // render unadjusted distortion line
-        unsigned int left = static_cast<unsigned>(RowInfo[79].left_bound - left_slope * (79 - i));
-        lcd->SetRegion(Lcd::Rect(left > 63 ? 63 : left, i, 1, 1));
-        lcd->FillColor(Lcd::kRed);
-        unsigned int right = static_cast<unsigned>(RowInfo[79].right_bound - right_slope * (79 - i));
-        lcd->SetRegion(Lcd::Rect(right > 63 ? 63 : right, i, 1, 1));
-        lcd->FillColor(Lcd::kRed);
-
-        // render adjusted distortion line
-        left = static_cast<unsigned>(0 - stretch_left_slope * (79 - i));
-        lcd->SetRegion(Lcd::Rect(left > 63 ? 63 : left, i, 1, 1));
-        lcd->FillColor(Lcd::kYellow);
-        right = static_cast<unsigned>(63 - stretch_right_slope * (79 - i));
-        lcd->SetRegion(Lcd::Rect(right > 63 ? 63 : right, i, 1, 1));
-        lcd->FillColor(Lcd::kYellow);
       }
-
-      // display slope values and cycle times
-      console.Clear(false);
-      std::string s = "L: " + std::to_string(left_slope) + "\nR: " + std::to_string(right_slope)
-          + "\nCL: "
-          + std::to_string(stretch_left_slope)
-          + "\nCR: "
-          + std::to_string(stretch_right_slope)
-          + "\nCycle: " + std::to_string(cycle_time) + " ms";
-      console.WriteString(s.c_str());
-
-      // TODO: Break from loop after button/joystick press
     }
-
-    distortion_slope.at(0) = stretch_left_slope;
-    distortion_slope.at(1) = stretch_right_slope;
-
-    // TODO: Allow user to enter calibration mode again
   }
-
-  return true;
 }
 }  // namespace util
