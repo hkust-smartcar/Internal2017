@@ -26,6 +26,9 @@ int diameter = 50;
 Boolean stop = false;
 String dir = " ";
 char c = 'x';
+char keyPress = ' ';
+
+int encoder_count = 0;
 
 void setup() {
   
@@ -106,31 +109,36 @@ void outputImage() {
 
 void keyPressed() {
   
-  if(key == ' ') {
+  keyPress = key;
+  background(255);
+  background(background_color);
+  if(keyPress == ' ') {
     myPort.write(' ');
     stop = true;
   }
   else {
     stop = false;
-    if(key == 'w') myPort.write('w');
-    else if(key == 'a') myPort.write('a');
-    else if(key == 's') myPort.write('s');
-    else if(key == 'd') myPort.write('d');
-    else if(key == ',') {
+    
+    if(keyPress == 'w') myPort.write('w');
+    else if(keyPress == 'a') myPort.write('a');
+    else if(keyPress == 's') myPort.write('s');
+    else if(keyPress == 'd') myPort.write('d');
+    else if(keyPress == ',') {
       myPort.write(',');
       if(globalSpeed-20>=0) globalSpeed-=20;
     }
-    else if(key == '.') {
+    else if(keyPress == '.') {
       myPort.write('.');
       if(globalSpeed+20<=450) globalSpeed+=20;
     }
   }
 }
 void keyReleased(){
-  if(key != ',' && key != '.') {
+  if(key != '.' && key!= ','){
     myPort.write('r');
     stop = true;
   }
+  
 }
 
 void draw() {
@@ -151,41 +159,44 @@ void draw() {
   
   textSize(32);
   fill(0);
-  switch(key){
+  switch(keyPress){
     case 'w':
       dir = "forward";
       break;
-     case 'a':
+    case 'a':
       dir = "left";
       break;
-     case 's':
+    case 's':
       dir = "backward";
       break;
-     case 'd':
+    case 'd':
       dir = "right";
       break;
-     case '.':
+    case '.':
       dir = ">";
       break;
-     case ',':
+    case ',':
       dir = "<";
       break;
-     case ' ':
+    case ' ':
       dir = " ";
       break;
   }
   text(dir, 580, 200);
   
-  while (myPort.available() > 0) {
+  text("encoder_count: "+String.valueOf(encoder_count), 500, 300);
+  
+  if (myPort.available() > 0) {
     int inputInt = myPort.read();
     
     if (inputInt == 170) {
       int i = 0;
       arrayPosX = 0;
       arrayPosY = 0;
+      
       while (i<globalWidth*globalHeight/8) {
         print(' ');
-        if (myPort.available() > 0) {
+        if (myPort.available() > 0) {  
           inputInt = myPort.read();
           getImage(inputInt);
           i++;
@@ -194,6 +205,11 @@ void draw() {
       outputImage();
       delay(1);
       
+    }
+    else if(inputInt == 172){
+      if(myPort.available() > 0){
+        encoder_count = myPort.read();
+      }
     }
     else if(inputInt == 171){
       if(myPort.available() > 0) {
