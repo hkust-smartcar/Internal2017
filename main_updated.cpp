@@ -16,9 +16,7 @@
 #include <libsc/alternate_motor.h>
 #include <libsc/k60/jy_mcu_bt_106.h>
 #include <libsc/led.h>
-
-#include <iostream>
-using namespace std;
+#include <libsc/dir_encoder.h>
 
 namespace libbase
 {
@@ -46,6 +44,8 @@ void startMotor();
 Led* led1;
 JyMcuBt106* exterior_bluetooth;
 const Byte tempInt2 = 171;
+const Byte tempInt3 = 172;
+const Byte* temp3 = &tempInt3;
 const Byte* temp2 = &tempInt2;
 AlternateMotor* exterior_Lmotor;
 AlternateMotor* exterior_Rmotor;
@@ -95,6 +95,12 @@ int main(void)
 	Lmotor.SetClockwise(0); Rmotor.SetClockwise(1);
 	Lmotor.SetPower(motorPower); Rmotor.SetPower(motorPower);
 
+	DirEncoder::Config dir_encoder_config;
+	dir_encoder_config.id = 0;
+	DirEncoder dirEncoder(dir_encoder_config);
+	const Byte* encoder_count;
+	Byte encoder_count_int;
+
 	const Byte* camPtr;
 	const Byte tempInt = 170;
 	const Byte* temp = &tempInt;
@@ -116,6 +122,11 @@ int main(void)
 				bluetooth.SendBuffer(temp,1);
 				bluetooth.SendBuffer(camPtr, cam.GetBufferSize());
 				//control the car by bt upon pressing key
+
+				bluetooth.SendBuffer(temp3,1);
+				encoder_count_int = dirEncoder.GetCount();
+				encoder_count = &encoder_count_int;
+				bluetooth.SendBuffer(encoder_count,1);
 
 				cam.UnlockBuffer();
 			}
