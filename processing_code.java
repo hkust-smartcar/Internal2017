@@ -134,7 +134,7 @@ void keyPressed() {
   }
 }
 void keyReleased(){
-  if(key != '.' && key!= ','){
+  if(keyPress != '.' && keyPress!= ','){
     myPort.write('r');
     stop = true;
   }
