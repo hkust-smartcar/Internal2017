@@ -242,7 +242,7 @@ class DebugConsole{
 							listItems(topIndex);
 						}
 					}
-
+					printItem(focus);
 					break;
 				case Joystick::State::kUp:
 					if(state!=UP){
@@ -263,7 +263,7 @@ class DebugConsole{
 
 
 					}
-
+					printItem(focus);
 					break;
 				case Joystick::State::kSelect:
 					if(item.getListener(SELECT+state*4)!=NULL){
@@ -425,6 +425,17 @@ int main(void){
 	int i=0;
 	item.setValuePtr(&i);
 	item.setText("i = ");
+	console.pushItem(item);
+	console.pushItem(item);
+	console.pushItem(item);
+	console.pushItem(item);
+	console.pushItem(item);
+	console.pushItem(item);
+	console.pushItem(item);
+	console.pushItem(item);
+	console.pushItem(item);
+	console.pushItem(item);
+	console.pushItem(item);
 	console.pushItem(item);
 	console.enterDebug();
 
