@@ -46,6 +46,8 @@ JyMcuBt106* exterior_bluetooth;
 const Byte tempInt2 = 171;
 const Byte tempInt3 = 172;
 const Byte tempInt4 = 169;
+const Byte tempInt5 = 168;
+const Byte* temp5 = &tempInt5;
 const Byte* temp4 = &tempInt4;
 const Byte* temp3 = &tempInt3;
 const Byte* temp2 = &tempInt2;
@@ -99,11 +101,16 @@ int main(void)
 	Byte motorPower_byte;
 	const Byte* motorPowerPtr;
 
-	DirEncoder::Config dir_encoder_config;
-	dir_encoder_config.id = 0;
-	DirEncoder dirEncoder(dir_encoder_config);
-	const Byte* encoder_count;
-	Byte encoder_count_int;
+	Encoder::Config Ldir_encoder_config, Rdir_encoder;
+	Ldir_encoder_config.id = 0;
+	Rdir_encoder_config.id = 1;
+	DirEncoder LdirEncoder(Ldir_encoder_config);
+	DirEncoder RdirEncoder(Rdir_encoder_config);
+	
+	const Byte* Lencoder_count;
+	Byte Lencoder_count_int;
+	const Byte* Rencoder_count;
+	Byte Rencoder_count_int;
 
 	const Byte* camPtr;
 	const Byte tempInt = 170;
@@ -128,14 +135,21 @@ int main(void)
 				//control the car by bt upon pressing key
 
 				bluetooth.SendBuffer(temp3,1);
-				encoder_count_int = dirEncoder.GetCount();
-				encoder_count = &encoder_count_int;
-				bluetooth.SendBuffer(encoder_count,1);
+				LdirEncoder.Update();
+				Lencoder_count_int = LdirEncoder.GetCount();
+				Lencoder_count = &Lencoder_count_int;
+				bluetooth.SendBuffer(Lencoder_count,1);
 				
+				bluetooth.SendBuffer(temp5,1);
+				RdirEncoder.Update();
+				Rencoder_count_int = RdirEncoder.GetCount();
+				Rencoder_count = &Rencoder_count_int;
+				bluetooth.SendBuffer(Rencoder_count,1);
+
 				bluetooth.SendBuffer(temp4,1);
 				motorPower_byte = motorPower;
 				motorPowerPtr = &motorPower_byte;
-				bluetooth.SendBuffer(motorPower_byte,1);
+				bluetooth.SendBuffer(motorPowerPtr,1);
 
 				cam.UnlockBuffer();
 			}
