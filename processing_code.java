@@ -123,14 +123,8 @@ void keyPressed() {
     else if(keyPress == 'a') myPort.write('a');
     else if(keyPress == 's') myPort.write('s');
     else if(keyPress == 'd') myPort.write('d');
-    else if(keyPress == ',') {
-      myPort.write(',');
-      if(globalSpeed-20>=0) globalSpeed-=20;
-    }
-    else if(keyPress == '.') {
-      myPort.write('.');
-      if(globalSpeed+20<=450) globalSpeed+=20;
-    }
+    else if(keyPress == ',') myPort.write(',');
+    else if(keyPress == '.') myPort.write('.');
   }
 }
 void keyReleased(){
@@ -217,6 +211,11 @@ void draw() {
         textSize(32);
         fill(0);
         text(myPort.readChar(), 580, 250);
+      }
+    }
+    else if(inputInt == 169){
+      if(myPort.available() > 0){
+        globalSpeed = myPort.read();
       }
     }
     
