@@ -31,19 +31,91 @@ void ByteTo2DBitArray(const Byte &src, std::array<std::array<bool, width>, heigh
 template<size_t width, size_t height>
 void MedianFilter(const std::array<std::array<bool, width>, height> &src,
                   std::array<std::array<bool, width>, height> *dest) {
-  for (Uint i = 1; i < height - 1; ++i) {
-    for (Uint j = 1; j < width - 1; ++j) {
-      dest->at(i).at(j) = static_cast<bool>((
-          src.at(i - 1).at(j - 1) +
-              src.at(i - 1).at(j) +
-              src.at(i - 1).at(j + 1) +
-              src.at(i).at(j - 1) +
+  for (Uint i = 0; i < height; ++i) {
+    for (Uint j = 0; j < width; ++j) {
+      if (i == 0) {
+        if (j == 0) {
+          dest->at(i).at(j) = static_cast<bool>((
               src.at(i).at(j) +
-              src.at(i).at(j + 1) +
-              src.at(i + 1).at(j - 1) +
-              src.at(i + 1).at(j) +
-              src.at(i + 1).at(j + 1))
-          / 5);
+                  src.at(i).at(j + 1) +
+                  src.at(i + 1).at(j) +
+                  src.at(i + 1).at(j + 1))
+              / 3);
+        } else if (j == width - 1) {
+          dest->at(i).at(j) = static_cast<bool>((
+              src.at(i).at(j - 1) +
+                  src.at(i).at(j) +
+                  src.at(i + 1).at(j - 1) +
+                  src.at(i + 1).at(j))
+              / 3);
+        } else {
+          dest->at(i).at(j) = static_cast<bool>((
+              src.at(i).at(j - 1) +
+                  src.at(i).at(j) +
+                  src.at(i).at(j + 1) +
+                  src.at(i + 1).at(j - 1) +
+                  src.at(i + 1).at(j) +
+                  src.at(i + 1).at(j + 1))
+              / 4);
+        }
+      } else if (i == height - 1) {
+        if (j == 0) {
+          dest->at(i).at(j) = static_cast<bool>((
+              src.at(i - 1).at(j) +
+                  src.at(i - 1).at(j + 1) +
+                  src.at(i).at(j) +
+                  src.at(i).at(j + 1))
+              / 3);
+        } else if (j == width - 1) {
+          dest->at(i).at(j) = static_cast<bool>((
+              src.at(i - 1).at(j - 1) +
+                  src.at(i - 1).at(j) +
+                  src.at(i).at(j - 1) +
+                  src.at(i).at(j))
+              / 3);
+        } else {
+          dest->at(i).at(j) = static_cast<bool>((
+              src.at(i - 1).at(j - 1) +
+                  src.at(i - 1).at(j) +
+                  src.at(i - 1).at(j + 1) +
+                  src.at(i).at(j - 1) +
+                  src.at(i).at(j) +
+                  src.at(i).at(j + 1))
+              / 4);
+        }
+      } else {
+        if (j == 0) {
+          dest->at(i).at(j) = static_cast<bool>((
+              src.at(i - 1).at(j) +
+                  src.at(i - 1).at(j + 1) +
+                  src.at(i).at(j) +
+                  src.at(i).at(j + 1) +
+                  src.at(i + 1).at(j) +
+                  src.at(i + 1).at(j + 1))
+              / 4);
+        } else if (j == width - 1) {
+          dest->at(i).at(j) = static_cast<bool>((
+              src.at(i - 1).at(j - 1) +
+                  src.at(i - 1).at(j) +
+                  src.at(i).at(j - 1) +
+                  src.at(i).at(j) +
+                  src.at(i + 1).at(j - 1) +
+                  src.at(i + 1).at(j))
+              / 4);
+        } else {
+          dest->at(i).at(j) = static_cast<bool>((
+              src.at(i - 1).at(j - 1) +
+                  src.at(i - 1).at(j) +
+                  src.at(i - 1).at(j + 1) +
+                  src.at(i).at(j - 1) +
+                  src.at(i).at(j) +
+                  src.at(i).at(j + 1) +
+                  src.at(i + 1).at(j - 1) +
+                  src.at(i + 1).at(j) +
+                  src.at(i + 1).at(j + 1))
+              / 5);
+        }
+      }
     }
   }
 }
@@ -51,19 +123,91 @@ void MedianFilter(const std::array<std::array<bool, width>, height> &src,
 template<size_t width, size_t height>
 void MedianFilter(std::array<std::array<bool, width>, height> *arr) {
   std::array<std::array<bool, width>, height> tmp{};
-  for (Uint i = 1; i < height - 1; ++i) {
-    for (Uint j = 1; j < width - 1; ++j) {
-      tmp.at(i).at(j) = static_cast<bool>((
-          arr->at(i - 1).at(j - 1) +
-              arr->at(i - 1).at(j) +
-              arr->at(i - 1).at(j + 1) +
-              arr->at(i).at(j - 1) +
+  for (Uint i = 0; i < height; ++i) {
+    for (Uint j = 0; j < width; ++j) {
+      if (i == 0) {
+        if (j == 0) {
+          tmp.at(i).at(j) = static_cast<bool>((
               arr->at(i).at(j) +
-              arr->at(i).at(j + 1) +
-              arr->at(i + 1).at(j - 1) +
-              arr->at(i + 1).at(j) +
-              arr->at(i + 1).at(j + 1))
-          / 5);
+                  arr->at(i).at(j + 1) +
+                  arr->at(i + 1).at(j) +
+                  arr->at(i + 1).at(j + 1))
+              / 3);
+        } else if (j == width - 1) {
+          tmp.at(i).at(j) = static_cast<bool>((
+              arr->at(i).at(j - 1) +
+                  arr->at(i).at(j) +
+                  arr->at(i + 1).at(j - 1) +
+                  arr->at(i + 1).at(j))
+              / 3);
+        } else {
+          tmp.at(i).at(j) = static_cast<bool>((
+              arr->at(i).at(j - 1) +
+                  arr->at(i).at(j) +
+                  arr->at(i).at(j + 1) +
+                  arr->at(i + 1).at(j - 1) +
+                  arr->at(i + 1).at(j) +
+                  arr->at(i + 1).at(j + 1))
+              / 4);
+        }
+      } else if (i == height - 1) {
+        if (j == 0) {
+          tmp.at(i).at(j) = static_cast<bool>((
+              arr->at(i - 1).at(j) +
+                  arr->at(i - 1).at(j + 1) +
+                  arr->at(i).at(j) +
+                  arr->at(i).at(j + 1))
+              / 3);
+        } else if (j == width - 1) {
+          tmp.at(i).at(j) = static_cast<bool>((
+              arr->at(i - 1).at(j - 1) +
+                  arr->at(i - 1).at(j) +
+                  arr->at(i).at(j - 1) +
+                  arr->at(i).at(j))
+              / 3);
+        } else {
+          tmp.at(i).at(j) = static_cast<bool>((
+              arr->at(i - 1).at(j - 1) +
+                  arr->at(i - 1).at(j) +
+                  arr->at(i - 1).at(j + 1) +
+                  arr->at(i).at(j - 1) +
+                  arr->at(i).at(j) +
+                  arr->at(i).at(j + 1))
+              / 4);
+        }
+      } else {
+        if (j == 0) {
+          tmp.at(i).at(j) = static_cast<bool>((
+              arr->at(i - 1).at(j) +
+                  arr->at(i - 1).at(j + 1) +
+                  arr->at(i).at(j) +
+                  arr->at(i).at(j + 1) +
+                  arr->at(i + 1).at(j) +
+                  arr->at(i + 1).at(j + 1))
+              / 4);
+        } else if (j == width - 1) {
+          tmp.at(i).at(j) = static_cast<bool>((
+              arr->at(i - 1).at(j - 1) +
+                  arr->at(i - 1).at(j) +
+                  arr->at(i).at(j - 1) +
+                  arr->at(i).at(j) +
+                  arr->at(i + 1).at(j - 1) +
+                  arr->at(i + 1).at(j))
+              / 4);
+        } else {
+          tmp.at(i).at(j) = static_cast<bool>((
+              arr->at(i - 1).at(j - 1) +
+                  arr->at(i - 1).at(j) +
+                  arr->at(i - 1).at(j + 1) +
+                  arr->at(i).at(j - 1) +
+                  arr->at(i).at(j) +
+                  arr->at(i).at(j + 1) +
+                  arr->at(i + 1).at(j - 1) +
+                  arr->at(i + 1).at(j) +
+                  arr->at(i + 1).at(j + 1))
+              / 5);
+        }
+      }
     }
   }
   *arr = tmp;
