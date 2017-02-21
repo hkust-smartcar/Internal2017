@@ -28,7 +28,7 @@ String dir = " ";
 char c = 'x';
 char keyPress = ' ';
 
-int encoder_count = 0;
+int Lencoder_count = 0, Rencoder_count = 0;
 
 void setup() {
   
@@ -178,7 +178,8 @@ void draw() {
   }
   text(dir, 580, 200);
   
-  text("encoder_count: "+String.valueOf(encoder_count), 500, 300);
+  text("Lencoder_count: "+String.valueOf(Lencoder_count), 500, 300);
+  text("Rencoder_count: "+String.valueOf(Rencoder_count), 500, 350);
   
   if (myPort.available() > 0) {
     int inputInt = myPort.read();
@@ -202,7 +203,7 @@ void draw() {
     }
     else if(inputInt == 172){
       if(myPort.available() > 0){
-        encoder_count = myPort.read();
+        Lencoder_count = myPort.read();
       }
     }
     else if(inputInt == 171){
@@ -216,6 +217,11 @@ void draw() {
     else if(inputInt == 169){
       if(myPort.available() > 0){
         globalSpeed = myPort.read();
+      }
+    }
+    else if(inputInt == 168){
+      if(myPort.available() > 0){
+        Rencoder_count = myPort.read();
       }
     }
     
