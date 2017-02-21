@@ -101,12 +101,12 @@ int main(void)
 	Byte motorPower_byte;
 	const Byte* motorPowerPtr;
 
-	Encoder::Config Ldir_encoder_config, Rdir_encoder;
+	Encoder::Config Ldir_encoder_config, Rdir_encoder_config;
 	Ldir_encoder_config.id = 0;
 	Rdir_encoder_config.id = 1;
 	DirEncoder LdirEncoder(Ldir_encoder_config);
 	DirEncoder RdirEncoder(Rdir_encoder_config);
-	
+
 	const Byte* Lencoder_count;
 	Byte Lencoder_count_int;
 	const Byte* Rencoder_count;
@@ -139,7 +139,7 @@ int main(void)
 				Lencoder_count_int = LdirEncoder.GetCount();
 				Lencoder_count = &Lencoder_count_int;
 				bluetooth.SendBuffer(Lencoder_count,1);
-				
+
 				bluetooth.SendBuffer(temp5,1);
 				RdirEncoder.Update();
 				Rencoder_count_int = RdirEncoder.GetCount();
