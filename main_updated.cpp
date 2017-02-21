@@ -45,6 +45,8 @@ Led* led1;
 JyMcuBt106* exterior_bluetooth;
 const Byte tempInt2 = 171;
 const Byte tempInt3 = 172;
+const Byte tempInt4 = 169;
+const Byte* temp4 = &tempInt4;
 const Byte* temp3 = &tempInt3;
 const Byte* temp2 = &tempInt2;
 AlternateMotor* exterior_Lmotor;
@@ -94,6 +96,8 @@ int main(void)
 	exterior_Lmotor = &Lmotor; exterior_Rmotor = &Rmotor;
 	Lmotor.SetClockwise(0); Rmotor.SetClockwise(1);
 	Lmotor.SetPower(motorPower); Rmotor.SetPower(motorPower);
+	Byte motorPower_byte;
+	const Byte* motorPowerPtr;
 
 	DirEncoder::Config dir_encoder_config;
 	dir_encoder_config.id = 0;
@@ -127,6 +131,11 @@ int main(void)
 				encoder_count_int = dirEncoder.GetCount();
 				encoder_count = &encoder_count_int;
 				bluetooth.SendBuffer(encoder_count,1);
+				
+				bluetooth.SendBuffer(temp4,1);
+				motorPower_byte = motorPower;
+				motorPowerPtr = &motorPower_byte;
+				bluetooth.SendBuffer(motorPower_byte,1);
 
 				cam.UnlockBuffer();
 			}
