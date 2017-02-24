@@ -130,9 +130,9 @@ endif
 # End of common CCFLAGS
 CXXFLAGS:=$(CCFLAGS)
 
-CCFLAGS+=-std=gnu99
+CCFLAGS+=-std=gnu11
 
-CXXFLAGS+=-std=gnu++11
+CXXFLAGS+=-std=gnu++14
 CXXFLAGS+=-pedantic
 CXXFLAGS+=-fno-exceptions -fno-rtti
 
