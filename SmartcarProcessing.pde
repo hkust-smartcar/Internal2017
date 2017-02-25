@@ -1,3 +1,21 @@
+/*
+
+			camInput = Cam1.LockBuffer();
+
+			const Byte imageByte = 170;
+			bluetooth1.SendBuffer(&imageByte, 1);
+			bluetooth1.SendBuffer(camInput, Cam1.GetBufferSize());
+
+			char speedChar[15] = {};
+			sprintf(speedChar, "%.2f,%.2f\n", leftSpeed, rightSpeed);
+			string speedStr = speedChar;
+
+			const Byte speedByte = 85;
+			bluetooth1.SendBuffer(&speedByte, 1);
+			bluetooth1.SendStr(speedStr);
+
+*/
+
 import processing.serial.*;
 import java.util.*;
 import g4p_controls.*;
