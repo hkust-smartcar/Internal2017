@@ -1,24 +1,31 @@
-GTextField txf[];
-GTabManager tt;
+String tfName[];
+String constantArr[];
+int conSize = 3;
 int tuneButtonX = 900, tuneButtonY = 500;
 int textFieldX = 200, textFieldY = 400;
 
-void txfSetUp() {
+void tfSetUp() {
   
-  txf = new GTextField[conSize];
+  tfName[0] = "Constant1";
+  tfName[1] = "Constant2";
+  tfName[2] = "Constant3";
   
-  txf[0] = new GTextField(this, textFieldX, textFieldY, 200, 20);
-  txf[0].tag = "txf1";
-  txf[0].setPromptText("Constant1");
-
-  txf[1] = new GTextField(this, textFieldX, textFieldY+50, 200, 20);
-  txf[1].tag = "txf2";
-  txf[1].setPromptText("Constant2");
+  cp5.addTextfield(tfName[0])
+     .setPosition(textFieldX, textFieldY)
+     .setAutoClear(false)
+     ;
+     
+  cp5.addTextfield(tfName[1])
+     .setPosition(textFieldX, textFieldY+50)
+     .setAutoClear(false)
+     ;
+     
+   cp5.addTextfield(tfName[2])
+     .setPosition(textFieldX, textFieldY+100)
+     .setAutoClear(false)
+     ;
   
-  txf[2] = new GTextField(this, textFieldX, textFieldY+100, 200, 20);
-  txf[2].tag = "txf3";
-  txf[2].setPromptText("Constant3");
-  
+  tfHide();
 }
 
 void readConstant() {
@@ -49,8 +56,8 @@ void readConstant() {
 void editConstant() {
   
   for (int i=0; i<conSize; i++) {
-    if (txf[i].getText().length() != 0) {
-      constantArr[i] = txf[i].getText();
+    if (cp5.get(Textfield.class,tfName[i]).getText().length() != 0) {
+      constantArr[i] = cp5.get(Textfield.class,tfName[i]).getText();
     }
   }
   
@@ -67,22 +74,24 @@ void editConstant() {
 
 void displayConstant() {
   
-  fill(255);
-  textSize(16);
-  text(constantArr[0], textFieldX+200, textFieldY+20);
-  text(constantArr[1], textFieldX+200, textFieldY+70);
-  text(constantArr[2], textFieldX+200, textFieldY+120);
-  
-  fill(#003602);
-  noStroke();
-  ellipse(tuneButtonX, tuneButtonY, buttonDiameter, buttonDiameter);
+  displayText(constantArr[0], textFieldX+250, textFieldY+20, 100, 24);
+  displayText(constantArr[1], textFieldX+250, textFieldY+70, 100, 24);
+  displayText(constantArr[2], textFieldX+250, textFieldY+120, 100, 24);
   
 }
 
-void txfRemove() {
+void tfShow() {
   
   for (int i=0; i<conSize; i++) {
-    txf[i].markForDisposal();
+    cp5.get(Textfield.class,tfName[i]).show();
+  }
+  
+}
+
+void tfHide() {
+  
+  for (int i=0; i<conSize; i++) {
+    cp5.get(Textfield.class,tfName[i]).hide();
   }
   
 }

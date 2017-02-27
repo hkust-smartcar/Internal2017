@@ -1,56 +1,66 @@
-double[] leftSpeedValue, rightSpeedValue;
-double leftSpeed = 0, rightSpeed = 0;
+double[][] value;
+double[] newValue;
+int valSize = 3;
+color[] graphColor;
+  
+int range = 1000;
 
-int graphLength = 800;
+int graphLength = 1000;
 int graphWidth = 400, graphHeight = 250;
 int graphOneX = 100, graphOneY = 300;
 int graphTwoX = 600, graphTwoY = 300;
 
 void stringToDouble(String inputString) {
   
-  int strLength = inputString.length();
-  int index1 = inputString.indexOf(',');
+  String[] valStr = inputString.split(",");
   
-  String leftStr = inputString.substring(0, index1);
-  String rightStr = inputString.substring(index1+1, strLength-1);
-  
-  leftStr = leftStr.replaceAll("[^0-9.-]+","");
-  rightStr = rightStr.replaceAll("[^0-9.-]+","");
-  
-  leftSpeed = Double.parseDouble(leftStr);
-  rightSpeed = Double.parseDouble(rightStr);
+  for (int i = 0; i < valSize; i++) {
+    valStr[i] = valStr[i].replaceAll("[^0-9.-]+", "");
+    newValue[i] = Double.parseDouble(valStr[i]);
+  }
   
 }
 
 void getData() {
   
-  int range = 50000;
-  
-  for(int i = 1; i < graphLength; i++) {
-    leftSpeedValue[i-1] = leftSpeedValue[i];
-    rightSpeedValue[i-1] = rightSpeedValue[i];
+  for (int i = 0; i < valSize; i++) {
+    for (int j = 1; j < graphLength; j++) {
+      value[i][j-1] = value[i][j];
+    }
   }
   
-  leftSpeed = (sin(frameCount*0.1)*10)*4000;
-  rightSpeed = (sin(frameCount*0.1)*10)*4000;
-  leftSpeedValue[graphLength-1] = map((float)leftSpeed, 0-range, range, -graphHeight/2, graphHeight/2);
-  rightSpeedValue[graphLength-1] = map((float)rightSpeed, 0-range, range, -graphHeight/2, graphHeight/2);
+  for (int i = 0; i < valSize; i++) {
+    value[i][graphLength-1] = map((float)newValue[i], 0-range, range, -10000, 10000);
+  }
   
 }
 
 void plotGraph() {
 
-  stroke(255);
-  strokeWeight(0);
-  line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
-  line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
-  
-  stroke(60, 3, 255);
-  strokeWeight(3);
-
-  for(int i=1; i<graphWidth; i++) {
-    point(graphOneX+i, graphOneY+graphHeight/2-(int)leftSpeedValue[graphLength-graphWidth+i]);
-    point(graphTwoX+i, graphTwoY+graphHeight/2-(int)rightSpeedValue[graphLength-graphWidth+i]);
+  if (overviewMode == 0 || overviewMode == 1) {
+    fill(#404040);
+    stroke(0);
+    rect(graphOneX, graphOneY, graphWidth, graphHeight);
+    rect(graphTwoX, graphTwoY, graphWidth, graphHeight);
+    stroke(255);
+    strokeWeight(0);
+    line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
+    line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
+  } else {
+    fill(#404040);
+    stroke(0);
+    rect(graphOneX, graphOneY, graphWidth, graphHeight);
+    stroke(255);
+    strokeWeight(0);
+    line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
   }
   
+  strokeWeight(3);
+
+  for (int i = 0; i < valSize; i++) {
+    stroke(graphColor[i]);
+    for(int j=1; j<graphWidth; j++) {
+      point(graphOneX+j, graphOneY+graphHeight/2-(int)(value[i][graphLength-graphWidth+j]/10000*graphHeight/2));
+    }
+  }
 }

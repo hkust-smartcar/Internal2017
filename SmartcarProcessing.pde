@@ -1,119 +1,33 @@
-/*
-
-			camInput = Cam1.LockBuffer();
-
-			const Byte imageByte = 170;
-			bluetooth1.SendBuffer(&imageByte, 1);
-			bluetooth1.SendBuffer(camInput, Cam1.GetBufferSize());
-
-			char speedChar[15] = {};
-			sprintf(speedChar, "%.2f,%.2f\n", leftSpeed, rightSpeed);
-			string speedStr = speedChar;
-
-			const Byte speedByte = 85;
-			bluetooth1.SendBuffer(&speedByte, 1);
-			bluetooth1.SendStr(speedStr);
-
-*/
-
-import processing.serial.*;
+import processing.serial.*; //<>//
 import java.util.*;
+import controlP5.*;
 import g4p_controls.*;
 
+ControlP5 cp5;
+
 Serial myPort;
+
+int startTime = 0, currentTime = 0;
+
+int overviewMode = -1;
+
+String inputString = "";
 
 BufferedReader reader;
 PrintWriter writer;
 
-int startTime = 0, currentTime = 0;
-HScrollbar hs1, hs2;
+void displayText(String text, int x, int y, int w, int size) {
 
-int overviewMode = 0;
-
-int buttonDiameter = 50;
-int leftX = 100, leftY = 600;
-int middleX = 200, middleY = 600;
-int rightX = 300, rightY = 600;
-int modeButtonX = 1100, modeButtonY = 60;
-boolean leftOver = false;
-boolean middleOver = false;
-boolean rightOver = false;
-boolean modeButtonOver = false;
-boolean tuneButtonOver = false;
-
-int outputVal = 0;
-String constantArr[];
-int conSize = 3;
-
-boolean overCircle(int x, int y, int buttonDiameter) {
-  float disX = x - mouseX;
-  float disY = y - mouseY;
-  if (sqrt(sq(disX) + sq(disY)) < buttonDiameter/2 ) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-void checkOver() {
-  
-  leftOver = middleOver = rightOver = modeButtonOver = tuneButtonOver = false;
-  
-  if (overCircle(modeButtonX, modeButtonY, buttonDiameter)) {
-    modeButtonOver = true;
-  }
-  
-  if (overviewMode == 0) {
-    
-    leftOver = overCircle(leftX, leftY, buttonDiameter);
-    middleOver = overCircle(middleX, middleY, buttonDiameter);
-    rightOver = overCircle(rightX, rightY, buttonDiameter);
-    
-  } else if (overviewMode == 1) {
-    
-    tuneButtonOver = overCircle(tuneButtonX, tuneButtonY, buttonDiameter);
-  }
-  
-}
-
-void updateScreen() {
-  
-  if (overviewMode == 0) {
-    
-    fill(#898989);
-    noStroke();
-    rect(imageX, imageY, camWidth*pixelSide, camHeight*pixelSide);
-    rect(boundaryX, boundaryY, camWidth*pixelSide, camHeight*pixelSide);
-    rect(regionX, regionY, camWidth*pixelSide, camHeight*pixelSide);
-    fill(0);
-    noStroke();
-    ellipse(leftX, leftY, buttonDiameter, buttonDiameter);
-    ellipse(middleX, middleY, buttonDiameter, buttonDiameter);
-    ellipse(rightX, rightY, buttonDiameter, buttonDiameter);
-    fill(#404040);
-    stroke(0);
-    rect(graphOneX, graphOneY, graphWidth, graphHeight);
-    rect(graphTwoX, graphTwoY, graphWidth, graphHeight);
-    
-  } else if (overviewMode == 1) {
-    
-    fill(#404040);
-    stroke(0);
-    rect(graphOneX, graphOneY, graphWidth, graphHeight);
-    rect(graphTwoX, graphTwoY, graphWidth, graphHeight);
-    
-  } else if (overviewMode == 2) {
-      
-  }
-    
-  fill(#6F0000);
+  fill(#04001F);
   noStroke();
-  ellipse(modeButtonX, modeButtonY, buttonDiameter, buttonDiameter);
-  
+  rect(x-size, y-size, w, size*1.5);
+  fill(255);
+  textSize(size);
+  text(text, x, y);
 }
 
 void keyPressed() {
-  
+
   if (key == 'g') {
     //if (leftOver) {
     //  save("leftData.txt");
@@ -132,11 +46,10 @@ void keyPressed() {
   //} else if (key == 'd') {
   //  myPort.write('d');
   //}
-  
 }
 
 void keyReleased() {
-  
+
   if (key == 'w') {
     myPort.write('W');
   } else if (key == 's') {
@@ -147,104 +60,57 @@ void keyReleased() {
   //} else if (key == 'd') {
   //  myPort.write('D');
   //}
-  
-}
-
-void mousePressed() {
-  
-  if (modeButtonOver) {
-    
-    background(#04001F);
-    overviewMode = ++overviewMode % 3;
-    
-    if (overviewMode == 0) {
-      
-      graphWidth = 400;
-      graphOneX = 100;
-      graphOneY = 300;
-      graphTwoX = 600;
-      graphTwoY = 300;
-      
-    } else if (overviewMode == 1) {
-      
-      graphWidth = 400;
-      graphOneY = 50;
-      graphTwoY = 50;
-      readConstant();
-      txfSetUp();
-      
-    } else if (overviewMode == 2) {
-      
-      txfRemove();
-      
-    }
-    
-  } else if (tuneButtonOver && overviewMode == 1) {
-    
-    editConstant();
-    myPort.write('t' + constantArr[0] + '\n');
-    
-  }
-  
 }
 
 void setup() {
-  
+
   printArray(Serial.list());
   myPort = new Serial(this, Serial.list()[1], 115200);
+  myPort.clear();
   startTime = millis();
-  size(1150, 650);
+  frameRate(300);
+  size(1200, 650);
+  background(#04001F);
+  cp5 = new ControlP5(this);
   
+  btName = new String[btSize];
+  tfName = new String[conSize];
+  constantArr = new String[conSize];
+  
+  buttonSetUp();
+  tfSetUp();
+
   for (int y=0; y<camHeight; y++) {
     for (int x=0; x<camWidth; x++) {
       pixelArray[y][x] = false;
     }
   }
   
-  leftSpeedValue = new double[graphLength];
-  rightSpeedValue = new double[graphLength];
-  for(int i = 0; i < graphWidth; i++) {
-    leftSpeedValue[i] = 0;
-    rightSpeedValue[i] = 0;
+  value = new double[valSize][graphLength];
+  newValue = new double[valSize];
+  graphColor = new color[valSize];
+
+  for (int i = 0; i < valSize; i++) {
+    newValue[i] = 0;
+    for (int j = 0; j < graphLength; j++) {
+      value[i][j] = 0;
+    }
   }
   
-  constantArr = new String[conSize];
-  //hs1 = new HScrollbar(sb1x, sb1y, sb1w, 16, 1);
-  //hs2 = new HScrollbar(sb2x, sb2y, sb2w, 16, 1);
-
+  graphColor[0] = #031DFF;
+  graphColor[1] = #03FF04;
+  graphColor[2] = #FF0303;
 }
 
 void draw() {
-  
+
   if (myPort.available() > 0) {
-    
+
     int inputInt = myPort.read();
-    
-    //image
-    if (inputInt == 170) {
-      
-      int i = 0;
-      arrayPosX = 0;
-      arrayPosY = 0;
-      
-      while (i < camWidth*camHeight/8) {
-        print('.');
-        if (myPort.available() > 0) {
-          inputInt = myPort.read();
-          getImage(inputInt);
-          i++;
-        }
-      }
-      
-      delay(1);
-      
-    }
-    
+
     //encoder
-    else if (inputInt == 85) {
-      
-      String inputString = "";
-      
+    if (inputInt == 85) {
+
       while (true) {
         print(',');
         if (myPort.available() > 0) {
@@ -253,20 +119,46 @@ void draw() {
         }
       }
       if (inputString != null) {
+        inputString = inputString.trim();
+        displayText(inputString, 600, 600, 300, 32);
         stringToDouble(inputString);
-        //fill(255);
-        //textSize(32);
-        //text(inputString, 610, 600);
       }
+      getData();
+      plotGraph();
       delay(1);
-      
     }
-    
-    //feedback
+
+    ////image
+    //if (inputInt == 170) {
+
+    //  int i = 0;
+    //  arrayPosX = 0;
+    //  arrayPosY = 0;
+
+    //  while (i < camWidth*camHeight/8) {
+    //    print('.');
+    //    if (myPort.available() > 0) {
+    //      inputInt = myPort.read();
+    //      getImage(inputInt);
+    //      i++;
+    //    }
+    //  }
+    //  if (overviewMode == 0) {
+    //    outputImage();
+    //    getBoundary();
+    //    outputBoundary();
+    //    getRegion();
+    //    outputRegion();
+    //    turningResult();
+    //  }
+    //  delay(1);
+    //}
+
+    ////feedback
     //if (inputInt == 171) {
-      
+
     //  String inputString = "";
-      
+
     //  while (true) {
     //    print(',');
     //    if (myPort.available() > 0) {
@@ -278,28 +170,9 @@ void draw() {
     //    println(inputString);
     //  }
     //  delay(1);
-      
+
     //}
-  
   }
-    
-  background(#04001F);
-  updateScreen();
-  getData();
-    
-  if (overviewMode == 0) {
-    outputImage();
-    getBoundary();
-    outputBoundary();
-    getRegion();
-    outputRegion();
-    turningResult();
-    plotGraph();
-  } else if (overviewMode == 1) {
-    plotGraph();
-    displayConstant();
-  }
-  
-  checkOver();
-  
+
+  println(frameRate);
 }

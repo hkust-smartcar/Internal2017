@@ -3,15 +3,15 @@ int arrayPosX, arrayPosY;
 
 int pixelSide = 4;
 Boolean[][] pixelArray = new Boolean[camHeight][camWidth];
-int imageX = 10, imageY = 10;
+int imageX = 50, imageY = 10;
 
 Boolean[][] boundaryArray = new Boolean[camHeight][camWidth];
-int boundaryX = 710, boundaryY = 10;
+int boundaryX = 750, boundaryY = 10;
 
 int regionSide = 5;
 int regionSize = (camHeight*camWidth) / (regionSide*regionSide);
 int[] regionArray = new int[regionSize];
-int regionX = 360, regionY = 10;
+int regionX = 400, regionY = 10;
 
 void getImage(int data) {
 
@@ -217,11 +217,11 @@ void turningResult() {
   textSize(32);
   
   if (leftMin<middleMin && leftMin<rightMin) {
-    text("left", 400, 610);
+    displayText("left", 400, 610, 200, 32);
   } else if (rightMin<middleMin && rightMin<leftMin) {
-    text("right", 400, 610);
+    displayText("right", 400, 610, 200, 32);
   } else {
-    text("middle", 400, 610);
+    displayText("middle", 400, 610, 200, 32);
   }
 
 }
