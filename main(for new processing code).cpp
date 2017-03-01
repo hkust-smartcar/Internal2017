@@ -312,3 +312,4 @@ bool BTonReceiveInstruction(const Byte *data, const size_t size){
 
 	return true;
 }
+
