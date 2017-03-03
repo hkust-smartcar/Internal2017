@@ -1,9 +1,6 @@
 double[][] value;
 double[] newValue;
-int valSize = 3;
 color[] graphColor;
-  
-int range = 1000;
 
 int graphLength = 1000;
 int graphWidth = 400, graphHeight = 250;
@@ -15,8 +12,8 @@ void stringToDouble(String inputString) {
   String[] valStr = inputString.split(",");
   
   for (int i = 0; i < valSize; i++) {
-    valStr[i] = valStr[i].replaceAll("[^0-9.-]+", "");
-    newValue[i] = Double.parseDouble(valStr[i]);
+    valStr[i+1] = valStr[i+1].replaceAll("[^0-9.-]+", "");
+    newValue[i] = Double.parseDouble(valStr[i+1]);
   }
   
 }
@@ -55,7 +52,7 @@ void plotGraph() {
     line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
   }
   
-  strokeWeight(3);
+  strokeWeight(1);
 
   for (int i = 0; i < valSize; i++) {
     stroke(graphColor[i]);

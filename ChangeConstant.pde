@@ -1,29 +1,20 @@
 String tfName[];
 String constantArr[];
-int conSize = 3;
+int textFieldSize = 12;
 int tuneButtonX = 900, tuneButtonY = 500;
-int textFieldX = 200, textFieldY = 400;
+int textFieldX = 100, textFieldY = 400;
 
 void tfSetUp() {
   
-  tfName[0] = "Constant1";
-  tfName[1] = "Constant2";
-  tfName[2] = "Constant3";
+  for (int i=0; i<textFieldSize; i++) {
+    tfName[i] = "Constant" + Integer.toString(i+1);
   
-  cp5.addTextfield(tfName[0])
-     .setPosition(textFieldX, textFieldY)
-     .setAutoClear(false)
-     ;
-     
-  cp5.addTextfield(tfName[1])
-     .setPosition(textFieldX, textFieldY+50)
-     .setAutoClear(false)
-     ;
-     
-   cp5.addTextfield(tfName[2])
-     .setPosition(textFieldX, textFieldY+100)
-     .setAutoClear(false)
-     ;
+    cp5.addTextfield(tfName[i])
+       .setPosition(textFieldX + (i/3)*250, textFieldY + (i%3)*50)
+       .setWidth(150)
+       .setAutoClear(false)
+       ;
+  }
   
   tfHide();
 }
@@ -55,7 +46,7 @@ void readConstant() {
 
 void editConstant() {
   
-  for (int i=0; i<conSize; i++) {
+  for (int i=0; i<textFieldSize; i++) {
     if (cp5.get(Textfield.class,tfName[i]).getText().length() != 0) {
       constantArr[i] = cp5.get(Textfield.class,tfName[i]).getText();
     }
@@ -63,7 +54,7 @@ void editConstant() {
   
   writer = createWriter("constant.txt");
   
-  for (int i=0; i<conSize; i++) {
+  for (int i=0; i<textFieldSize; i++) {
     writer.println(constantArr[i]);
   }
   
@@ -74,15 +65,15 @@ void editConstant() {
 
 void displayConstant() {
   
-  displayText(constantArr[0], textFieldX+250, textFieldY+20, 100, 24);
-  displayText(constantArr[1], textFieldX+250, textFieldY+70, 100, 24);
-  displayText(constantArr[2], textFieldX+250, textFieldY+120, 100, 24);
+  for (int i=0; i<consSize; i++) {
+    displayText(constantArr[i], textFieldX+(i/3)*250+160, textFieldY+50*(i%3)+10, 100, 24);
+  }
   
 }
 
 void tfShow() {
   
-  for (int i=0; i<conSize; i++) {
+  for (int i=0; i<textFieldSize; i++) {
     cp5.get(Textfield.class,tfName[i]).show();
   }
   
@@ -90,7 +81,7 @@ void tfShow() {
 
 void tfHide() {
   
-  for (int i=0; i<conSize; i++) {
+  for (int i=0; i<textFieldSize; i++) {
     cp5.get(Textfield.class,tfName[i]).hide();
   }
   

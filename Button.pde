@@ -114,6 +114,12 @@ void tune() {
   if (overviewMode == 1) {
     editConstant();
     displayConstant();
-    //myPort.write('t' + constantArr[0] + '\n');
+    String sendStr = "";
+    sendStr += constantArr[0];
+    for (int i=1; i<consSize; i++) {
+      sendStr += ",";
+      sendStr += constantArr[i];
+    }
+    myPort.write('t' + sendStr + '\n');
   }
 }
