@@ -13,28 +13,39 @@ color colorArray[] = {#031DFF, #03FF04, #FF0303};  //Add color here for more var
 int portNum = 1;  //Choose the correct port here
 
 /*
-//Example of receiving 1 constant in smartcar.
-//This version is only for changing one constant
+//Example of receiving constants in smartcar.
 string str;  //global
 bool tuning = false;  //global
+vector<double> constVector;  //global
 
 bool bluetoothListener(const Byte *data, const size_t size) {
 
   if (data[0] == 't') {
     tuning = 1;
-    str = "";
+    inputStr = "";
   } else if (tuning && data[0] != 't') {
+
     if (data[0] != '\n') {
-      str += (char)data[0];
+      inputStr += (char)data[0];
     } else {
       tuning = 0;
-      int power;  //you may change this data type
-      stringstream(str) >> power;
-      if (power > 300)
-        power = 300;
-      leftMotorPtr->SetPower(power);  //manipulation of the input
-      rightMotorPtr->SetPower(power);
+      constVector.clear();
+
+      char * pch;
+      pch = strtok(&inputStr[0], " ,");
+      while (pch != NULL){
+        int constant;
+        stringstream(pch) >> constant;
+        constVector.push_back(constant);
+        pch = strtok (NULL, " ,");
+      }
+
+      if (constVector[0] > 300)
+        constVector[0] = 300;
+      leftMotorPtr->SetPower(constVector[0]);
+      rightMotorPtr->SetPower(constVector[0]);
     }
+
   }
 
 }
