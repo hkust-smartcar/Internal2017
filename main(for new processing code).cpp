@@ -62,7 +62,7 @@ int centerLine = 40, car_center = 40;
 double intervalMs = 100;
 int max_servoDeg = 45, min_servoDeg = -45;
 bool inAuto = false;
-string data_string[]={};
+string data_string[20]={};
 //for pid
 double Kp, Ki, I, Kd, output, err, lastInput, Input;
 string var_string;
@@ -261,17 +261,19 @@ void update_data_from_bt(){
 	max_speed = toInt(data_string[6]);
 	min_speed = toInt(data_string[7]);
 	intervalMs = toDouble(data_string[8]);
+	centerLine = toInt(data_string[9]);
+	PID(centerLine, car_center); //the same time interval as image output
 }
 
 bool BTonReceiveInstruction(const Byte *data, const size_t size){
 	exterior_bluetooth->SendBuffer(temp2,1);
 	exterior_bluetooth->SendBuffer(&data[0], 1);
-	if(data[0]==1000){
+	if(data[0]==0){
 		inAuto = true;
-	} else if(data[0]==1001){
+	} else if(data[0]==1){
 		inAuto = false;
 		stopMotor();
-	} else if(data[0]==1002){
+	} else if(data[0]==2){
 		stopMotor();
 	} else if(data[0]==' '){
 		inAuto = false; //press space key to enter manual mode
@@ -297,11 +299,9 @@ bool BTonReceiveInstruction(const Byte *data, const size_t size){
 		adjustSpeed(-20);
 	} else if(data[0]=='.'){
 		adjustSpeed(20);
-	} else if(data[0]>=0 && data[0]<80){
-		centerLine = data[0];
-		PID(centerLine, car_center); //the same time interval as image output
 	} else{
-		istringstream ss(data[0]);
+		//string data_s((const char*)data);
+		istringstream ss((const char*)(data));
 		string token;
 		data_string_len = 0;
 		while(getline(ss, token, ' ')) {
@@ -312,4 +312,3 @@ bool BTonReceiveInstruction(const Byte *data, const size_t size){
 
 	return true;
 }
-
