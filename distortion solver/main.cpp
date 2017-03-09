@@ -9,6 +9,8 @@ unsigned char* map;
 int vanish_x=0;
 int vanish_y=0;
 
+int y1=0,y2=0;
+
 int max(int a, int b){return (a>b?a:b);}
 int min(int a, int b){return (a<b?a:b);}
 
@@ -61,6 +63,7 @@ void autocal(){
 	
 	printf("(%d,%d)\n",vanish_x,vanish_y);
 	
+	y1=a;y2=d;
 }
 
 /**
@@ -88,7 +91,7 @@ int main(){
 	
 	for (int i =0; i<height ; i++){
 		for (int j=0; j<width; j++)
-			printf("%d",(getfixbit(0,j,i)?1:0));
+			printf("%d",(getfixbit(max(y1,y2),j,i)?1:0));
 		printf("\n");
 	}
 	printf("done\n");
