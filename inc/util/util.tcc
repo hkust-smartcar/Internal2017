@@ -9,23 +9,46 @@
 
 namespace util {
 template<size_t size>
-void ByteTo1DBitArray(const Byte &src, std::array<bool, size> *dest) {
-  for (Uint i = 0; i < size / 8; ++i) {
-    std::string s = std::bitset<8>(static_cast<Uint>((&src)[i])).to_string();
+void CopyByteArray(const Byte &src, std::array<Byte, size> *dest) {
+  for (size_t i = 0; i < size; ++i) {
+    dest->at(i) = (&src)[i];
+  }
+}
+
+template<size_t size>
+void ByteTo1DBitArray(const std::array<Byte, size / 8> &src, std::array<bool, size> *dest) {
+  for (size_t i = 0; i < src.size(); ++i) {
     for (uint8_t j = 0; j < 8; ++j) {
-      dest->at(i * 8 + j) = static_cast<Uint>(s.at(j) - '0') == 1;
+      dest->at(i * 8 + j) = (src.at(i) >> (7 - j)) & 1;
     }
   }
 }
 
 template<size_t width, size_t height>
-void ByteTo2DBitArray(const Byte &src, std::array<std::array<bool, width>, height> *dest) {
-  for (Uint i = 0; i < width * height / 8; ++i) {
-    std::string s = std::bitset<8>((&src)[i]).to_string();
-    for (uint8_t j = 0; j < 8; ++j) {
-      dest->at(i * 8 / width).at((i * 8 % width) + j) = static_cast<Uint>(s.at(j) - '0') == 1;
+void ByteTo2DBitArray(const std::array<Byte, width * height / 8> &src,
+                      std::array<std::array<bool, width>, height> *dest) {
+  for (size_t i = 0; i < src.size(); ++i) {
+    for (int j = 0; j < 8; ++j) {
+      dest->at(i * 8 / width).at((i * 8 % width) + (7 - j)) = (src.at(i) >> (7 - j)) & 1;
     }
   }
+}
+
+template<size_t size>
+bool GetBitValue(const std::array<Byte, size> &a, const size_t pos) {
+  if (pos >= size * 8) {
+    return false;
+  }
+  return (a.at(pos / 8) >> (7 - pos % 8)) & 1;
+}
+
+template<size_t size>
+bool GetBitValue(const std::array<Byte, size> &a, const size_t x_size, const size_t x, const size_t y) {
+  if (x >= x_size) {
+    return false;
+  }
+  size_t pos = y * x_size + x;
+  return (a.at(pos / 8) >> (7 - pos % 8)) & 1;
 }
 
 template<size_t width, size_t height>
@@ -213,29 +236,6 @@ void MedianFilter(std::array<std::array<bool, width>, height> *arr) {
   *arr = tmp;
 }
 
-template<class T, typename = enable_if_t <std::is_integral<T>::value>>
-int FindElement(const T &arr, int first, int last, T value, bool return_last) {
-  if (last > first) {
-    for (; first <= last; ++first) {
-      if ((&arr)[first] == value) {
-        return first;
-      }
-    }
-  } else if (first > last) {
-    for (; first >= last; --first) {
-      if ((&arr)[first] == value) {
-        return first;
-      }
-    }
-  } else if (first == last) {
-    if ((&arr)[first] == value) {
-      return first;
-    }
-    return return_last ? last : -1;
-  }
-  return return_last ? last : -1;
-}
-
 template<class T, typename = enable_if_t <std::is_integral<T>::value>, std::size_t size>
 int FindElement(const std::array<T, size> &arr, int first, int last, T value, bool return_last) {
   if (last > first) {
@@ -257,27 +257,5 @@ int FindElement(const std::array<T, size> &arr, int first, int last, T value, bo
     return return_last ? last : -1;
   }
   return return_last ? last : -1;
-}
-
-template<size_t size>
-float CalcLinearRegressionSlope(const std::array<int, size> &x, const std::array<int, size> &y) {
-  std::array<std::array<int, 2>, 2> lhs_matrix{{{0, 0}, {0, 0}}};
-  std::array<int, 2> rhs_matrix{{0, 0}};
-
-  // least squares method approximation
-  for (unsigned int i = 0; i < size; ++i) {
-    lhs_matrix.at(0).at(0) += (x.at(i) * x.at(i));
-    lhs_matrix.at(0).at(1) += x.at(i);
-    lhs_matrix.at(1).at(0) += x.at(i);
-    lhs_matrix.at(1).at(1) += 1;
-    rhs_matrix.at(0) += (x.at(i) * y.at(i));
-    rhs_matrix.at(1) += y.at(i);
-  }
-
-  // cramer's rule
-  float det = (lhs_matrix.at(0).at(0) * lhs_matrix.at(1).at(1)) - (lhs_matrix.at(1).at(0) * lhs_matrix.at(0).at(1));
-  float m = ((rhs_matrix.at(0) * lhs_matrix.at(1).at(1)) - (lhs_matrix.at(0).at(1) * rhs_matrix.at(1))) / det;
-
-  return det != 0 ? m : std::numeric_limits<float>::infinity();
 }
 }  // namespace util

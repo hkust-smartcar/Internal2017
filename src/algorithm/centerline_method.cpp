@@ -165,15 +165,15 @@ void CenterLineMethod() {
 
       // copy the buffer for processing
       const Byte *pbuffer = camera->LockBuffer();
-      Byte image1d[kBufferSize];
-      CopyByteArray(*pbuffer, image1d, kBufferSize);
+      array<Byte, kBufferSize> byte_arr;
+      CopyByteArray(*pbuffer, &byte_arr);
       camera->UnlockBuffer();
 
       led2.SetEnable(true);
 
       // 1d to 2d array
       array<array<bool, kCameraWidth>, kCameraHeight> image2d;
-      ByteTo2DBitArray(*pbuffer, &image2d);
+      ByteTo2DBitArray(byte_arr, &image2d);
 
       // apply median filter
       array<array<bool, kCameraWidth>, kCameraHeight> image2d_median;
@@ -217,7 +217,7 @@ void CenterLineMethod() {
       // render center line on lcd
       if (kEnableLcd) {
         lcd->SetRegion(Lcd::Rect(0, 0, kCameraWidth, kCameraHeight));
-        lcd->FillBits(Lcd::kBlack, Lcd::kWhite, image1d, kBufferSize * 8);
+        lcd->FillBits(Lcd::kBlack, Lcd::kWhite, byte_arr.data(), kBufferSize * 8);
         for (Uint i = kCameraHeight - 1; i > kCameraMaxSrcHeight; --i) {
           if (RowInfo[i].track_count < kCameraMinPixelCount) {
             break;
@@ -366,15 +366,15 @@ void CenterLineMethodTest() {
 
       // copy the buffer for processing
       const Byte *pbuffer = camera->LockBuffer();
-      Byte image1d[kBufferSize];
-      CopyByteArray(*pbuffer, image1d, kBufferSize);
+      array<Byte, kBufferSize> byte_arr;
+      CopyByteArray(*pbuffer, &byte_arr);
       camera->UnlockBuffer();
 
       led2.SetEnable(true);
 
       // 1d to 2d array
       array<array<bool, kCameraWidth>, kCameraHeight> image2d;
-      ByteTo2DBitArray(*pbuffer, &image2d);
+      ByteTo2DBitArray(byte_arr, &image2d);
 
       // apply median filter
       array<array<bool, kCameraWidth>, kCameraHeight> image2d_median;
@@ -419,7 +419,7 @@ void CenterLineMethodTest() {
       if (kEnableLcd) {
         lcd->SetRegion(Lcd::Rect(0, 0, kCameraWidth, kCameraHeight));
         lcd->FillColor(Lcd::kWhite);
-        // lcd->FillBits(Lcd::kBlack, Lcd::kWhite, image1d,  kBufferSize * 8);
+        lcd->FillBits(Lcd::kBlack, Lcd::kWhite, byte_arr.data(), kBufferSize * 8);
         for (Uint i = kCameraHeight - 1; i > 0; --i) {
           if (RowInfo[i].track_count < kCameraMinPixelCount) {
             break;
