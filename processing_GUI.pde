@@ -1,290 +1,508 @@
-#include <cassert>
-#include <cstring>
-#include <libbase/k60/mcg.h>
-#include <libsc/system.h>
-#include <libsc/st7735r.h>
-#include <libsc/k60/ov7725.h>
-#include <libsc/futaba_s3010.h>
-#include <libsc/alternate_motor.h>
-#include <libsc/k60/jy_mcu_bt_106.h>
-#include <libsc/led.h>
-#include <libsc/dir_encoder.h>
-#include <ctype.h>
-#include <string>
-#include <sstream>
-using namespace std;
+import controlP5.*;
+import java.util.*;
+import processing.serial.*;
 
-namespace libbase
-{
-	namespace k60
-	{
+ControlP5 cp5;
+Serial myPort;
 
-		Mcg::Config Mcg::GetMcgConfig()
-		{
-			Mcg::Config config;
-			config.external_oscillator_khz = 50000;
-			config.core_clock_khz = 150000;
-			return config;
-		}
+PFont f1;
+int NUM = 100;
+color darkgray = #333333;
+int inputInt;
+int flag = 0;
+double []split = new double[12];
 
-	}
+int globalWidth = 80;
+int globalHeight = 60;
+int globalSpeed = 0;
+int displaySpeed;
+
+int pixelSide = 5;
+Boolean[][] pixelArray = new Boolean[globalHeight][globalWidth];
+
+int background_color = 17;
+color red = #ff0000;
+color black = #000000;
+
+int arrayPosX, arrayPosY;
+Boolean stop = false;
+String dir = " ", var_string = " ";
+char data_received = ' ';
+char keyPress = ' ';
+
+String Lencoder_count = "0", Rencoder_count = "0";
+String center_line_received_x = " ";
+byte []data_string = new byte[20];
+int total_var = 9;
+
+//for finding center line
+int white_num;
+int left_end = 0, right_end = globalWidth, center_x;
+
+void setup() {
+  
+  printArray(Serial.list());
+  myPort = new Serial(this, Serial.list()[1], 115200);
+  myPort.buffer(1);
+  size(800, 400 ,P3D);
+  f1 = createFont("Helvetica", 12);
+  
+  background( 220 );
+
+  cp5 = new ControlP5( this );
+  cp5.addButton("auto");
+  cp5.addButton("manual");
+  cp5.addButton("stop_").setLabel("stop");
+  cp5.addButton("clear");
+  
+  Controller auto_btn = cp5.getController("auto");
+  auto_btn.setColorBackground(color(#00AA00));
+  auto_btn.setColorForeground(color(#00EE00));
+  auto_btn.setPosition(715, 20);
+  
+  Controller manual_btn = cp5.getController("manual");
+  manual_btn.setPosition(715, 50);
+  
+  Controller stop_btn = cp5.getController("stop_");
+  stop_btn.setPosition(715, 80);
+  stop_btn.setColorBackground(color(#AA0000));
+  stop_btn.setColorForeground(color(#EE0000));
+  
+  Controller clear_btn = cp5.getController("clear");
+  clear_btn.setPosition(715, 110);
+  clear_btn.setColorBackground(color(#AAAA00));
+
+  // create a custom SilderList with name menu, notice that function 
+  // menu will be called when a menu item has been clicked.
+
+  SilderList m = new SilderList( cp5, "menu", 250, 350 );
+
+  m.setPosition(40, 20);
+  // add some items to our SilderList
+  m.addItem(makeItem("Kp", 0, 0, 5));
+  m.addItem(makeItem("Ki", 0, 0, 5));
+  m.addItem(makeItem("Kd", 0, 0, 5));
+  m.addItem(makeItem("speed", 300, 0, 500));
+  m.addItem(makeItem("Max servo deg", 45, 0, 90));
+  m.addItem(makeItem("Min servo deg", -45, -90, 0));
+  m.addItem(makeItem("Max speed", 450, 300, 600));
+  m.addItem(makeItem("Min speed", 0, 0, 200));
+  m.addItem(makeItem("updateTime(ms)", 100, 0, 1000));
 }
 
-using namespace libsc;
-using namespace libbase::k60;
-using namespace libsc::k60;
-
-bool BTonReceiveInstruction(const Byte *data, const size_t size);
-void stopMotor();
-void startMotor();
-Led* led1;
-JyMcuBt106* exterior_bluetooth;
-const Byte tempInt = 170;
-const Byte tempInt2 = 171;
-const Byte tempInt3 = 172;
-const Byte* temp3 = &tempInt3;
-const Byte* temp2 = &tempInt2;
-const Byte* temp = &tempInt;
-AlternateMotor* exterior_Lmotor;
-AlternateMotor* exterior_Rmotor;
-int motorPower = 0, max_speed = 450, min_speed = 0;
-FutabaS3010* exterior_servo;
-const Byte* camPtr;
-int centerLine = 40, car_center = 40;
-double intervalMs = 100;
-int max_servoDeg = 45, min_servoDeg = -45;
-bool inAuto = false;
-double data_string[20]={};
-//for pid
-double Kp, Ki, I, Kd, output, err, lastInput, Input;
-string var_string;
-int data_string_len;
-
-void pidInit();
-void setPidTuning(double kp, double ki, double kd);
-
-string toString(double a){
-	stringstream temp;
-	temp<<a;
-	return temp.str();
+public void auto(){
+  println("auto btn is pressed!");
+  myPort.write(0);
 }
-double toDouble(string s){
-	double d;
-	stringstream ss;
-	ss << s;
-	ss >> d;
-	return d;
+public void manual(){
+  println("manual btn is pressed!");
+  myPort.write(1);
 }
-int toInt(string s){
-	int i;
-	stringstream ss;
-	ss << s;
-	ss >> i;
-	return i;
+public void stop_(){
+  println("stop btn is pressed!");
+  myPort.write(2);
+}
+public void clear(){
+  println("clear btn is pressed!");
+  myPort.clear();
 }
 
-int main(void)
-{
-	System::Init();
-
-	Ov7725::Config C;  //camera init;
-	C.id = 0;
-	C.w = 80;
-	C.h = 60;
-	Ov7725 cam(C);
-
-	St7735r::Config s; //screen init;
-	s.is_revert = false;
-	s.is_bgr = false;
-	s.fps = 100;
-	St7735r screen(s);
-	Timer::TimerInt t=0;
-
-	JyMcuBt106::Config bluetooth_config;
-	bluetooth_config.id = 0;
-	bluetooth_config.baud_rate = libbase::k60::Uart::Config::BaudRate::k115200;
-	bluetooth_config.rx_isr = BTonReceiveInstruction;
-	JyMcuBt106 bluetooth(bluetooth_config);
-	exterior_bluetooth = &bluetooth;
-
-	FutabaS3010::Config servo_config;
-	servo_config.id = 0;
-	FutabaS3010 servo(servo_config);
-	servo.SetDegree(900);
-	exterior_servo = &servo;
-
-	Led::Config led_config;
-	led_config.id = 0;
-	led_config.is_active_low = true;
-	Led inner_led1(led_config);
-	led1 = &inner_led1;
-
-	AlternateMotor::Config Lmotor_config, Rmotor_config;
-	Lmotor_config.id = 0; Rmotor_config.id = 1;
-	AlternateMotor Lmotor(Lmotor_config), Rmotor(Rmotor_config);
-	exterior_Lmotor = &Lmotor; exterior_Rmotor = &Rmotor;
-	Lmotor.SetClockwise(0); Rmotor.SetClockwise(1);
-	Lmotor.SetPower(motorPower); Rmotor.SetPower(motorPower);
-
-	Encoder::Config Ldir_encoder_config, Rdir_encoder_config;
-	Ldir_encoder_config.id = 0;
-	Rdir_encoder_config.id = 1;
-	DirEncoder LdirEncoder(Ldir_encoder_config);
-	DirEncoder RdirEncoder(Rdir_encoder_config);
-
-	pidInit();
-	setPidTuning(0,0,0); //TBD
-
-	cam.Start();
-
-	while (true){
-		while(t!=System::Time()){
-			t = System::Time();
-			if(t % (int)intervalMs == 0){
-
-				camPtr = cam.LockBuffer();
-
-				//for tft
-				screen.SetRegion(Lcd::Rect(0,0,80,60));
-				screen.FillBits(St7735r::kBlack,St7735r::kWhite,camPtr,8*cam.GetBufferSize());
-
-				//for bluetooth
-				bluetooth.SendBuffer(temp,1);
-				bluetooth.SendBuffer(camPtr, cam.GetBufferSize());
-
-				LdirEncoder.Update();
-				RdirEncoder.Update();
-
-				bluetooth.SendBuffer(temp3,1);
-				const Byte test[12] = {Kp, Ki, Kd, motorPower, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, LdirEncoder.GetCount(), RdirEncoder.GetCount(), centerLine};
-				bluetooth.SendBuffer(test, 12);
-
-				cam.UnlockBuffer();
-			}
-		}
-	}
-
-	cam.Stop();
-	return 0;
+// a convenience function to build a map that contains our key-value  
+// pairs which we will then use to render each item of the SilderList.
+//
+Map<String, Object> makeItem(String theLabel, float theValue, float theMin, float theMax) {
+  Map m = new HashMap<String, Object>();
+  m.put("label", theLabel);
+  m.put("sliderValue", theValue);
+  m.put("sliderValueMin", theMin);
+  m.put("sliderValueMax", theMax);
+  return m;
 }
 
-void stopMotor(){
-	exterior_Lmotor->SetPower(0);
-	exterior_Rmotor->SetPower(0);
-}
-void startMotor(){
-	exterior_Lmotor->SetPower(motorPower);
-	exterior_Rmotor->SetPower(motorPower);
-}
-void setMotorDir(int dir){ //forward when dir = 0
-	exterior_Lmotor->SetClockwise(dir);
-	exterior_Rmotor->SetClockwise(1-dir);
-}
-void setServoDegree(double deg){ // 0: middle, >0: right, <0: left
-	exterior_servo->SetDegree((int)(deg*-10+900));
-}
-void adjustSpeed(int speed){
-	motorPower+=speed;
-	if(motorPower>max_speed) motorPower = max_speed;
-	else if(motorPower<min_speed) motorPower = min_speed;
-}
-void setIntervalMs(double newInterval){
-	double ratio = newInterval/intervalMs;
-	Ki *= ratio;
-	Kd /= ratio;
-	intervalMs = newInterval;
-}
-void setServoDegLimit(int maxi, int mini){
-	max_servoDeg = maxi;
-	min_servoDeg = mini;
+void getImage(int data) {
 
-	if(I>max_servoDeg) I = max_servoDeg;
-	else if(I<min_servoDeg) I = min_servoDeg;
-}
-void pidInit(){
-	lastInput = Input; //d of pid=0 now
-	I = 0;
-}
-void setPidTuning(double kp, double ki, double kd){
-	Kp = kp;
-	Ki = ki*intervalMs;
-	Kd = kd/intervalMs;
-}
-void setAuto(bool toAuto){
-	if(toAuto) {
-		pidInit();
-		inAuto = true;
-	} else{
-		inAuto = false;
-	}
-}
-void PID(double input, double setPoint){
-	Input = input;
-	if(!inAuto) return;
+  String binData = "";
+  int strLen = 0;
+  
+  binData = Integer.toBinaryString(data);
+  strLen = binData.length();
+  //println(binData);
+  
+  for (int i=0; i<8; i++) {
+    
+    if (i < strLen) {
+      
+      if (binData.charAt(strLen-1-i) == '1') {
+        pixelArray[arrayPosY][arrayPosX+7-i] = true;
+      } else {
+        pixelArray[arrayPosY][arrayPosX+7-i] = false;
+      }
+      
+    } else {
+      pixelArray[arrayPosY][arrayPosX+7-i] = false;
+    }
+    
+  }
+  
+  arrayPosX += 8;
+  
+  if (arrayPosX >= globalWidth) {
+    arrayPosX = 0;
+    arrayPosY++;
+  }
+  if (arrayPosY >= globalHeight) {
+    arrayPosY = 0;
+  }
 
-	err = setPoint-input;
-	I += (Ki*err);
-	if(I>max_servoDeg) I = max_servoDeg;
-	else if(I<min_servoDeg) I = min_servoDeg;
-
-	output = Kp*err + I + Kd*(input-lastInput);
-	if(output>max_servoDeg) output = max_servoDeg;
-	else if(output<min_servoDeg) output = min_servoDeg;
-	setServoDegree(output);
-
-	lastInput = input;
-}
-void update_data_from_bt(){
-	setPidTuning(data_string[0], data_string[1],data_string[2]);
-	motorPower = data_string[3];
-	max_servoDeg = data_string[4];
-	min_servoDeg = data_string[5];
-	max_speed = data_string[6];
-	min_speed = data_string[7];
-	intervalMs = data_string[8];
-	centerLine = data_string[9];
-	PID(centerLine, car_center); //the same time interval as image output
 }
 
-bool BTonReceiveInstruction(const Byte *data, const size_t size){
-	exterior_bluetooth->SendBuffer(temp2,1);
-	exterior_bluetooth->SendBuffer(&data[0], 1);
-	if(size == 10){
-		for(int i=0;i<10;i++) data_string[i] = data[i];
-		update_data_from_bt();
-	}
-	else if(data[0]==0){
-		inAuto = true;
-	} else if(data[0]==1){
-		inAuto = false;
-		stopMotor();
-	} else if(data[0]==2){
-		stopMotor();
-	} else if(data[0]==' '){
-		inAuto = false; //press space key to enter manual mode
-		stopMotor();
-		setMotorDir(0);
-	} else if(data[0]=='w'){
-		setServoDegree(0);
-		setMotorDir(0);
-		startMotor();
-	} else if(data[0]=='s'){
-		setServoDegree(0);
-		setMotorDir(1);
-		startMotor();
-	} else if(data[0]=='a'){
-		setServoDegree(-20);
-		startMotor();
-	} else if(data[0]=='d'){
-		setServoDegree(20);
-		startMotor();
-	} else if(data[0]=='r'){
-		stopMotor();
-	} else if(data[0]==','){
-		adjustSpeed(-20);
-	} else if(data[0]=='.'){
-		adjustSpeed(20);
-	}
+void getCenterLine(int left_end_x, int right_end_x, int current_y){
+  
+  right_end_x-=1;
+  if(left_end_x-5>=0) left_end_x-=5;
+  if(right_end_x+5<=globalWidth-1) right_end_x+=5;
+  
+  if(!pixelArray[current_y][0]) left_end = 0;
+  else {
+    for(int x=left_end_x;x<globalWidth/2;x++){
+      if(!pixelArray[current_y][x]&&!pixelArray[current_y][x+1]&&!pixelArray[current_y][x+2]){
+        left_end = x;
+        break;
+      }
+    }
+  }
+  
+  if(!pixelArray[current_y][globalWidth-1]) right_end = globalWidth-1;
+  else {
+    for(int x=right_end_x;x>globalWidth/2;x--){
+      if(!pixelArray[current_y][x]&&!pixelArray[current_y][x-1]&&!pixelArray[current_y][x-2]){
+          right_end = x;
+          break;
+        }
+    }
+  }
+  center_x = (left_end+right_end)/2;
+}
 
-	return true;
+void outputImage() {
+  
+  for (int y=0; y<globalHeight; y++) {
+    getCenterLine(left_end, right_end ,y);
+    for (int x=0; x<globalWidth; x++) {
+      if (pixelArray[y][x]) {
+        fill(black);
+      } else {
+        if(x == center_x) fill(red);
+        else fill(255);
+      }
+      noStroke();
+      rect(pixelSide*x, pixelSide*y, pixelSide, pixelSide);
+    }
+  }
+  
+}
+void keyPressed() {
+  
+  keyPress = key;
+  if(keyPress == ' ') {
+    myPort.write(' ');
+    stop = true;
+  }
+  else {
+    stop = false;
+    
+    if(keyPress == 'w') myPort.write('w');
+    else if(keyPress == 'a') myPort.write('a');
+    else if(keyPress == 's') myPort.write('s');
+    else if(keyPress == 'd') myPort.write('d');
+    else if(keyPress == ',') myPort.write(',');
+    else if(keyPress == '.') myPort.write('.');
+  }
+}
+void keyReleased(){
+  if(keyPress != '.' && keyPress!= ','){
+    myPort.write('r');
+    stop = true;
+  }
+  
+}
+
+
+void menu(int i) {
+  println("got some slider-list event from item with index "+i);
+}
+
+public void controlEvent(ControlEvent theEvent) {
+  if (theEvent.isFrom("menu")) {
+    int index = int(theEvent.getValue());
+    Map m = ((SilderList)theEvent.getController()).getItem(index);
+    println("got a slider event from item : "+m);
+    for(int i=0;i<total_var;i++){
+      String temps = ((SilderList)theEvent.getController()).getItem(i).get("sliderValue") + " ";
+      print(temps);
+      data_string[i] = Byte.parseByte(temps);
+    }
+    data_string[total_var] = byte(center_x);
+    for(int i=0;i<total_var+1;i++) println(data_string[i]);
+    myPort.write(data_string);
+  }
+}
+
+void getKeyPressed(){
+  switch(keyPress){
+    case 'w':
+      dir = "w";
+      break;
+    case 'a':
+      dir = "a";
+      break;
+    case 's':
+      dir = "s";
+      break;
+    case 'd':
+      dir = "d";
+      break;
+    case '.':
+      dir = ">";
+      break;
+    case ',':
+      dir = "<";
+      break;
+    case ' ':
+      dir = "stop";
+      break;
+  }
+}
+
+void draw() {
+  
+  
+  
+  pushMatrix();
+  translate(300, 330);
+  fill(0);
+  text("key pressed: "+dir, 0, 0);
+  text("received: "+Character.toString(data_received), 0, 15);
+  text("center_line_x: "+center_line_received_x, 0, 30);
+  pushMatrix();
+  translate(60, 0);
+  text("Lencoder_count: "+Lencoder_count, 80, 0);
+  text("Rencoder_count: "+Rencoder_count, 80, 15);
+  popMatrix();
+  popMatrix();
+ 
+  if(myPort.available() > 0){
+    inputInt = myPort.read();
+    //println(inputInt);
+    if(inputInt == 170){
+      int i = 0;
+      arrayPosX = 0;
+      arrayPosY = 0;
+      
+      while (i<globalWidth*globalHeight/8) {
+        print(' ');
+        if (myPort.available() > 0) {  
+          inputInt = myPort.read();
+          getImage(inputInt);
+          i++;
+        }
+      }
+      
+      noStroke();
+      pushMatrix();
+      translate(300, 20);
+      outputImage();
+      popMatrix();
+      delay(1);
+     
+    } else if(inputInt == 171){ //receive data
+      if(myPort.available() > 0) {
+        data_received = myPort.readChar();
+      }
+    } else if(inputInt == 172){
+      int cnt = 0;
+      while(cnt<12){
+      if(myPort.available()>0) split[cnt++] = myPort.read();
+      flag = 1;
+      }
+    }
+  }
+}
+
+
+// A custom Controller that implements a scrollable SilderList.  
+// Here the controller uses a PGraphics element to render customizable 
+// list items. The SilderList can be scrolled using the scroll-wheel,  
+// touchpad, or mouse-drag. Slider are triggered by a press or drag.  
+// clicking the scrollbar to the right makes the list scroll to the item  
+// correspoinding to the click-location.  
+ 
+class SilderList extends Controller<SilderList> {
+
+  float pos, npos;
+  int itemHeight = 60;
+  int scrollerLength = 40;
+  int sliderWidth = 150;
+  int sliderHeight = 15;
+  int sliderX = 10;
+  int sliderY = 25;
+
+  int dragMode = 0;
+  int dragIndex = -1;
+
+  List< Map<String, Object>> items = new ArrayList< Map<String, Object>>();
+  PGraphics menu;
+  boolean updateMenu;
+
+  SilderList(ControlP5 c, String theName, int theWidth, int theHeight) {
+    super( c, theName, 0, 0, theWidth, theHeight );
+    c.register( this );
+    menu = createGraphics(getWidth(), getHeight());
+
+    setView(new ControllerView<SilderList>() {
+
+      public void display(PGraphics pg, SilderList t ) {
+        if (updateMenu) {
+          updateMenu();
+        }
+        if (inside() ) { // draw scrollbar
+          menu.beginDraw();
+          int len = -(itemHeight * items.size()) + getHeight();
+          int ty = int(map(pos, len, 0, getHeight() - scrollerLength - 2, 2 ) );
+          menu.fill( 128 );
+          menu.rect(getWidth()-6, ty, 4, scrollerLength );
+          menu.endDraw();
+        }
+        pg.image(menu, 0, 0);
+      }
+    }
+    );
+    updateMenu();
+  }
+
+  // only update the image buffer when necessary - to save some resources
+  void updateMenu() {
+    int len = -(itemHeight * items.size()) + getHeight();
+    npos = constrain(npos, len, 0);
+    pos += (npos - pos) * 0.1;
+
+    /// draw the SliderList
+    menu.beginDraw();
+    menu.noStroke();
+    menu.background(240);
+    menu.textFont(cp5.getFont().getFont());
+    menu.textSize(12);
+    menu.pushMatrix();
+    menu.translate( 0, int(pos) );
+    menu.pushMatrix();
+
+    int i0 = PApplet.max( 0, int(map(-pos, 0, itemHeight * items.size(), 0, items.size())));
+    int range = ceil((float(getHeight())/float(itemHeight))+1);
+    int i1 = PApplet.min( items.size(), i0 + range );
+
+    menu.translate(0, i0*itemHeight);
+
+    for (int i=i0;i<i1;i++) {
+      Map m = items.get(i);
+      menu.noStroke();
+      menu.fill(200);
+      menu.rect(0, itemHeight-1, getWidth(), 1 );
+      menu.fill(darkgray);
+      // uncomment the following line to use a different font than the default controlP5 font
+      //menu.textFont(f1); 
+      String txt = String.format("%s   %.2f", m.get("label").toString().toUpperCase(), f(items.get(i).get("sliderValue")));
+      menu.text(txt, 10, 20 );
+      menu.fill(255);
+      menu.rect(sliderX, sliderY, sliderWidth, sliderHeight);
+      menu.fill(100, 230, 128);
+      if(flag == 1){
+        items.get(i).put("sliderValue", split[i]);
+        //println(split[i]);
+        //println("********************************");
+        if(i==i1-1) flag=0;
+      }
+      float min = f(items.get(i).get("sliderValueMin"));
+      float max = f(items.get(i).get("sliderValueMax"));
+      float val = f(items.get(i).get("sliderValue"));
+      //println(items.get(i).get("sliderValue"));
+      //println("****************");
+      menu.rect(sliderX, sliderY, map(val, min, max, 0, sliderWidth), sliderHeight);
+      menu.translate( 0, itemHeight );
+    }
+    menu.popMatrix();
+    menu.popMatrix();
+    menu.endDraw();
+    updateMenu = abs(npos-pos)>0.01 ? true:false;
+  }
+
+  // when detecting a click, check if the click happend to the far right,  
+  // if yes, scroll to that position, otherwise do whatever this item of 
+  // the list is supposed to do.
+  public void onClick() {
+    if (getPointer().x()>getWidth()-10) {
+      npos= -map(getPointer().y(), 0, getHeight(), 0, items.size()*itemHeight);
+      updateMenu = true;
+    }
+  }
+
+
+  public void onPress() {
+    int x = getPointer().x();
+    int y = (int)(getPointer().y()-pos)%itemHeight;
+    boolean withinSlider = within(x, y, sliderX, sliderY, sliderWidth, sliderHeight); 
+    dragMode =  withinSlider ? 2:1;
+    if (dragMode==2) {
+      dragIndex = getIndex();
+      float min = f(items.get(dragIndex).get("sliderValueMin"));
+      float max = f(items.get(dragIndex).get("sliderValueMax"));
+      float val = constrain(map(getPointer().x()-sliderX, 0, sliderWidth, min, max), min, max);
+      items.get(dragIndex).put("sliderValue", val);
+      setValue(dragIndex);
+    }
+    updateMenu = true;
+  }
+
+  public void onDrag() {
+    switch(dragMode) {
+      case(1): // drag and scroll the list
+      npos += getPointer().dy() * 2;
+      updateMenu = true;
+      break;
+      case(2): // drag slider
+      float min = f(items.get(dragIndex).get("sliderValueMin"));
+      float max = f(items.get(dragIndex).get("sliderValueMax"));
+      float val = constrain(map(getPointer().x()-sliderX, 0, sliderWidth, min, max), min, max);
+      items.get(dragIndex).put("sliderValue", val);
+      setValue(dragIndex);
+      updateMenu = true;
+      break;
+    }
+  } 
+
+  public void onScroll(int n) {
+    npos += ( n * 4 );
+    updateMenu = true;
+  }
+  void addItem(Map<String, Object> m) {
+    items.add(m);
+    updateMenu = true;
+  }
+
+  Map<String, Object> getItem(int theIndex) {
+    return items.get(theIndex);
+  }
+
+  private int getIndex() {
+    int len = itemHeight * items.size();
+    int index = int( map( getPointer().y() - pos, 0, len, 0, items.size() ) ) ;
+    return index;
+  }
+}
+
+public static float f( Object o ) {
+  return ( o instanceof Number ) ? ( ( Number ) o ).floatValue( ) : Float.MIN_VALUE;
+}
+
+public static boolean within(int theX, int theY, int theX1, int theY1, int theW1, int theH1) {
+  return (theX>theX1 && theX<theX1+theW1 && theY>theY1 && theY<theY1+theH1);
 }
