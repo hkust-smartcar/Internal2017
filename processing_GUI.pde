@@ -10,7 +10,7 @@ int NUM = 100;
 color darkgray = #333333;
 int inputInt;
 int flag = 0;
-double []split;
+double []split = new double[12];
 
 int globalWidth = 80;
 int globalHeight = 60;
@@ -46,6 +46,8 @@ void setup() {
   myPort.buffer(1);
   size(800, 400 ,P3D);
   f1 = createFont("Helvetica", 12);
+  
+  background( 220 );
 
   cp5 = new ControlP5( this );
   cp5.addButton("auto");
@@ -202,8 +204,6 @@ void outputImage() {
 void keyPressed() {
   
   keyPress = key;
-  background(255);
-  background(background_color);
   if(keyPress == ' ') {
     myPort.write(' ');
     stop = true;
@@ -275,7 +275,7 @@ void getKeyPressed(){
 
 void draw() {
   
-  background( 220 );
+  
   
   pushMatrix();
   translate(300, 330);
@@ -320,8 +320,8 @@ void draw() {
       }
     } else if(inputInt == 172){
       int cnt = 0;
-      while(myPort.available()>0 && cnt<12){
-      split[cnt++] = myPort.read();
+      while(cnt<12){
+      if(myPort.available()>0) split[cnt++] = myPort.read();
       flag = 1;
       }
     }
@@ -416,7 +416,7 @@ class SilderList extends Controller<SilderList> {
       menu.fill(100, 230, 128);
       if(flag == 1){
         items.get(i).put("sliderValue", split[i]);
-        println(Integer.valueOf(split[i]));
+        println(split[i]);
         println("********************************");
         if(i==i1-1) flag=0;
       }
