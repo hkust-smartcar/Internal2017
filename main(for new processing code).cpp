@@ -156,19 +156,8 @@ int main(void)
 				RdirEncoder.Update();
 
 				bluetooth.SendBuffer(temp3,1);
-				bluetooth.SendStr(
-						  toString(Kp)+" "+
-						  toString(Ki)+" "+
-						  toString(Kd)+" "+
-						  toString(motorPower)+" "+
-						  toString(max_servoDeg)+" "+
-						  toString(min_servoDeg)+" "+
-						  toString(max_speed)+" "+
-						  toString(min_speed)+" "+
-						  toString(intervalMs)+" "+
-						  toString(LdirEncoder.GetCount())+" "+
-						  toString(RdirEncoder.GetCount())+" "+
-						  toString(centerLine));
+				const Byte test[12] = {Kp, Ki, Kd, motorPower, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, LdirEncoder.GetCount(), RdirEncoder.GetCount(), centerLine};
+				bluetooth.SendBuffer(test, 12);
 
 				cam.UnlockBuffer();
 			}
