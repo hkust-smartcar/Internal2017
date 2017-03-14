@@ -416,8 +416,8 @@ class SilderList extends Controller<SilderList> {
       menu.fill(100, 230, 128);
       if(flag == 1){
         items.get(i).put("sliderValue", split[i]);
-        println(split[i]);
-        println("********************************");
+        //println(split[i]);
+        //println("********************************");
         if(i==i1-1) flag=0;
       }
       float min = f(items.get(i).get("sliderValueMin"));
