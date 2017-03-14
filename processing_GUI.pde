@@ -9,6 +9,8 @@ PFont f1;
 int NUM = 100;
 color darkgray = #333333;
 int inputInt;
+int flag = 0;
+double []split;
 
 int globalWidth = 80;
 int globalHeight = 60;
@@ -40,8 +42,8 @@ int left_end = 0, right_end = globalWidth, center_x;
 void setup() {
   
   printArray(Serial.list());
-  //myPort = new Serial(this, Serial.list()[1], 115200);
-  //myPort.buffer(1);
+  myPort = new Serial(this, Serial.list()[1], 115200);
+  myPort.buffer(1);
   size(800, 400 ,P3D);
   f1 = createFont("Helvetica", 12);
 
@@ -49,6 +51,7 @@ void setup() {
   cp5.addButton("auto");
   cp5.addButton("manual");
   cp5.addButton("stop_").setLabel("stop");
+  cp5.addButton("clear");
   
   Controller auto_btn = cp5.getController("auto");
   auto_btn.setColorBackground(color(#00AA00));
@@ -62,6 +65,10 @@ void setup() {
   stop_btn.setPosition(715, 80);
   stop_btn.setColorBackground(color(#AA0000));
   stop_btn.setColorForeground(color(#EE0000));
+  
+  Controller clear_btn = cp5.getController("clear");
+  clear_btn.setPosition(715, 110);
+  clear_btn.setColorBackground(color(#AAAA00));
 
   // create a custom SilderList with name menu, notice that function 
   // menu will be called when a menu item has been clicked.
@@ -79,22 +86,23 @@ void setup() {
   m.addItem(makeItem("Max speed", 450, 300, 600));
   m.addItem(makeItem("Min speed", 0, 0, 200));
   m.addItem(makeItem("updateTime(ms)", 100, 0, 1000));
-  /*for (int i=0;i<NUM;i++) {
-    m.addItem(makeItem("slider-"+i, 0, -PI, PI ));
-  }*/
 }
 
 public void auto(){
   println("auto btn is pressed!");
-  myPort.write(1000);
+  myPort.write(0);
 }
 public void manual(){
   println("manual btn is pressed!");
-  myPort.write(1001);
+  myPort.write(1);
 }
 public void stop_(){
   println("stop btn is pressed!");
-  myPort.write(1002);
+  myPort.write(2);
+}
+public void clear(){
+  println("clear btn is pressed!");
+  myPort.clear();
 }
 
 // a convenience function to build a map that contains our key-value  
@@ -172,7 +180,6 @@ void getCenterLine(int left_end_x, int right_end_x, int current_y){
     }
   }
   center_x = (left_end+right_end)/2;
-  myPort.write(center_x);
 }
 
 void outputImage() {
@@ -234,6 +241,7 @@ public void controlEvent(ControlEvent theEvent) {
     for(int i=0;i<total_var;i++){
       data_string += ((SilderList)theEvent.getController()).getItem(i).get("sliderValue") + " ";
     }
+    data_string +=  Integer.toString(center_x);
     println(data_string);
     myPort.write(data_string);
   }
@@ -268,12 +276,6 @@ void getKeyPressed(){
 void draw() {
   
   background( 220 );
-  fill(255);
-  noStroke();
-  pushMatrix();
-  translate(300, 20);
-  rect(0, 0, 400, 300);
-  popMatrix();
   
   pushMatrix();
   translate(300, 330);
@@ -288,8 +290,9 @@ void draw() {
   popMatrix();
   popMatrix();
  
-  /*if(myPort.available() > 0){
+  if(myPort.available() > 0){
     inputInt = myPort.read();
+    //println(inputInt);
     if(inputInt == 170){
       int i = 0;
       arrayPosX = 0;
@@ -316,24 +319,13 @@ void draw() {
         data_received = myPort.readChar();
       }
     } else if(inputInt == 172){
-      if(myPort.available() > 0) {
-        var_string = myPort.readString();
-        String []split = var_string.split("\\s+");
-        cp5.getController("Kp").setValue(Integer.valueOf(split[0]));
-        cp5.getController("Ki").setValue(Integer.valueOf(split[1]));
-        cp5.getController("Kd").setValue(Integer.valueOf(split[2]));
-        cp5.getController("speed").setValue(Integer.valueOf(split[3]));
-        cp5.getController("Max servo deg").setValue(Integer.valueOf(split[4]));
-        cp5.getController("Min servo deg").setValue(Integer.valueOf(split[5]));
-        cp5.getController("Max speed").setValue(Integer.valueOf(split[6]));
-        cp5.getController("Min speed").setValue(Integer.valueOf(split[7]));
-        cp5.getController("updateTime(ms)").setValue(Integer.valueOf(split[8]));
-        Lencoder_count = split[9];
-        Rencoder_count = split[10];
-        center_line_received_x = split[11];
+      int cnt = 0;
+      while(myPort.available()>0 && cnt<12){
+      split[cnt++] = myPort.read();
+      flag = 1;
       }
     }
-  }*/
+  }
 }
 
 
@@ -422,9 +414,17 @@ class SilderList extends Controller<SilderList> {
       menu.fill(255);
       menu.rect(sliderX, sliderY, sliderWidth, sliderHeight);
       menu.fill(100, 230, 128);
+      if(flag == 1){
+        items.get(i).put("sliderValue", split[i]);
+        println(Integer.valueOf(split[i]));
+        println("********************************");
+        if(i==i1-1) flag=0;
+      }
       float min = f(items.get(i).get("sliderValueMin"));
       float max = f(items.get(i).get("sliderValueMax"));
       float val = f(items.get(i).get("sliderValue"));
+      //println(items.get(i).get("sliderValue"));
+      //println("****************");
       menu.rect(sliderX, sliderY, map(val, min, max, 0, sliderWidth), sliderHeight);
       menu.translate( 0, itemHeight );
     }
@@ -505,4 +505,3 @@ public static float f( Object o ) {
 public static boolean within(int theX, int theY, int theX1, int theY1, int theW1, int theH1) {
   return (theX>theX1 && theX<theX1+theW1 && theY>theY1 && theY<theY1+theH1);
 }
-
