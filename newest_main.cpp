@@ -140,7 +140,7 @@ int main(void)
 	while (true){
 		while(t!=System::Time()){
 			t = System::Time();
-			if(t % (int)intervalMs == 0){
+			if(t % 10 == 0){
 
 				camPtr = cam.LockBuffer();
 
