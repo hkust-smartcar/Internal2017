@@ -32,7 +32,7 @@ char keyPress = ' ';
 
 String Lencoder_count = "0", Rencoder_count = "0";
 String center_line_received_x = " ";
-byte []data_string = new byte[20];
+String data_string = "";
 int total_var = 9;
 
 //for finding center line
@@ -215,8 +215,8 @@ void keyPressed() {
     else if(keyPress == 'a') myPort.write('a');
     else if(keyPress == 's') myPort.write('s');
     else if(keyPress == 'd') myPort.write('d');
-    else if(keyPress == ',') myPort.write(',');
-    else if(keyPress == '.') myPort.write('.');
+    else if(keyPress == '[') myPort.write('[');
+    else if(keyPress == ']') myPort.write(']');
   }
 }
 void keyReleased(){
@@ -237,14 +237,18 @@ public void controlEvent(ControlEvent theEvent) {
     int index = int(theEvent.getValue());
     Map m = ((SilderList)theEvent.getController()).getItem(index);
     println("got a slider event from item : "+m);
+    data_string = "";
     for(int i=0;i<total_var;i++){
-      String temps = ((SilderList)theEvent.getController()).getItem(i).get("sliderValue") + " ";
-      print(temps);
-      data_string[i] = Byte.parseByte(temps);
+      String temp = ((SilderList)theEvent.getController()).getItem(i).get("sliderValue")+" ";
+      int temp2 = floor(Float.valueOf(temp)*100);
+      data_string += Integer.toString(temp2)+" ";
+      myPort.write(Integer.toString(temp2));
+      myPort.write('f');
     }
-    data_string[total_var] = byte(center_x);
-    for(int i=0;i<total_var+1;i++) println(data_string[i]);
-    myPort.write(data_string);
+     myPort.write('\n');
+     data_string +=  Integer.toString(center_x)+"\n";
+     println(data_string);
+     //myPort.write(data_string);
   }
 }
 
@@ -262,10 +266,10 @@ void getKeyPressed(){
     case 'd':
       dir = "d";
       break;
-    case '.':
+    case ']':
       dir = ">";
       break;
-    case ',':
+    case '[':
       dir = "<";
       break;
     case ' ':
@@ -275,8 +279,6 @@ void getKeyPressed(){
 }
 
 void draw() {
-  
-  
   
   pushMatrix();
   translate(300, 330);
@@ -417,9 +419,9 @@ class SilderList extends Controller<SilderList> {
       menu.fill(100, 230, 128);
       if(flag == 1){
         items.get(i).put("sliderValue", split[i]);
-        //println(split[i]);
-        //println("********************************");
-        if(i==i1-1) flag=0;
+        print(split[i]);
+        print(" ");
+        if(i==i1-1) {flag=0; println("********get data from car*******");}
       }
       float min = f(items.get(i).get("sliderValueMin"));
       float max = f(items.get(i).get("sliderValueMax"));
