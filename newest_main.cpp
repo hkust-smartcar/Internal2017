@@ -11,7 +11,6 @@
 #include <libsc/dir_encoder.h>
 #include <ctype.h>
 #include <string>
-#include <sstream>
 using namespace std;
 
 namespace libbase
@@ -54,34 +53,17 @@ int centerLine = 40, car_center = 40;
 double intervalMs = 100;
 int max_servoDeg = 45, min_servoDeg = -45;
 bool inAuto = false;
-string data_string[20]={};
+double data_string[20]={};
 //for pid
 double Kp, Ki, I, Kd, output, err, lastInput, Input;
 string var_string;
 int data_string_len;
+string s = "";
+int k = 0;
 
 void pidInit();
+void PID(double input, double setPoint);
 void setPidTuning(double kp, double ki, double kd);
-
-string toString(double a){
-	stringstream temp;
-	temp<<a;
-	return temp.str();
-}
-double toDouble(string s){
-	double d;
-	stringstream ss;
-	ss << s;
-	ss >> d;
-	return d;
-}
-int toInt(string s){
-	int i;
-	stringstream ss;
-	ss << s;
-	ss >> i;
-	return i;
-}
 
 int main(void)
 {
@@ -159,6 +141,8 @@ int main(void)
 				const Byte test[12] = {Kp, Ki, Kd, motorPower, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, LdirEncoder.GetCount(), RdirEncoder.GetCount(), centerLine};
 				bluetooth.SendBuffer(test, 12);
 
+				PID(centerLine, car_center);
+
 				cam.UnlockBuffer();
 			}
 		}
@@ -235,15 +219,14 @@ void PID(double input, double setPoint){
 	lastInput = input;
 }
 void update_data_from_bt(){
-	setPidTuning(toDouble(data_string[0]), toDouble(data_string[1]),toDouble(data_string[2]));
-	motorPower = toInt(data_string[3]);
-	max_servoDeg = toInt(data_string[4]);
-	min_servoDeg = toInt(data_string[5]);
-	max_speed = toInt(data_string[6]);
-	min_speed = toInt(data_string[7]);
-	intervalMs = toDouble(data_string[8]);
-	centerLine = toInt(data_string[9]);
-	PID(centerLine, car_center); //the same time interval as image output
+	setPidTuning(data_string[0], data_string[1],data_string[2]);
+	motorPower = data_string[3];
+	max_servoDeg = data_string[4];
+	min_servoDeg = data_string[5];
+	max_speed = data_string[6];
+	min_speed = data_string[7];
+	intervalMs = data_string[8];
+	centerLine = data_string[9];
 }
 
 bool BTonReceiveInstruction(const Byte *data, const size_t size){
@@ -276,19 +259,33 @@ bool BTonReceiveInstruction(const Byte *data, const size_t size){
 		startMotor();
 	} else if(data[0]=='r'){
 		stopMotor();
-	} else if(data[0]==','){
+	} else if(data[0]=='['){
 		adjustSpeed(-20);
-	} else if(data[0]=='.'){
+	} else if(data[0]==']'){
 		adjustSpeed(20);
 	} else{
-		//string data_s((const char*)data);
-		istringstream ss((const char*)(data));
-		string token;
-		data_string_len = 0;
-		while(getline(ss, token, ' ')) {
-		  data_string[data_string_len++] = token;
+		if(data[0]!='f' && data[0]!='\n') s+=data[0];
+		else if(data[0]=='f'){
+			double d = 0;
+			for(int i=0;i<s.length();i++){
+				d*=10;
+				d+=s[i]-'0';
+			}
+			data_string[data_string_len++] = d/100;
+			s = "";
 		}
-		update_data_from_bt();
+		else if(data[0]=='\n'){
+			update_data_from_bt();
+			data_string_len = 0;
+		} else if(data[0]=='c'){
+			double d = 0;
+			for(int i=0;i<s.length();i++){
+				d*=10;
+				d+=s[i]-'0';
+			}
+			centerLine = d;
+			s = "";
+		}
 	}
 
 	return true;
