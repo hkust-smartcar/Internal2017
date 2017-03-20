@@ -34,6 +34,7 @@ String Lencoder_count = "0", Rencoder_count = "0";
 String center_line_received_x = " ";
 String data_string = "";
 int total_var = 9;
+boolean updateMenu;
 
 //for finding center line
 int white_num;
@@ -235,6 +236,7 @@ void menu(int i) {
 public void controlEvent(ControlEvent theEvent) {
   if (theEvent.isFrom("menu")) {
     int index = int(theEvent.getValue());
+    println("*********************************************");
     Map m = ((SilderList)theEvent.getController()).getItem(index);
     println("got a slider event from item : "+m);
     data_string = "";
@@ -248,7 +250,6 @@ public void controlEvent(ControlEvent theEvent) {
      myPort.write('\n');
      data_string +=  Integer.toString(center_x)+"\n";
      println(data_string);
-     //myPort.write(data_string);
   }
 }
 
@@ -282,8 +283,11 @@ void draw() {
   
   pushMatrix();
   translate(300, 330);
+  noStroke();
+  fill(220);
+  rect(-5, -8, 300, 60);
   fill(0);
-  text("key pressed: "+dir, 0, 0);
+  text("key pressed: "+keyPress, 0, 0); 
   text("received: "+Character.toString(data_received), 0, 15);
   text("center_line_x: "+center_line_received_x, 0, 30);
   pushMatrix();
@@ -292,10 +296,13 @@ void draw() {
   text("Rencoder_count: "+Rencoder_count, 80, 15);
   popMatrix();
   popMatrix();
+  
+  myPort.write(Integer.toString(center_x*100));
+  myPort.write('c');
  
   if(myPort.available() > 0){
     inputInt = myPort.read();
-    //println(inputInt);
+    println(inputInt);
     if(inputInt == 170){
       int i = 0;
       arrayPosX = 0;
@@ -315,17 +322,24 @@ void draw() {
       translate(300, 20);
       outputImage();
       popMatrix();
-      delay(1);
-     
-    } else if(inputInt == 171){ //receive data
-      if(myPort.available() > 0) {
-        data_received = myPort.readChar();
-      }
-    } else if(inputInt == 172){
+    }else if(inputInt == 171){
       int cnt = 0;
       while(cnt<12){
       if(myPort.available()>0) split[cnt++] = myPort.read();
-      flag = 1;
+      }
+      //flag = 1;
+      //updateMenu = true;
+      for(int i=0;i<12;i++) {
+        print(split[i]);
+        print(" ");
+      }
+      println("**********data from car*************");
+    }else if(inputInt == 169){
+      if(myPort.available()>0){
+        data_received = myPort.readChar();
+        println(data_received);
+        println("************************");
+        //delay(1000);
       }
     }
   }
@@ -354,7 +368,6 @@ class SilderList extends Controller<SilderList> {
 
   List< Map<String, Object>> items = new ArrayList< Map<String, Object>>();
   PGraphics menu;
-  boolean updateMenu;
 
   SilderList(ControlP5 c, String theName, int theWidth, int theHeight) {
     super( c, theName, 0, 0, theWidth, theHeight );
