@@ -40,30 +40,39 @@ Led* led1;
 JyMcuBt106* exterior_bluetooth;
 const Byte tempInt = 170;
 const Byte tempInt2 = 171;
-const Byte tempInt3 = 172;
+const Byte tempInt3 = 173;
 const Byte* temp3 = &tempInt3;
 const Byte* temp2 = &tempInt2;
 const Byte* temp = &tempInt;
 AlternateMotor* exterior_Lmotor;
 AlternateMotor* exterior_Rmotor;
-int motorPower = 0, max_speed = 450, min_speed = 0;
+int motorPower = 300, max_speed = 450, min_speed = 0;
 FutabaS3010* exterior_servo;
 const Byte* camPtr;
 int centerLine = 40, car_center = 40;
 double intervalMs = 100;
 int max_servoDeg = 45, min_servoDeg = -45;
-bool inAuto = false;
+bool inAuto = true;
 double data_string[20]={};
 //for pid
 double Kp, Ki, I, Kd, output, err, lastInput, Input;
 string var_string;
 int data_string_len;
 string s = "";
-int k = 0;
+int k = 0, flag = 0;
 
 void pidInit();
 void PID(double input, double setPoint);
 void setPidTuning(double kp, double ki, double kd);
+
+double toDouble(string s){
+	double d = 0;
+	for(int i=0;i<s.length();i++){
+		d*=10;
+		d+=s[i]-'0';
+	}
+	return d/100;
+}
 
 int main(void)
 {
@@ -105,7 +114,7 @@ int main(void)
 	Lmotor_config.id = 0; Rmotor_config.id = 1;
 	AlternateMotor Lmotor(Lmotor_config), Rmotor(Rmotor_config);
 	exterior_Lmotor = &Lmotor; exterior_Rmotor = &Rmotor;
-	Lmotor.SetClockwise(0); Rmotor.SetClockwise(1);
+	Lmotor.SetClockwise(1); Rmotor.SetClockwise(0);
 	Lmotor.SetPower(motorPower); Rmotor.SetPower(motorPower);
 
 	Encoder::Config Ldir_encoder_config, Rdir_encoder_config;
@@ -137,11 +146,9 @@ int main(void)
 				LdirEncoder.Update();
 				RdirEncoder.Update();
 
-				bluetooth.SendBuffer(temp3,1);
-				const Byte test[12] = {Kp, Ki, Kd, motorPower, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, LdirEncoder.GetCount(), RdirEncoder.GetCount(), centerLine};
-				bluetooth.SendBuffer(test, 12);
-
 				PID(centerLine, car_center);
+				Lmotor.SetPower(motorPower);
+				Rmotor.SetPower(motorPower);
 
 				cam.UnlockBuffer();
 			}
@@ -214,7 +221,7 @@ void PID(double input, double setPoint){
 	output = Kp*err + I + Kd*(input-lastInput);
 	if(output>max_servoDeg) output = max_servoDeg;
 	else if(output<min_servoDeg) output = min_servoDeg;
-	setServoDegree(output);
+	setServoDegree(-output);
 
 	lastInput = input;
 }
@@ -226,12 +233,17 @@ void update_data_from_bt(){
 	max_speed = data_string[6];
 	min_speed = data_string[7];
 	intervalMs = data_string[8];
-	centerLine = data_string[9];
+	exterior_bluetooth->SendBuffer(temp2,1);
+	Byte test[12] = {Kp, Ki/intervalMs, Kd*intervalMs, motorPower, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, 0, 0, centerLine};
+	exterior_bluetooth->SendBuffer(test, 12);
+
+}
+void sendReceivedChar(Byte data){
+	exterior_bluetooth->SendBuffer(temp3,1);
+	exterior_bluetooth->SendBuffer(&data, 1);
 }
 
 bool BTonReceiveInstruction(const Byte *data, const size_t size){
-	exterior_bluetooth->SendBuffer(temp2,1);
-	exterior_bluetooth->SendBuffer(&data[0], 1);
 	if(data[0]==0){
 		inAuto = true;
 	} else if(data[0]==1){
@@ -244,17 +256,23 @@ bool BTonReceiveInstruction(const Byte *data, const size_t size){
 		stopMotor();
 		setMotorDir(0);
 	} else if(data[0]=='w'){
+		//sendReceivedChar('w');
+		exterior_bluetooth->SendBuffer(temp3,1);
+		exterior_bluetooth->SendBuffer(&data[0], 1);
 		setServoDegree(0);
 		setMotorDir(0);
 		startMotor();
 	} else if(data[0]=='s'){
+		sendReceivedChar('s');
 		setServoDegree(0);
 		setMotorDir(1);
 		startMotor();
 	} else if(data[0]=='a'){
+		//sendReceivedChar('a');
 		setServoDegree(-20);
 		startMotor();
 	} else if(data[0]=='d'){
+		sendReceivedChar('d');
 		setServoDegree(20);
 		startMotor();
 	} else if(data[0]=='r'){
@@ -264,26 +282,16 @@ bool BTonReceiveInstruction(const Byte *data, const size_t size){
 	} else if(data[0]==']'){
 		adjustSpeed(20);
 	} else{
-		if(data[0]!='f' && data[0]!='\n') s+=data[0];
+		if(data[0]!='f' && data[0]!='\n' && data[0]!='c') s+=data[0];
 		else if(data[0]=='f'){
-			double d = 0;
-			for(int i=0;i<s.length();i++){
-				d*=10;
-				d+=s[i]-'0';
-			}
-			data_string[data_string_len++] = d/100;
+			data_string[data_string_len++] = toDouble(s);
 			s = "";
 		}
 		else if(data[0]=='\n'){
 			update_data_from_bt();
 			data_string_len = 0;
 		} else if(data[0]=='c'){
-			double d = 0;
-			for(int i=0;i<s.length();i++){
-				d*=10;
-				d+=s[i]-'0';
-			}
-			centerLine = d;
+			centerLine = toDouble(s);
 			s = "";
 		}
 	}
