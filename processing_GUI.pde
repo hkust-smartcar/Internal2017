@@ -10,7 +10,7 @@ int NUM = 100;
 color darkgray = #333333;
 int inputInt;
 int flag = 0;
-double []split = new double[12];
+double []split = new double[13];
 
 int globalWidth = 80;
 int globalHeight = 60;
@@ -39,6 +39,8 @@ boolean updateMenu;
 //for finding center line
 int white_num;
 int left_end = 0, right_end = globalWidth, center_x;
+
+PrintWriter output;
 
 void setup() {
   
@@ -78,17 +80,18 @@ void setup() {
 
   SilderList m = new SilderList( cp5, "menu", 250, 350 );
 
+  String lines[] = loadStrings("list.txt");
   m.setPosition(40, 20);
   // add some items to our SilderList
-  m.addItem(makeItem("Kp", 0, 0, 5));
-  m.addItem(makeItem("Ki", 0, 0, 5));
-  m.addItem(makeItem("Kd", 0, 0, 5));
-  m.addItem(makeItem("speed", 300, 0, 500));
-  m.addItem(makeItem("Max servo deg", 45, 0, 90));
-  m.addItem(makeItem("Min servo deg", -45, -90, 0));
-  m.addItem(makeItem("Max speed", 450, 300, 600));
-  m.addItem(makeItem("Min speed", 0, 0, 200));
-  m.addItem(makeItem("updateTime(ms)", 100, 0, 1000));
+  m.addItem(makeItem("Kp", Float.valueOf(lines[0]), 0, 5));
+  m.addItem(makeItem("Ki", Float.valueOf(lines[1]), 0, 5));
+  m.addItem(makeItem("Kd", Float.valueOf(lines[2]), 0, 5));
+  m.addItem(makeItem("speed", Float.valueOf(lines[3]), 0, 500));
+  m.addItem(makeItem("Max servo deg", Float.valueOf(lines[4]), 0, 90));
+  m.addItem(makeItem("Min servo deg", Float.valueOf(lines[5]), -90, 0));
+  m.addItem(makeItem("Max speed", Float.valueOf(lines[6]), 300, 600));
+  m.addItem(makeItem("Min speed", Float.valueOf(lines[7]), 0, 200));
+  m.addItem(makeItem("updateTime(ms)", Float.valueOf(lines[8]), 0, 1000));
 }
 
 public void auto(){
@@ -240,15 +243,19 @@ public void controlEvent(ControlEvent theEvent) {
     Map m = ((SilderList)theEvent.getController()).getItem(index);
     println("got a slider event from item : "+m);
     data_string = "";
+    output = createWriter("list.txt"); 
     for(int i=0;i<total_var;i++){
       String temp = ((SilderList)theEvent.getController()).getItem(i).get("sliderValue")+" ";
       int temp2 = floor(Float.valueOf(temp)*100);
+
+      output.println(temp); 
       data_string += Integer.toString(temp2)+" ";
+      
       myPort.write(Integer.toString(temp2));
       myPort.write('f');
     }
      myPort.write('\n');
-     data_string +=  Integer.toString(center_x)+"\n";
+     output.close(); // Finishes the file
      println(data_string);
   }
 }
@@ -280,7 +287,7 @@ void getKeyPressed(){
 }
 
 void draw() {
-  
+ 
   pushMatrix();
   translate(300, 330);
   noStroke();
@@ -289,7 +296,7 @@ void draw() {
   fill(0);
   text("key pressed: "+keyPress, 0, 0); 
   text("received: "+Character.toString(data_received), 0, 15);
-  text("center_line_x: "+center_line_received_x, 0, 30);
+  text("center_line_x: "+center_x, 0, 30);
   pushMatrix();
   translate(60, 0);
   text("Lencoder_count: "+Lencoder_count, 80, 0);
@@ -341,7 +348,24 @@ void draw() {
         println("************************");
         //delay(1000);
       }
-    }
+    }else if(inputInt == 173){
+        if(myPort.available()>0){
+          int cnt = 0;
+          int autoOrNot = 0;
+          while(cnt<1){
+            autoOrNot = myPort.read();
+            cnt++;
+          }   
+          fill(220);
+          rect(400, 0, 300, 12);
+          fill(0);
+          if(autoOrNot==1){ // if in auto
+            text("Auto Mode", 450, 12);
+          } else{
+            text("Manual Mode", 450, 12);
+          }
+        }
+      }
   }
 }
 
