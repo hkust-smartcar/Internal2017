@@ -6,16 +6,12 @@ ControlP5 cp5;
 Serial myPort;
 
 PFont f1;
-int NUM = 100;
 color darkgray = #333333;
 int inputInt;
-int flag = 0;
 double []split = new double[13];
 
 int globalWidth = 80;
 int globalHeight = 60;
-int globalSpeed = 0;
-int displaySpeed;
 
 int pixelSide = 5;
 Boolean[][] pixelArray = new Boolean[globalHeight][globalWidth];
@@ -26,18 +22,16 @@ color black = #000000;
 
 int arrayPosX, arrayPosY;
 Boolean stop = false;
-String dir = " ", var_string = " ";
 char data_received = ' ';
 char keyPress = ' ';
 
 String Lencoder_count = "0", Rencoder_count = "0";
 String center_line_received_x = " ";
 String data_string = "";
-int total_var = 9;
+int total_var = 0;
 boolean updateMenu;
 
 //for finding center line
-int white_num;
 int left_end = 0, right_end = globalWidth, center_x;
 
 PrintWriter output;
@@ -55,7 +49,7 @@ void setup() {
   cp5 = new ControlP5( this );
   cp5.addButton("auto");
   cp5.addButton("manual");
-  cp5.addButton("stop_").setLabel("stop");
+  cp5.addButton("stop_").setLabel("stop"); //because "stop" is a conserved word
   cp5.addButton("clear");
   
   Controller auto_btn = cp5.getController("auto");
@@ -80,7 +74,8 @@ void setup() {
 
   SilderList m = new SilderList( cp5, "menu", 250, 350 );
 
-  String lines[] = loadStrings("list.txt");
+  String lines[] = loadStrings("list.txt"); // read data from a txt file(use variables saved before)
+  total_var = lines.length;
   m.setPosition(40, 20);
   // add some items to our SilderList
   m.addItem(makeItem("Kp", Float.valueOf(lines[0]), 0, 5));
@@ -239,11 +234,10 @@ void menu(int i) {
 public void controlEvent(ControlEvent theEvent) {
   if (theEvent.isFrom("menu")) {
     int index = int(theEvent.getValue());
-    println("*********************************************");
     Map m = ((SilderList)theEvent.getController()).getItem(index);
     println("got a slider event from item : "+m);
     data_string = "";
-    output = createWriter("list.txt"); 
+    output = createWriter("list.txt"); //save changed variables in to txt file
     for(int i=0;i<total_var;i++){
       String temp = ((SilderList)theEvent.getController()).getItem(i).get("sliderValue")+" ";
       int temp2 = floor(Float.valueOf(temp)*100);
@@ -257,32 +251,6 @@ public void controlEvent(ControlEvent theEvent) {
      myPort.write('\n');
      output.close(); // Finishes the file
      println(data_string);
-  }
-}
-
-void getKeyPressed(){
-  switch(keyPress){
-    case 'w':
-      dir = "w";
-      break;
-    case 'a':
-      dir = "a";
-      break;
-    case 's':
-      dir = "s";
-      break;
-    case 'd':
-      dir = "d";
-      break;
-    case ']':
-      dir = ">";
-      break;
-    case '[':
-      dir = "<";
-      break;
-    case ' ':
-      dir = "stop";
-      break;
   }
 }
 
@@ -334,8 +302,6 @@ void draw() {
       while(cnt<12){
       if(myPort.available()>0) split[cnt++] = myPort.read();
       }
-      //flag = 1;
-      //updateMenu = true;
       for(int i=0;i<12;i++) {
         print(split[i]);
         print(" ");
@@ -346,7 +312,6 @@ void draw() {
         data_received = myPort.readChar();
         println(data_received);
         println("************************");
-        //delay(1000);
       }
     }else if(inputInt == 173){
         if(myPort.available()>0){
@@ -454,12 +419,6 @@ class SilderList extends Controller<SilderList> {
       menu.fill(255);
       menu.rect(sliderX, sliderY, sliderWidth, sliderHeight);
       menu.fill(100, 230, 128);
-      if(flag == 1){
-        items.get(i).put("sliderValue", split[i]);
-        print(split[i]);
-        print(" ");
-        if(i==i1-1) {flag=0; println("********get data from car*******");}
-      }
       float min = f(items.get(i).get("sliderValueMin"));
       float max = f(items.get(i).get("sliderValueMax"));
       float val = f(items.get(i).get("sliderValue"));
