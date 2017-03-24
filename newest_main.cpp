@@ -11,6 +11,8 @@
 #include <libsc/dir_encoder.h>
 #include <ctype.h>
 #include <string>
+#include <stdlib.h>
+#include <stdio.h>
 using namespace std;
 
 namespace libbase
@@ -40,19 +42,21 @@ Led* led1;
 JyMcuBt106* exterior_bluetooth;
 const Byte tempInt = 170;
 const Byte tempInt2 = 171;
-const Byte tempInt3 = 173;
+const Byte tempInt3 = 169;
+const Byte tempInt4 = 173;
+const Byte* temp4 = &tempInt4;
 const Byte* temp3 = &tempInt3;
 const Byte* temp2 = &tempInt2;
 const Byte* temp = &tempInt;
 AlternateMotor* exterior_Lmotor;
 AlternateMotor* exterior_Rmotor;
-int motorPower = 300, max_speed = 450, min_speed = 0;
+int motorPower = 100, max_speed = 450, min_speed = 0;
 FutabaS3010* exterior_servo;
 const Byte* camPtr;
 int centerLine = 40, car_center = 40;
 double intervalMs = 100;
 int max_servoDeg = 45, min_servoDeg = -45;
-bool inAuto = true;
+bool inAuto = false;
 double data_string[20]={};
 //for pid
 double Kp, Ki, I, Kd, output, err, lastInput, Input;
@@ -60,23 +64,22 @@ string var_string;
 int data_string_len;
 string s = "";
 int k = 0, flag = 0;
+FILE* fp;
+char * line = NULL;
+size_t len = 0;
+ssize_t read;
+char c[20];
 
 void pidInit();
 void PID(double input, double setPoint);
 void setPidTuning(double kp, double ki, double kd);
-
-double toDouble(string s){
-	double d = 0;
-	for(int i=0;i<s.length();i++){
-		d*=10;
-		d+=s[i]-'0';
-	}
-	return d/100;
-}
+double toDouble(char* s);
+void read_data_from_file();
 
 int main(void)
 {
 	System::Init();
+	read_data_from_file();
 
 	Ov7725::Config C;  //camera init;
 	C.id = 0;
@@ -115,7 +118,6 @@ int main(void)
 	AlternateMotor Lmotor(Lmotor_config), Rmotor(Rmotor_config);
 	exterior_Lmotor = &Lmotor; exterior_Rmotor = &Rmotor;
 	Lmotor.SetClockwise(1); Rmotor.SetClockwise(0);
-	Lmotor.SetPower(motorPower); Rmotor.SetPower(motorPower);
 
 	Encoder::Config Ldir_encoder_config, Rdir_encoder_config;
 	Ldir_encoder_config.id = 0;
@@ -143,12 +145,20 @@ int main(void)
 				bluetooth.SendBuffer(temp,1);
 				bluetooth.SendBuffer(camPtr, cam.GetBufferSize());
 
+				Byte isauto = 0;
+				const Byte* auto_ptr = &isauto;
+				if(inAuto) isauto = 1;
+				else isauto = 0;
+				bluetooth.SendBuffer(temp4,1);
+				bluetooth.SendBuffer(auto_ptr, 1);
+
 				LdirEncoder.Update();
 				RdirEncoder.Update();
 
-				PID(centerLine, car_center);
-				Lmotor.SetPower(motorPower);
-				Rmotor.SetPower(motorPower);
+				if(inAuto) {
+					PID(centerLine, car_center);
+					startMotor();
+				}
 
 				cam.UnlockBuffer();
 			}
@@ -207,6 +217,7 @@ void setAuto(bool toAuto){
 		inAuto = true;
 	} else{
 		inAuto = false;
+		stopMotor();
 	}
 }
 void PID(double input, double setPoint){
@@ -233,9 +244,9 @@ void update_data_from_bt(){
 	max_speed = data_string[6];
 	min_speed = data_string[7];
 	intervalMs = data_string[8];
-	exterior_bluetooth->SendBuffer(temp2,1);
-	Byte test[12] = {Kp, Ki/intervalMs, Kd*intervalMs, motorPower, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, 0, 0, centerLine};
-	exterior_bluetooth->SendBuffer(test, 12);
+	//exterior_bluetooth->SendBuffer(temp2,1);
+	//Byte test[12] = {Kp, Ki/intervalMs, Kd*intervalMs, motorPower, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, 0, 0, centerLine};
+	//exterior_bluetooth->SendBuffer(test, 12);
 
 }
 void sendReceivedChar(Byte data){
@@ -244,57 +255,106 @@ void sendReceivedChar(Byte data){
 }
 
 bool BTonReceiveInstruction(const Byte *data, const size_t size){
-	if(data[0]==0){
+	switch(data[0]){
+	case 0:
 		inAuto = true;
-	} else if(data[0]==1){
+		setServoDegree(0);
+		break;
+	case 1:
 		inAuto = false;
 		stopMotor();
-	} else if(data[0]==2){
+		break;
+	case 2:
 		stopMotor();
-	} else if(data[0]==' '){
+		break;
+	case ' ':
 		inAuto = false; //press space key to enter manual mode
 		stopMotor();
 		setMotorDir(0);
-	} else if(data[0]=='w'){
-		//sendReceivedChar('w');
-		exterior_bluetooth->SendBuffer(temp3,1);
-		exterior_bluetooth->SendBuffer(&data[0], 1);
+		break;
+	case 'w':
+		sendReceivedChar('w');
 		setServoDegree(0);
 		setMotorDir(0);
 		startMotor();
-	} else if(data[0]=='s'){
+		break;
+	case 's':
 		sendReceivedChar('s');
 		setServoDegree(0);
 		setMotorDir(1);
 		startMotor();
-	} else if(data[0]=='a'){
-		//sendReceivedChar('a');
+		break;
+	case 'a':
+		sendReceivedChar('a');
 		setServoDegree(-20);
 		startMotor();
-	} else if(data[0]=='d'){
+		break;
+	case 'd':
 		sendReceivedChar('d');
 		setServoDegree(20);
 		startMotor();
-	} else if(data[0]=='r'){
-		stopMotor();
-	} else if(data[0]=='['){
+		break;
+	case '[':
 		adjustSpeed(-20);
-	} else if(data[0]==']'){
+		break;
+	case ']':
 		adjustSpeed(20);
-	} else{
-		if(data[0]!='f' && data[0]!='\n' && data[0]!='c') s+=data[0];
-		else if(data[0]=='f'){
-			data_string[data_string_len++] = toDouble(s);
-			s = "";
-		}
-		else if(data[0]=='\n'){
-			update_data_from_bt();
-			data_string_len = 0;
-		} else if(data[0]=='c'){
-			centerLine = toDouble(s);
-			s = "";
-		}
+		break;
+	case 'f':
+		data_string[data_string_len++] = toDouble(strcpy(c, s.c_str()));
+		s = "";
+		break;
+	case '\n':
+		update_data_from_bt();
+		data_string_len = 0;
+		break;
+	case 'c':
+		centerLine = toDouble(strcpy(c, s.c_str()));
+		s = "";
+		break;
+	default:
+		s+=data[0];
+		break;
 	}
 
 	return true;
+}
+double toDouble(char* s){
+    int start = 0, flag = 0;
+    double cnt=1;
+    if(s[0]=='-') start++;
+    double d = 0;
+    for(int i=start;i<strlen(s);i++){
+        if(s[i]=='.'){
+            flag = i;
+            continue;
+        }
+        d*=10;
+        d+=s[i]-'0';
+        if(flag) cnt*=10;
+    }
+    if(s[0]=='-') return -d/cnt;
+    return d/cnt;
+}
+void read_data_from_file(){
+	char* data_from_file[20];
+	int cnt = 0;
+	char const* const fileName = "/Users/tina/Documents/Processing/Updated_GUI/list.txt"; /* should check that argc > 1 */
+	FILE* file = fopen(fileName, "r"); /* should check the result */
+	char line[256];
+
+	while (fgets(line, sizeof(line), file)) {
+		data_from_file[cnt++] = line;
+	}
+	fclose(file);
+
+	Kp = toDouble(data_from_file[0]);
+	Ki = toDouble(data_from_file[1]);
+	Kd = toDouble(data_from_file[2]);
+	motorPower = toDouble(data_from_file[3]);
+	max_servoDeg = toDouble(data_from_file[4]);
+	min_servoDeg = toDouble(data_from_file[5]);
+	max_speed = toDouble(data_from_file[6]);
+	min_speed = toDouble(data_from_file[7]);
+	intervalMs = toDouble(data_from_file[8]);
 }
