@@ -1,0 +1,261 @@
+///*
+// * Test_Filter.cpp
+// *
+// *  Created on: Mar 23, 2017
+// *      Author: lzhangbj
+// */
+//
+//#include <cassert>
+//#include <vector>
+//#include <stdio.h>
+//#include <cstring>
+//#include <cstdint>
+//#include <stdint.h>
+//#include <inttypes.h>
+//#include <sstream>
+//
+//#include <libbase/k60/mcg.h>
+//#include <libsc/system.h>
+//#include <libsc/k60/ov7725.h>
+//#include <libsc/led.h>
+//#include <libsc/st7735r.h>
+//#include <libutil/misc.h>
+//#include <libsc/button.h>
+//#include <libsc/lcd_typewriter.h>
+//
+//#include <libutil/string.h>
+//#include <libsc/encoder.h>
+//#include <libsc/alternate_motor.h>
+//#include <libsc/motor.h>
+//#include <libsc/dir_motor.h>
+//#include <libsc/lcd.h>
+//#include <libsc/tower_pro_mg995.h>
+//
+//#include <libsc/dir_encoder.h>
+//#include <libsc/k60/uart_device.h>
+//#include <libbase/k60/uart.h>
+//#include <libsc/k60/jy_mcu_bt_106.h>
+//#include <libsc/mpu6050.h>
+//
+//#include "Header/angle.h"
+//#include "Header/BalanceCtrl.h"
+//#include "Header/PID.h"
+//
+//using namespace std;
+//
+//
+//namespace libbase
+//{
+//    namespace k60
+//    {
+//
+//        Mcg::Config Mcg::GetMcgConfig()
+//        {
+//            Mcg::Config config;
+//            config.external_oscillator_khz = 50000;
+//            config.core_clock_khz = 150000;
+//            return config;
+//        }
+//
+//    }
+//}
+//
+//
+//using namespace libsc;
+//using namespace libbase::k60;
+//using namespace libsc::k60;
+//
+//uint8_t Interval = 1;
+//uint8_t BInterval = 15;
+//uint8_t BCInterval = 1;
+//uint8_t CTInterval = 1;
+//float k = 0.05;
+//float BC_KP =1000, BC_KD = 0;
+//float a = 35.55;
+//std::array<float, 3>offset {0,0,35.55};
+//float t=0;
+//
+//
+//
+//string inputStr;  //global
+//bool tuning = false;  //global
+//vector<double> constVector;  //global
+//
+//bool bluetoothListener(const Byte *data, const size_t size) {
+//  if (data[0] == 't') {
+//    tuning = 1;
+//    inputStr = "";
+//  } else if (tuning && data[0] != 't') {
+//    if (data[0] != '\n') {
+//      inputStr += (char)data[0];
+//    } else {
+//      tuning = 0;
+//      constVector.clear();
+//      char * pch;
+//      pch = strtok(&inputStr[0], " ,");
+//      while (pch != NULL){
+//        int constant;
+//        stringstream(pch) >> constant;
+//        constVector.push_back(constant);
+//        pch = strtok (NULL, " ,");
+//      }
+//	BC_KP = constVector[0];
+//	BC_KD= constVector[1];
+//	a = constVector[2];
+//	Kp =
+//	t = constVector[3];
+//
+//    }
+//  }
+//  return 1;
+//}
+//
+//int main()
+//{
+//	System::Init();
+//
+//
+//		/*
+//		 * 											led config
+//		 */
+//		Led::Config led_config;
+//		led_config.id=0;
+//		led_config.is_active_low=false;
+//		Led led(led_config);
+//		led.SetEnable(false);
+//
+//
+//		/*
+//		 * 											bluetooth config
+//		*/
+//		JyMcuBt106::Config bluetooth_config;
+//		bluetooth_config.id=0;
+//		bluetooth_config.baud_rate=libbase::k60::Uart::Config::BaudRate::k115200;
+//		bluetooth_config.rx_isr = &bluetoothListener;
+//	//	bluetooth_config.tx_buf_size = 200;
+//		JyMcuBt106 BT(bluetooth_config);
+//
+//		char Buffer[100];
+//
+//
+//		/*
+//		 * 											motor config
+//		 */
+//		AlternateMotor::Config lmotor_config,rmotor_config;
+//		lmotor_config.id=0;
+//		AlternateMotor LMotor(lmotor_config);
+//		rmotor_config.id=1;
+//		AlternateMotor RMotor(rmotor_config);
+//
+//
+//		int16_t LPower, RPower;
+//		LPower = 0;
+//		RPower = 0;
+//
+//		bool LForDir = false, RForDir = true;
+//		bool LDir = LForDir, RDir = RForDir;
+//
+//		LMotor.SetClockwise(false);
+//		RMotor.SetClockwise(true);
+//
+//		LMotor.SetPower(LPower);
+//		RMotor.SetPower(RPower);
+//
+//
+//		/*
+//		 * 											mpu6050 config
+//		 */
+//
+//		Mpu6050::Config mpu_config;
+//		mpu_config.gyro_range=Mpu6050::Config::Range::kLarge;
+//		mpu_config.accel_range=Mpu6050::Config::Range::kLarge;
+//		Mpu6050 MPU(mpu_config);
+//
+//
+//
+//
+//		/*
+//		 * 				angle config
+//		 */
+//		Angle Angle(&MPU, k,0,0, Interval);
+//		BalanceCtrl BC(BCInterval, CTInterval, BC_KP, BC_KD);
+//		SpeedCtrl	SC()
+//
+//
+//		uint32_t CurTime = System::Time(), BCurTime, BCCurTime, CTCurTime,
+//				 PreTime = 0, BPreTime = 0, BCPreTime = 0, CTPreTime = 0;
+//		led.SetEnable(true);
+//		Angle.SetOffSet(offset);
+//
+//
+//		while(System::Time() - CurTime < 500 ){
+//			MPU.Update();
+//			Angle.StoreHistory(Angle::AngCalMethod::ThreeAxisAsin);
+//		}
+//		while(1){
+//
+//			CurTime = System::Time();
+//			if(! ((CurTime - PreTime) % Interval) && CurTime!=PreTime){
+//				PreTime = CurTime;
+//				MPU.Update();
+//				offset[2] = a;
+//				Angle.SetOffSet(offset);
+//				Angle.MediumFilter();
+//				Angle.StoreHistory(Angle::AngCalMethod::ThreeAxisAsin);
+//				Angle.AngleCalculate(Angle::FilterMethod::TsinghuaFilter);
+//			}
+//			BCCurTime = System::Time();
+//			if(! ((BCCurTime - BCPreTime) % BCInterval) && BCCurTime != BCPreTime ){
+//				BCPreTime = BCCurTime;
+//				BC.SetK(BC_KP,BC_KD);
+//				BC.InputData(static_cast<float>(Angle.GetAngle()[2]),static_cast<float>(Angle.GetAngSpeed()[2]));
+//				BC.OutputCalculate();
+//			}
+//			CTCurTime = System::Time();
+//			if(! ((CTCurTime - CTPreTime) % CTInterval) && CTCurTime != CTPreTime ){
+//				CTPreTime = CTCurTime;
+//				LPower = BC.AngleControl();
+//				RPower = LPower;
+//				if(LPower < 0 ){
+//					LPower = - LPower;
+//					RPower = - RPower;
+//					LDir = !LForDir;
+//					RDir  =!RForDir;
+//
+//				}
+//				else{
+//					LDir = LForDir;
+//					RDir = RForDir;
+//				}
+//				LMotor.SetClockwise(LDir);		RMotor.SetClockwise(RDir);
+//				LMotor.SetPower(LPower);		RMotor.SetPower(RPower);
+//
+//			}
+//			if(t){
+//				LPower = RPower = 0;
+//				LMotor.SetPower(LPower);		RMotor.SetPower(RPower);
+//				break;
+//			}
+//
+//			BCurTime = System::Time();
+//			if(! ((BCurTime - BPreTime) % BInterval) && BCurTime!=BPreTime){
+//				BPreTime = BCurTime;
+//				led.Switch();
+//				sprintf(Buffer, "%.1lf,%.2lf,%.2lf\n",1.0,Angle.GetAngle()[2],(float)LPower);
+//				const Byte speedByte = 85;
+//				BT.SendBuffer(&speedByte, 1);
+//				BT.SendStr(Buffer);
+//			}
+//		}
+//		return 0;
+//}
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//

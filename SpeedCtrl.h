@@ -1,68 +1,57 @@
 /*
  * SpeedCtrl.h
  *
- *  Created on: Feb 28, 2017
+ *  Created on: Mar 13 , 2017
  *      Author: lzhangbj
  */
 
 #ifndef SRC_SPEEDCTRL_H_
 #define SRC_SPEEDCTRL_H_
 
-#include "FBalanceCtrl.h"
+#include <cstdint>
 
 class SpeedCtrl
 {
 private:
 
-	float m_calculate_time_interval;
-	float m_ctrl_time_interval;
-	uint8_t m_ctrl_period;
-	float m_aim_speed;
+	uint8_t m_CalTime;
+	uint8_t m_CtrlTime;
+	uint8_t m_CtrlPeriod;
 
-	float m_p;
-	float m_d;
-	float m_speed_integral = 0;
+	float m_Speed;
+
+	float m_Kp;
+	float m_Kd;
+	float m_Integral;
 
 	float m_delta_speed;
 
-	float m_calculate_speed_old=0;
-	float m_calculate_speed_new=0;
+	float m_PreCalOutput;
+	float m_CurCalOutput;
+
+	float m_Output;
 
 
 
 public:
 
-	void Config( float AimSpeed, float p, float d,float calculate_interval,float ctrl_time_interval){
-		m_calculate_time_interval = calculate_interval;
-		m_ctrl_time_interval = ctrl_time_interval;
-		m_aim_speed = AimSpeed;
-		m_p = p;
-		m_d = d;
-		m_ctrl_period =m_calculate_time_interval / m_ctrl_time_interval;
+	SpeedCtrl(float p, float d, float calculate_interval,float ctrl_time_interval);
+
+	void SetSpeed(float speed);
+
+	void SetK(float kp, float kd){
+		m_Kp = kp;
+		m_Kd = kd;
+		m_Integral = 0;
 	}
 
-	void SetSpeed(float speed){
-		m_aim_speed = speed;
-	}
+	void InputCount(int32_t left_count, int32_t right_count);
 
-	void GetCount(int32_t left_count, int32_t right_count){
-		m_delta_speed = m_aim_speed - (left_count + right_count)/2;
-	}
+	void SpeedControl();
 
-	void Update(){
-		m_speed_integral += m_p*m_delta_speed * m_calculate_time_interval/1000;
-		m_calculate_speed_old = m_calculate_speed_new;
-		m_calculate_speed_new = m_speed_integral + m_d * m_delta_speed ;
-	}
+	float SpeedControlOutput();
 
 	static uint8_t count;
-
-	float GetSpeedOut(){
-		count++;
-		float speed_out =  count*(m_calculate_speed_new - m_calculate_speed_old)/ m_ctrl_period + m_calculate_speed_old;
-		count = ( count==m_ctrl_period / m_ctrl_time_interval)?0:count;
-		return speed_out;
-	}
 
 };
 
