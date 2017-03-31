@@ -246,7 +246,7 @@ bool BTonReceiveInstruction(const Byte *data, const size_t size){
 }
 void about_centerline(const Byte* camPtr){
 	int area_dif = 0;
-	for(int line=10;line<60;line++){
+	for(int line=0;line<60;line++){
 		find_sideL = 0;
 		sideL[line] = 0; sideR[line] = 80; black_img_in_trackL[line]=0; black_img_in_trackR[line]=0, maybe_black_img_in_track=0;
 		if(!image[line][0]) find_sideL = 1;
@@ -261,19 +261,17 @@ void about_centerline(const Byte* camPtr){
 						black_img_in_trackR[line] = x-2;
 					}
 					if(!find_sideL){
-						if(x<40) sideL[line] = x-2;
+						sideL[line] = x-2;
 						find_sideL = 1;
 					}
 				}
 				if(x>2 && !image[line][x-3] && !image[line][x-2] && image[line][x-1]){ // WWB
-					if(x<40){
-						maybe_black_img_in_track = 1;
-						black_img_in_trackL[line] = x-2;
-					}
-					if(x>40) sideR[line] = x-2; // find the right most edge
+					maybe_black_img_in_track = 1;
+					black_img_in_trackL[line] = x-2;
+					sideR[line] = x-2; // find the right most edge
 				}
 
-				if(line<15) {
+				if(line<5) {
 					if(x>40) area_dif+=image[line][x];
 					else area_dif-=image[line][x];
 				}
@@ -297,7 +295,7 @@ void about_centerline(const Byte* camPtr){
 			}
 			*/
 		}
-
+		if(sideR[line]<sideL[line]) sideR[line]=80;
 		center[line] = (sideL[line]+sideR[line])/2;
 		/*if(line>=1 && abs(center[line-1]-center[line])>1){
 			if(center[line-1]<40) center[line]--; // gradually smooth the center line until dis between 2 center line <=2
@@ -314,7 +312,8 @@ void tft(const Byte* camPtr, Uint size){
 	screen->SetRegion(Lcd::Rect(0,0,80,60));
 	screen->FillBits(St7735r::kBlack,St7735r::kWhite,camPtr,8*size);
 
-	for(int line=10;line<60;line++){
+	for(int line=0;line<60;line++){
+
 		screen->SetRegion(Lcd::Rect(center[line], line-1, 2, 2));
 		screen->FillColor(St7735r::kRed);
 
@@ -323,6 +322,7 @@ void tft(const Byte* camPtr, Uint size){
 
 		screen->SetRegion(Lcd::Rect(sideR[line], line-1, 2, 2));
 		screen->FillColor(St7735r::kGreen);
+
 	}
 }
 void receive_mode_instruction(){
@@ -365,14 +365,12 @@ int main(void)
 	writer = &m_writer;
 	Timer::TimerInt t=0;
 
-	/*
 	JyMcuBt106::Config bluetooth_config;
 	bluetooth_config.id = 0;
 	bluetooth_config.baud_rate = libbase::k60::Uart::Config::BaudRate::k115200;
 	bluetooth_config.rx_isr = BTonReceiveInstruction;
 	JyMcuBt106 m_bluetooth(bluetooth_config);
 	bluetooth = &m_bluetooth;
-	*/
 
 	FutabaS3010::Config servo_config;
 	servo_config.id = 0;
@@ -420,16 +418,14 @@ int main(void)
 				smooth_center_line();
 				tft(camPtr, camSize);
 
-				inner_led1.SetEnable(1);
-				inner_led1.Switch();
-				//PID(center[50], car_center);
-				/*//receive_mode_instruction();
+				PID(center[50], car_center);
+				receive_mode_instruction();
 				if(inAuto) startMotor();
 				send_image_BT(camPtr, camSize);
 
-				LdirEncoder.Update();
-				RdirEncoder.Update();
-				*/
+				//LdirEncoder.Update();
+				//RdirEncoder.Update();
+
 
 				cam.UnlockBuffer();
 			}
