@@ -42,10 +42,12 @@ const Byte tempInt = 170;
 const Byte tempInt2 = 171;
 const Byte tempInt3 = 169;
 const Byte tempInt4 = 173;
+const Byte tempInt5 = 168;
 const Byte* temp4 = &tempInt4;
 const Byte* temp3 = &tempInt3;
 const Byte* temp2 = &tempInt2;
 const Byte* temp = &tempInt;
+const Byte* temp5 = & tempInt5;
 AlternateMotor* Lmotor;
 AlternateMotor* Rmotor;
 Flash* flash;
@@ -57,7 +59,8 @@ const Byte* camPtr;
 double car_center = 40;
 int centerLine = 40, black_img_in_trackL[80], black_img_in_trackR[80];
 double intervalMs = 100;
-int max_servoDeg = 45, min_servoDeg = -45, sideL[80], sideR[80], center[80];
+int max_servoDeg = 45, min_servoDeg = -45, sideL[80], sideR[80];
+Byte center[80];
 bool inAuto = true;
 double data_string[20]={};
 //for pid
@@ -72,7 +75,7 @@ Uint camSize;
 char c[20];
 bool image[100][100], first_time = 1, maybe_black_img_in_track=0, find_sideL = 0;
 
-double data[9]; // = {2.27, 1.3, 0, 100, 45, -45, 450, 0, 100};
+double data[9] = {227, 130, 0, 20000, 4500, -4500, 45000, 0, 10000};
 
 double toDouble(char* s){
 
@@ -161,19 +164,16 @@ void PID(double input, double setPoint){
 }
 void update_data(double* data, int data_len){
 	if(data[8]==0) return;
-	setPidTuning(data[0],data[1],data[2]);
-	motorPower = data[3];
-	max_servoDeg = data[4];
-	min_servoDeg = data[5];
-	max_speed = data[6];
-	min_speed = data[7];
-	intervalMs = data[8];
+	setPidTuning(data[0]/100,data[1]/100,data[2]/100);
+	motorPower = data[3]/100;
+	max_servoDeg = data[4]/100;
+	min_servoDeg = data[5]/100;
+	max_speed = data[6]/100;
+	min_speed = data[7]/100;
+	intervalMs = data[8]/100;
 
-	flash->Write(data, 9);
-	//bluetooth->SendBuffer(temp2,1);
-	//Byte test[12] = {Kp, Ki/intervalMs, Kd*intervalMs, motorPower, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, 0, 0, centerLine};
-	//bluetooth->SendBuffer(test, 12);
-
+	//int hi;
+	//hi = flash->Write(data, 9);
 }
 void sendReceivedChar(Byte data){
 	bluetooth->SendBuffer(temp3,1);
@@ -233,10 +233,6 @@ bool BTonReceiveInstruction(const Byte *data, const size_t size){
 		update_data(data_string, 9);
 		data_string_len = 0;
 		break;
-	case 'c':
-		centerLine = toDouble(strcpy(c, s.c_str()));
-		s = "";
-		break;
 	default:
 		s+=data[0];
 		break;
@@ -279,29 +275,14 @@ void about_centerline(const Byte* camPtr){
 		}
 		if(black_img_in_trackR[line]){ // if black img in track
 			// roundabout or obstacles detected
-			//if(sideR[line]-sideL[line] > track_size){ // roundabout
-				//tft_write("round!");
 				if(area_dif<0){ // if top center line is on the right side
 					sideL[line] = black_img_in_trackR[line];
 				} else{
 					sideR[line] = black_img_in_trackL[line];
 				}
-			/*} else{ //obstacle
-				if(black_img_in_trackL[line]-sideL[line] > sideR[line]-black_img_in_trackR[line]){ // left road width > right
-					sideR[line] = black_img_in_trackL[line];
-				} else{
-					sideL[line] = black_img_in_trackR[line];
-				}
-			}
-			*/
 		}
 		if(sideR[line]<sideL[line]) sideR[line]=80;
 		center[line] = (sideL[line]+sideR[line])/2;
-		/*if(line>=1 && abs(center[line-1]-center[line])>1){
-			if(center[line-1]<40) center[line]--; // gradually smooth the center line until dis between 2 center line <=2
-			else center[line]++;
-		}
-		*/
 	}
 }
 void send_image_BT(const Byte* camPtr, Uint size){
@@ -339,6 +320,12 @@ void smooth_center_line(){
 			for (int k=0;k<10;k++)
 				center[line-5+k] = (center[line+5]-center[line-5])*k/9 + center[line-5];
 	}
+}
+void send_data_to_bt(int32_t Lencoder, int32_t Rencoder){
+	Byte test[11] = {Kp, Ki/intervalMs, Kd*intervalMs, motorPower, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, Lencoder, Rencoder};
+	bluetooth->SendBuffer(temp2,1);
+	bluetooth->SendBuffer(test, 11);
+	bluetooth->SendBuffer(center, 60);
 }
 
 int main(void)
@@ -389,20 +376,20 @@ int main(void)
 	Lmotor = &m_Lmotor; Rmotor = &m_Rmotor;
 	m_Lmotor.SetClockwise(1); m_Rmotor.SetClockwise(0);
 
-	/*Encoder::Config Ldir_encoder_config, Rdir_encoder_config;
+	Encoder::Config Ldir_encoder_config, Rdir_encoder_config;
 	Ldir_encoder_config.id = 0;
 	Rdir_encoder_config.id = 1;
 	DirEncoder LdirEncoder(Ldir_encoder_config);
-	DirEncoder RdirEncoder(Rdir_encoder_config);*/
+	DirEncoder RdirEncoder(Rdir_encoder_config);
 
 	Flash::Config flash_config;
 	Flash m_flash(flash_config);
 	flash = &m_flash;
 
 	pidInit();
-	m_flash.Read(data, 9);
+	//m_flash.Read(data, 9);
 
-	if(!data[8]) update_data(data, 9);
+	update_data(data, 9);
 
 	cam.Start();
 
@@ -419,13 +406,14 @@ int main(void)
 				tft(camPtr, camSize);
 
 				PID(center[50], car_center);
-				receive_mode_instruction();
+				//receive_mode_instruction();
 				if(inAuto) startMotor();
 				send_image_BT(camPtr, camSize);
 
-				//LdirEncoder.Update();
-				//RdirEncoder.Update();
+				LdirEncoder.Update();
+				RdirEncoder.Update();
 
+				send_data_to_bt(LdirEncoder.GetCount(), RdirEncoder.GetCount());
 
 				cam.UnlockBuffer();
 			}
