@@ -8,10 +8,12 @@ Serial myPort;
 PFont f1;
 color darkgray = #333333;
 int inputInt;
-double []split = new double[13];
+double []data_from_car = new double[13];
 
 int globalWidth = 80;
 int globalHeight = 60;
+int cnt;
+int image_data;
 
 int pixelSide = 5;
 Boolean[][] pixelArray = new Boolean[globalHeight][globalWidth];
@@ -25,14 +27,15 @@ Boolean stop = false;
 char data_received = ' ';
 char keyPress = ' ';
 
-String Lencoder_count = "0", Rencoder_count = "0";
 String center_line_received_x = " ";
 String data_string = "";
 int total_var = 0;
 boolean updateMenu;
+long now;
 
 //for finding center line
-int left_end = 0, right_end = globalWidth, center_x;
+int left_end = 0, right_end = globalWidth;
+int []center = new int[100];
 
 PrintWriter output;
 
@@ -132,7 +135,7 @@ void getImage(int data) {
     if (i < strLen) {
       
       if (binData.charAt(strLen-1-i) == '1') {
-        pixelArray[arrayPosY][arrayPosX+7-i] = true;
+        pixelArray[arrayPosY][arrayPosX+7-i] = true; 
       } else {
         pixelArray[arrayPosY][arrayPosX+7-i] = false;
       }
@@ -155,43 +158,15 @@ void getImage(int data) {
 
 }
 
-void getCenterLine(int left_end_x, int right_end_x, int current_y){
-  
-  right_end_x-=1;
-  if(left_end_x-5>=0) left_end_x-=5;
-  if(right_end_x+5<=globalWidth-1) right_end_x+=5;
-  
-  if(!pixelArray[current_y][0]) left_end = 0;
-  else {
-    for(int x=left_end_x;x<globalWidth/2;x++){
-      if(!pixelArray[current_y][x]&&!pixelArray[current_y][x+1]&&!pixelArray[current_y][x+2]){
-        left_end = x;
-        break;
-      }
-    }
-  }
-  
-  if(!pixelArray[current_y][globalWidth-1]) right_end = globalWidth-1;
-  else {
-    for(int x=right_end_x;x>globalWidth/2;x--){
-      if(!pixelArray[current_y][x]&&!pixelArray[current_y][x-1]&&!pixelArray[current_y][x-2]){
-          right_end = x;
-          break;
-        }
-    }
-  }
-  center_x = (left_end+right_end)/2;
-}
 
 void outputImage() {
   
   for (int y=0; y<globalHeight; y++) {
-    getCenterLine(left_end, right_end ,y);
     for (int x=0; x<globalWidth; x++) {
       if (pixelArray[y][x]) {
         fill(black);
       } else {
-        if(x == center_x) fill(red);
+        if(x == center[y]) fill(red);
         else fill(255);
       }
       noStroke();
@@ -220,10 +195,9 @@ void keyPressed() {
 }
 void keyReleased(){
   if(keyPress != '.' && keyPress!= ','){
-    myPort.write('r');
+    myPort.write(2);
     stop = true;
-  }
-  
+  }  
 }
 
 
@@ -243,14 +217,14 @@ public void controlEvent(ControlEvent theEvent) {
       int temp2 = floor(Float.valueOf(temp)*100);
 
       output.println(temp); 
-      data_string += Integer.toString(temp2)+" ";
+      //data_string += Integer.toString(temp2)+" ";
       
       myPort.write(Integer.toString(temp2));
       myPort.write('f');
     }
      myPort.write('\n');
      output.close(); // Finishes the file
-     println(data_string);
+     //println(data_string);
   }
 }
 
@@ -264,62 +238,86 @@ void draw() {
   fill(0);
   text("key pressed: "+keyPress, 0, 0); 
   text("received: "+Character.toString(data_received), 0, 15);
-  text("center_line_x: "+center_x, 0, 30);
+  text("center_line_x: "+center[50], 0, 30);
   pushMatrix();
   translate(60, 0);
-  text("Lencoder_count: "+Lencoder_count, 80, 0);
-  text("Rencoder_count: "+Rencoder_count, 80, 15);
+  text("Lencoder_count: "+String.valueOf(data_from_car[9]), 80, 0);
+  text("Rencoder_count: "+String.valueOf(data_from_car[10]), 80, 15);
   popMatrix();
   popMatrix();
-  
-  myPort.write(Integer.toString(center_x*100));
-  myPort.write('c');
  
   if(myPort.available() > 0){
     inputInt = myPort.read();
     println(inputInt);
-    if(inputInt == 170){
-      int i = 0;
-      arrayPosX = 0;
-      arrayPosY = 0;
-      
-      while (i<globalWidth*globalHeight/8) {
-        print(' ');
-        if (myPort.available() > 0) {  
-          inputInt = myPort.read();
-          getImage(inputInt);
-          i++;
+    switch(inputInt){
+      case 170:
+        cnt = 0;
+        arrayPosX = 0;
+        arrayPosY = 0;
+        now = System.currentTimeMillis();;
+        while (cnt<globalWidth*globalHeight/8) {
+          if (myPort.available() > 0) {  
+            now = System.currentTimeMillis();
+            image_data = myPort.read();
+            getImage(image_data);
+            cnt++;
+            println(cnt);
+          }
+          if(System.currentTimeMillis()-now>1000){
+            break;
+          }
         }
-      }
-      
-      noStroke();
-      pushMatrix();
-      translate(300, 20);
-      outputImage();
-      popMatrix();
-    }else if(inputInt == 171){
-      int cnt = 0;
-      while(cnt<12){
-      if(myPort.available()>0) split[cnt++] = myPort.read();
-      }
-      for(int i=0;i<12;i++) {
-        print(split[i]);
-        print(" ");
-      }
-      println("**********data from car*************");
-    }else if(inputInt == 169){
-      if(myPort.available()>0){
-        data_received = myPort.readChar();
-        println(data_received);
-        println("************************");
-      }
-    }else if(inputInt == 173){
-        if(myPort.available()>0){
-          int cnt = 0;
+        noStroke();
+        pushMatrix();
+        translate(300, 20);
+        outputImage();
+        popMatrix();
+        break;
+      case 171:
+        cnt = 0;
+        while(cnt<11){
+          if(myPort.available()>0) {
+            data_from_car[cnt] = myPort.read();
+            if(cnt==5) data_from_car[cnt]-=256;
+            cnt++;
+            now = System.currentTimeMillis();
+          }
+          if(System.currentTimeMillis()-now>1000){
+            break;
+          }
+        }
+        for(int i=0;i<11;i++) {
+          print(data_from_car[i]);
+          print(" ");
+        }
+        //println("**********data from car*************");
+        cnt = 0;
+        while(cnt<60){
+          if(myPort.available()>0){
+            center[cnt] = myPort.read();
+            cnt++;
+            now = System.currentTimeMillis();
+          }
+          if(System.currentTimeMillis()-now>1000){
+            break;
+          }
+        }
+        break;
+       case 169:
+         if(myPort.available()>0){
+            data_received = myPort.readChar();
+            println(data_received);
+            println("************************");
+         }
+         break;
+        case 173:
+          cnt = 0;
           int autoOrNot = 0;
           while(cnt<1){
-            autoOrNot = myPort.read();
-            cnt++;
+            if(myPort.available()>0){
+              autoOrNot = myPort.read();
+              cnt++;
+            }
           }   
           fill(220);
           rect(400, 0, 300, 12);
@@ -329,9 +327,10 @@ void draw() {
           } else{
             text("Manual Mode", 450, 12);
           }
-        }
+          break;
       }
-  }
+    }
+    
 }
 
 
@@ -414,8 +413,8 @@ class SilderList extends Controller<SilderList> {
       menu.fill(darkgray);
       // uncomment the following line to use a different font than the default controlP5 font
       //menu.textFont(f1); 
-      String txt = String.format("%s   %.2f", m.get("label").toString().toUpperCase(), f(items.get(i).get("sliderValue")));
-      menu.text(txt, 10, 20 );
+      String txt = String.format("%s   %.2f -- %.2f", m.get("label").toString().toUpperCase(), f(items.get(i).get("sliderValue")), data_from_car[i]);
+      menu.text(txt, 10, 20);
       menu.fill(255);
       menu.rect(sliderX, sliderY, sliderWidth, sliderHeight);
       menu.fill(100, 230, 128);
