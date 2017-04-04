@@ -243,7 +243,8 @@ bool BTonReceiveInstruction(const Byte *data, const size_t size){
 void about_centerline(const Byte* camPtr){
 	int area_dif=0, x, white_area = 0, black_img_in_track_time=0;
 	for(int line=0;line<60;line++){
-		if(white_area>78) {center[line-1] = center[line]; // cross road -> follows the last center line
+		if(white_area>78) {
+			center[line-1] = center[line]; // if cross road -> follows the last center line (so the route won't shift a lot)
 		}
 		find_sideL = 0;
 		sideL[line] = 0; sideR[line] = 80; black_img_in_trackL[line]=0; black_img_in_trackR[line]=0, maybe_black_img_in_track=0;
@@ -254,7 +255,7 @@ void about_centerline(const Byte* camPtr){
 				if(((*(camPtr+line*10+i))>>j)&1==1) image[line][x++] = 1;
 				else image[line][x++] = 0, white_area++;
 
-				if(x>2 && image[line][x-3] && !image[line][x-2] && !image[line][x-1]){ // BWW
+				if(x>2 && image[line][x-3] && !image[line][x-2] && !image[line][x-1]){ // BWW (B: Black, W: White)
 					if(maybe_black_img_in_track){
 						maybe_black_img_in_track=0;
 						black_img_in_trackR[line] = x-2;
@@ -267,43 +268,43 @@ void about_centerline(const Byte* camPtr){
 				if(x>2 && !image[line][x-3] && !image[line][x-2] && image[line][x-1]){ // WWB
 					maybe_black_img_in_track = 1;
 					if(!black_img_in_trackL[line]) black_img_in_trackL[line] = x-2;
-					sideR[line] = x-2; // find the right most edge
+					sideR[line] = x-2; // rewrite the value whenever this pattern is detected -> find the right most edge
 				}
 				if(line<5) { // find the area diff on the top region of the img (decide the turning direction in a roundabout)
 					if(x>40) area_dif+=image[line][x-1];
 					else area_dif-=image[line][x-1];
+				} else{ // area_dif is done calculated
+					if(!in_turn){ // save the turning dir cause the top white region may change as the car proceeds(thus affect the turniing dir)
+						if(area_dif<0) in_turn=1; // turn right: 1, turn left: 2
+						else in_turn=2;
+					}
 				}
 			}
 		}
-		if(!image[line][x-1]) sideR[line]=80;
+		if(!image[line][x-1]) sideR[line]=80; // essential because the pattern WWB may exist and rewrite the original value(80) while it is a black img in track instead of sideR
 		if(black_img_in_trackR[line]){ // if black img in track
 			black_img_in_track_time++;
 			// roundabout or obstacles detected
-				if(sideR[line]-sideL[line] > 80*0.75){ // if white area > 80%(TBD) -> roundabout
-					if(!in_turn){ // save the turning dir cause the top white region may change as the car proceeds(thus affect the turniing dir)
-						if(area_dif<0) in_turn=1; // in right turn: 1, in left turn: 2
-						else in_turn=2;
-					}
-					if(in_turn==1){ // if the top white area tends to be on the right
+				if(sideR[line]-sideL[line] > 80*0.75){ // if track edge width > 75% of the horizontal line(TBD) -> roundabout
+					if(in_turn==1){ // turn right
 						sideL[line] = black_img_in_trackR[line];
-					} else {
+					} else { // in_turn=2 -> turn left
 						sideR[line] = black_img_in_trackL[line];
 					}
 				} else{ // -> obstacle
-					in_turn = 0; //
-					if(black_img_in_trackL[line]-sideL[line] > sideR[line]- black_img_in_trackL[line]){ // left road is wider
-						sideR[line] = black_img_in_trackL[line];
-					} else{
+					if(black_img_in_trackL[line]-sideL[line] > sideR[line]- black_img_in_trackL[line]){ // if left road is wider
+						sideR[line] = black_img_in_trackL[line]; // turn left
+					} else{ // turn right
 						sideL[line] = black_img_in_trackR[line];
 					}
 				}
 		}
 		center[line] = (sideL[line]+sideR[line])/2;
 
-		if(line>10){ // cannot smooth the top 10 lines
+		if(line>10){ // cannot smooth the top 10 lines, otherwise array index will be negative
 			if (abs(center[line-10]-center[line-9])>5){ // smooth center line
 				for (int k=0;k<10;k++){
-					center[line-10+k] = (center[line]-center[line-10])*k/9 + center[line-10]; // modify the center line 10 lines before
+					center[line-10+k] = (center[line]-center[line-10])*k/9 + center[line-10]; // modify the center line 10 lines closer to our car(so as to turn earlier)
 				}
 			}
 		}
