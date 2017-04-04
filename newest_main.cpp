@@ -412,7 +412,6 @@ int main(void)
 
 	pidInit();
 	//m_flash.Read(data, 9);
-
 	update_data(data, 9);
 
 	cam.Start();
