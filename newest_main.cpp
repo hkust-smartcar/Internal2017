@@ -66,7 +66,7 @@ double data_string[20]={};
 //for pid
 double Kp, Ki, I, Kd, output, err, lastInput, Input;
 string var_string;
-int data_string_len;
+int data_string_len, in_turn=0;
 string s = "";
 int k = 0, flag = 0, in_round;
 size_t len = 0;
@@ -75,7 +75,7 @@ Uint camSize;
 char c[20];
 bool image[100][100], first_time = 1, maybe_black_img_in_track=0, find_sideL = 0;
 
-double data[9] = {227, 130, 0, 20000, 4500, -4500, 45000, 0, 10000};
+double data[9] = {227, 0, 227, 10000, 4500, -4500, 45000, 0, 10000};
 
 double toDouble(char* s){
 
@@ -241,16 +241,19 @@ bool BTonReceiveInstruction(const Byte *data, const size_t size){
 	return true;
 }
 void about_centerline(const Byte* camPtr){
-	int area_dif = 0;
+	int area_dif=0, x, white_area = 0, black_img_in_track_time=0;
 	for(int line=0;line<60;line++){
+		if(white_area>78) {center[line-1] = center[line]; // cross road -> follows the last center line
+		}
 		find_sideL = 0;
 		sideL[line] = 0; sideR[line] = 80; black_img_in_trackL[line]=0; black_img_in_trackR[line]=0, maybe_black_img_in_track=0;
 		if(!image[line][0]) find_sideL = 1;
-		int x = 0;
+		x = 0, white_area = 0;
 		for(int i=0; i<10; i++){
 			for(int j=7; j>=0; j--){
 				if(((*(camPtr+line*10+i))>>j)&1==1) image[line][x++] = 1;
-				else image[line][x++] = 0;
+				else image[line][x++] = 0, white_area++;
+
 				if(x>2 && image[line][x-3] && !image[line][x-2] && !image[line][x-1]){ // BWW
 					if(maybe_black_img_in_track){
 						maybe_black_img_in_track=0;
@@ -263,26 +266,50 @@ void about_centerline(const Byte* camPtr){
 				}
 				if(x>2 && !image[line][x-3] && !image[line][x-2] && image[line][x-1]){ // WWB
 					maybe_black_img_in_track = 1;
-					black_img_in_trackL[line] = x-2;
+					if(!black_img_in_trackL[line]) black_img_in_trackL[line] = x-2;
 					sideR[line] = x-2; // find the right most edge
 				}
-
-				if(line<5) {
-					if(x>40) area_dif+=image[line][x];
-					else area_dif-=image[line][x];
+				if(line<5) { // find the area diff on the top region of the img (decide the turning direction in a roundabout)
+					if(x>40) area_dif+=image[line][x-1];
+					else area_dif-=image[line][x-1];
 				}
 			}
 		}
+		if(!image[line][x-1]) sideR[line]=80;
 		if(black_img_in_trackR[line]){ // if black img in track
+			black_img_in_track_time++;
 			// roundabout or obstacles detected
-				if(area_dif<0){ // if top center line is on the right side
-					sideL[line] = black_img_in_trackR[line];
-				} else{
-					sideR[line] = black_img_in_trackL[line];
+				if(sideR[line]-sideL[line] > 80*0.75){ // if white area > 80%(TBD) -> roundabout
+					if(!in_turn){ // save the turning dir cause the top white region may change as the car proceeds(thus affect the turniing dir)
+						if(area_dif<0) in_turn=1; // in right turn: 1, in left turn: 2
+						else in_turn=2;
+					}
+					if(in_turn==1){ // if the top white area tends to be on the right
+						sideL[line] = black_img_in_trackR[line];
+					} else {
+						sideR[line] = black_img_in_trackL[line];
+					}
+				} else{ // -> obstacle
+					in_turn = 0; //
+					if(black_img_in_trackL[line]-sideL[line] > sideR[line]- black_img_in_trackL[line]){ // left road is wider
+						sideR[line] = black_img_in_trackL[line];
+					} else{
+						sideL[line] = black_img_in_trackR[line];
+					}
 				}
 		}
-		if(sideR[line]<sideL[line]) sideR[line]=80;
 		center[line] = (sideL[line]+sideR[line])/2;
+
+		if(line>10){ // cannot smooth the top 10 lines
+			if (abs(center[line-10]-center[line-9])>5){ // smooth center line
+				for (int k=0;k<10;k++){
+					center[line-10+k] = (center[line]-center[line-10])*k/9 + center[line-10]; // modify the center line 10 lines before
+				}
+			}
+		}
+	}
+	if(black_img_in_track_time<5) { // if return to normal road -> finish turning
+		in_turn = 0;
 	}
 }
 void send_image_BT(const Byte* camPtr, Uint size){
@@ -308,24 +335,20 @@ void tft(const Byte* camPtr, Uint size){
 }
 void receive_mode_instruction(){
 	Byte isauto = 0;
-	const Byte* auto_ptr = &isauto;
 	if(inAuto) isauto = 1;
 	else isauto = 0;
 	bluetooth->SendBuffer(temp4,1);
-	bluetooth->SendBuffer(auto_ptr, 1);
-}
-void smooth_center_line(){
-	for (int line=5;line<60-5;line++) {
-		if (abs(center[line]-center[line + 1])>3)
-			for (int k=0;k<10;k++)
-				center[line-5+k] = (center[line+5]-center[line-5])*k/9 + center[line-5];
-	}
+	bluetooth->SendBuffer(&isauto, 1);
 }
 void send_data_to_bt(int32_t Lencoder, int32_t Rencoder){
 	Byte test[11] = {Kp, Ki/intervalMs, Kd*intervalMs, motorPower, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, Lencoder, Rencoder};
 	bluetooth->SendBuffer(temp2,1);
 	bluetooth->SendBuffer(test, 11);
 	bluetooth->SendBuffer(center, 60);
+}
+void send_sys_time_to_BT(Byte time){
+	bluetooth->SendBuffer(temp5,1);
+	bluetooth->SendBuffer(&time, 1);
 }
 
 int main(void)
@@ -402,10 +425,9 @@ int main(void)
 				camSize = cam.GetBufferSize();
 
 				about_centerline(camPtr);
-				smooth_center_line();
 				tft(camPtr, camSize);
 
-				PID(center[50], car_center);
+				PID(center[50], car_center); // use 50 for now
 				//receive_mode_instruction();
 				if(inAuto) startMotor();
 				send_image_BT(camPtr, camSize);
@@ -417,6 +439,7 @@ int main(void)
 
 				cam.UnlockBuffer();
 			}
+			send_sys_time_to_BT(System::Time()-t);
 		}
 	}
 
