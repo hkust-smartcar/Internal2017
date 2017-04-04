@@ -13,12 +13,12 @@ double []data_from_car = new double[13];
 int globalWidth = 80;
 int globalHeight = 60;
 int cnt;
-int image_data;
+int image_data, sys_time_dif=0;
 
 int pixelSide = 5;
 Boolean[][] pixelArray = new Boolean[globalHeight][globalWidth];
 
-int background_color = 17;
+int background_color = 17, autoOrNot;
 color red = #ff0000;
 color black = #000000;
 
@@ -41,6 +41,7 @@ PrintWriter output;
 
 void setup() {
   
+  frameRate(250);
   printArray(Serial.list());
   myPort = new Serial(this, Serial.list()[1], 115200);
   myPort.buffer(1);
@@ -202,14 +203,14 @@ void keyReleased(){
 
 
 void menu(int i) {
-  println("got some slider-list event from item with index "+i);
+  //println("got some slider-list event from item with index "+i);
 }
 
 public void controlEvent(ControlEvent theEvent) {
   if (theEvent.isFrom("menu")) {
     int index = int(theEvent.getValue());
     Map m = ((SilderList)theEvent.getController()).getItem(index);
-    println("got a slider event from item : "+m);
+    //println("got a slider event from item : "+m);
     data_string = "";
     output = createWriter("list.txt"); //save changed variables in to txt file
     for(int i=0;i<total_var;i++){
@@ -234,7 +235,7 @@ void draw() {
   translate(300, 330);
   noStroke();
   fill(220);
-  rect(-5, -8, 300, 60);
+  rect(-5, -9, 300, 60);
   fill(0);
   text("key pressed: "+keyPress, 0, 0); 
   text("received: "+Character.toString(data_received), 0, 15);
@@ -243,6 +244,7 @@ void draw() {
   translate(60, 0);
   text("Lencoder_count: "+String.valueOf(data_from_car[9]), 80, 0);
   text("Rencoder_count: "+String.valueOf(data_from_car[10]), 80, 15);
+  text("algo_execute_time: "+String.valueOf(sys_time_dif)+"ms", 80, 30);
   popMatrix();
   popMatrix();
  
@@ -261,9 +263,9 @@ void draw() {
             image_data = myPort.read();
             getImage(image_data);
             cnt++;
-            println(cnt);
+            //println(cnt);
           }
-          if(System.currentTimeMillis()-now>1000){
+          if(System.currentTimeMillis()-now>2000){
             break;
           }
         }
@@ -282,13 +284,13 @@ void draw() {
             cnt++;
             now = System.currentTimeMillis();
           }
-          if(System.currentTimeMillis()-now>1000){
+          if(System.currentTimeMillis()-now>2000){
             break;
           }
         }
         for(int i=0;i<11;i++) {
-          print(data_from_car[i]);
-          print(" ");
+          //print(data_from_car[i]);
+          //print(" ");
         }
         //println("**********data from car*************");
         cnt = 0;
@@ -298,7 +300,7 @@ void draw() {
             cnt++;
             now = System.currentTimeMillis();
           }
-          if(System.currentTimeMillis()-now>1000){
+          if(System.currentTimeMillis()-now>2000){
             break;
           }
         }
@@ -306,19 +308,15 @@ void draw() {
        case 169:
          if(myPort.available()>0){
             data_received = myPort.readChar();
-            println(data_received);
-            println("************************");
+            //println(data_received);
+            //println("************************");
          }
          break;
         case 173:
-          cnt = 0;
-          int autoOrNot = 0;
-          while(cnt<1){
+          autoOrNot = 0;
             if(myPort.available()>0){
               autoOrNot = myPort.read();
-              cnt++;
             }
-          }   
           fill(220);
           rect(400, 0, 300, 12);
           fill(0);
@@ -328,6 +326,14 @@ void draw() {
             text("Manual Mode", 450, 12);
           }
           break;
+         case 168:
+           if(myPort.available()>0){
+              if(sys_time_dif==0) sys_time_dif = myPort.read();
+              else myPort.read();
+              //println(sys_time_dif);
+              //println("************************");
+           }
+           break;
       }
     }
     
