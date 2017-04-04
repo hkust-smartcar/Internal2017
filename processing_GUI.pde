@@ -265,7 +265,7 @@ void draw() {
             cnt++;
             //println(cnt);
           }
-          if(System.currentTimeMillis()-now>2000){
+          if(System.currentTimeMillis()-now>2000){ //if it lags too long -> break (otherwise it will stock in this while loop)
             break;
           }
         }
