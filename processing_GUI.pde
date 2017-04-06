@@ -8,7 +8,7 @@ Serial myPort;
 PFont f1;
 color darkgray = #333333;
 int inputInt;
-double []data_from_car = new double[13];
+double []data_from_car = new double[20];
 
 int globalWidth = 80;
 int globalHeight = 60;
@@ -30,12 +30,11 @@ char keyPress = ' ';
 String center_line_received_x = " ";
 String data_string = "";
 int total_var = 0;
-boolean updateMenu;
+boolean updateMenu, in_pid_graph = false;
 long now;
-
-//for finding center line
-int left_end = 0, right_end = globalWidth;
 int []center = new int[100];
+float []error = new float[400]; 
+float []last_error = new float[400];
 
 PrintWriter output;
 
@@ -55,6 +54,7 @@ void setup() {
   cp5.addButton("manual");
   cp5.addButton("stop_").setLabel("stop"); //because "stop" is a conserved word
   cp5.addButton("clear");
+  cp5.addButton("PID_graph");
   
   Controller auto_btn = cp5.getController("auto");
   auto_btn.setColorBackground(color(#00AA00));
@@ -72,6 +72,11 @@ void setup() {
   Controller clear_btn = cp5.getController("clear");
   clear_btn.setPosition(715, 110);
   clear_btn.setColorBackground(color(#AAAA00));
+  
+  Controller pid_btn = cp5.getController("PID_graph");
+  pid_btn.setPosition(715, 170);
+  pid_btn.setColorBackground(color(#880088));
+  pid_btn.setColorForeground(color(#CC00CC));
 
   // create a custom SilderList with name menu, notice that function 
   // menu will be called when a menu item has been clicked.
@@ -108,6 +113,10 @@ public void stop_(){
 public void clear(){
   println("clear btn is pressed!");
   myPort.clear();
+}
+public void PID_graph(){
+  println("pi grapgh btn is pressed!");
+  in_pid_graph ^= true;
 }
 
 // a convenience function to build a map that contains our key-value  
@@ -167,7 +176,7 @@ void outputImage() {
       if (pixelArray[y][x]) {
         fill(black);
       } else {
-        if(x == center[y]) fill(red);
+        if(x == center[y] && center[y]!=100) fill(red);
         else fill(255);
       }
       noStroke();
@@ -235,7 +244,7 @@ void draw() {
   translate(300, 330);
   noStroke();
   fill(220);
-  rect(-5, -9, 300, 60);
+  rect(-5, -9, 400, 60);
   fill(0);
   text("key pressed: "+keyPress, 0, 0); 
   text("received: "+Character.toString(data_received), 0, 15);
@@ -245,9 +254,10 @@ void draw() {
   text("Lencoder_count: "+String.valueOf(data_from_car[9]), 80, 0);
   text("Rencoder_count: "+String.valueOf(data_from_car[10]), 80, 15);
   text("algo_execute_time: "+String.valueOf(sys_time_dif)+"ms", 80, 30);
+  text("in_turn: "+String.valueOf(data_from_car[11]), 230, 0);
   popMatrix();
   popMatrix();
- 
+
   if(myPort.available() > 0){
     inputInt = myPort.read();
     println(inputInt);
@@ -272,25 +282,53 @@ void draw() {
         noStroke();
         pushMatrix();
         translate(300, 20);
-        outputImage();
+        if(in_pid_graph){
+          fill(255);
+          rect(0, 0, 400, 300);
+          pushMatrix();
+          translate(0, 150);
+          stroke(red);
+          line(0, 0, 400, 0);
+          stroke(color(#000033));
+          error[0] = (center[50]-40)*3.5;
+          last_error[0] = error[0];
+          for(int i=1;i<400;i++){
+            line(i-1, -error[i-1], i, -error[i]); // positive should be on the top of the red line
+            last_error[i] = error[i];
+            error[i] = last_error[i-1];
+          }
+          popMatrix();
+        }
+        else outputImage();
         popMatrix();
         break;
       case 171:
         cnt = 0;
-        while(cnt<11){
+        while(cnt<13){
           if(myPort.available()>0) {
             data_from_car[cnt] = myPort.read();
-            if(cnt==5) data_from_car[cnt]-=256;
+            switch(cnt){
+              case 0:
+                data_from_car[cnt]/=100; // since Byte can only pass integers, we multiply 100 for sending data and divide 100 once received
+                break;
+              case 1:
+                data_from_car[cnt]/=100;
+                break;
+              case 2:
+                data_from_car[cnt]/=100;
+                break;
+              case 5:
+                data_from_car[cnt]-=256;
+                break;
+              case 6:
+                data_from_car[cnt]+=256; // because max speed > 256(the limit of Byte) 
+            }
             cnt++;
             now = System.currentTimeMillis();
           }
           if(System.currentTimeMillis()-now>2000){
             break;
           }
-        }
-        for(int i=0;i<11;i++) {
-          //print(data_from_car[i]);
-          //print(" ");
         }
         //println("**********data from car*************");
         cnt = 0;
@@ -304,6 +342,16 @@ void draw() {
             break;
           }
         }
+        
+        // draw mode on the top
+        fill(220);
+          rect(400, 0, 300, 12);
+          fill(0);
+          if(data_from_car[12]==1){ // if in auto
+            text("Auto Mode", 450, 12);
+          } else{
+            text("Manual Mode", 450, 12);
+          }
         break;
        case 169:
          if(myPort.available()>0){
@@ -312,20 +360,6 @@ void draw() {
             //println("************************");
          }
          break;
-        case 173:
-          autoOrNot = 0;
-            if(myPort.available()>0){
-              autoOrNot = myPort.read();
-            }
-          fill(220);
-          rect(400, 0, 300, 12);
-          fill(0);
-          if(autoOrNot==1){ // if in auto
-            text("Auto Mode", 450, 12);
-          } else{
-            text("Manual Mode", 450, 12);
-          }
-          break;
          case 168:
            if(myPort.available()>0){
               if(sys_time_dif==0) sys_time_dif = myPort.read();
@@ -336,7 +370,6 @@ void draw() {
            break;
       }
     }
-    
 }
 
 
