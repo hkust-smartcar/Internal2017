@@ -317,6 +317,9 @@ void draw() {
               case 2:
                 data_from_car[cnt]/=100;
                 break;
+              case 3:
+                data_from_car[cnt]*=2;
+                break;
               case 5:
                 data_from_car[cnt]-=256;
                 break;
