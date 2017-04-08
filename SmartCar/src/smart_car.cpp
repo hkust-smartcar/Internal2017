@@ -11,8 +11,8 @@
 #include <libsc/k60/jy_mcu_bt_106.h>
 
 //Global variable-----------------------------------------------------------------------------------------------------------
-const Uint CamHeight=120;
-const Uint CamWidth=160;
+const Uint CamHeight=60;
+const Uint CamWidth=80;
 const Uint MotorPower=25;
 const Uint MotorStSpeed=25;
 const Uint MotorSlowDownPower=25;
@@ -225,7 +225,7 @@ void SpeedPID(AlternateMotor *motorA,AlternateMotor *motorB,DirEncoder *encoderA
 //	}
 //}
 
-bool BtListener(const Byte *data, const size_t size);
+//bool BtListener(const Byte *data, const size_t size);
 AlternateMotor *motorAPt, *motorBPt;
 FutabaS3010 *servoPt;
 LcdConsole *console;
@@ -236,48 +236,82 @@ int smart_car(Joystick *FiveWaySwitch,St7735r *LCD,LcdConsole *Console,Ov7725 *C
 {
 	System::Init();
 
-	JyMcuBt106::Config ConfigBT;
-	ConfigBT.id=0;
-	ConfigBT.baud_rate=libbase::k60::Uart::Config::BaudRate::k115200;
-	ConfigBT.rx_isr=&BtListener;
+//	JyMcuBt106::Config ConfigBT;
+//	ConfigBT.id=0;
+//	ConfigBT.baud_rate=libbase::k60::Uart::Config::BaudRate::k115200;
+//	ConfigBT.rx_isr=&BtListener;
 //	ConfigBT.tx_dma_channel=0;
-	JyMcuBt106 BT(ConfigBT);
-	BtPt=&BT;
+//	JyMcuBt106 BT(ConfigBT);
+//	BtPt=&BT;
 
 	MotorA->SetClockwise(false);
 	motorAPt=MotorA;
 	//SetMotorPower(&MotorA,&EncoderA,260);
-	//MotorA->SetPower(250);
+	MotorA->SetPower(200);
 
 	MotorB->SetClockwise(true);
 	motorBPt=MotorB;
 	//SetMotorPower(&MotorB,&EncoderB,260);
-	//MotorB->SetPower(250);
+	MotorB->SetPower(200);
 
 	servoPt=Servo;
-	Servo->SetDegree(700);//Servo 0 degree turned
+	Servo->SetDegree(800);//Servo 0 degree turned
 
 	console=Console;
 	Timer::TimerInt t=0;
+
+	Led::Config configLed1;
+	configLed1.id=1;
+	Led led1(configLed1);
 
 	Cam->Start();
 	while (true){
 		while(t!=System::Time()){
 			t = System::Time();
-			if(t % 200 == 0){
+			if(t % 100 == 0){
+//				Camera2DArrayPrintTest(LCD,Cam);
 				const Byte* camPtr;
 				const Byte tempInt = 49;
 				const Byte* temp = &tempInt;
 				camPtr = Cam->LockBuffer();
-
-				//CameraPrint(LCD,Cam);
+//				if(FiveWaySwitch->GetState()==Joystick::State::kDown){
+//					Servo->SetDegree(Servo->GetDegree()+10);
+//				}
+//				CameraPrint(LCD,Cam);
+				EdgeFinder(camPtr,LCD,Servo);
+				EncoderA->Update();
+				EncoderB->Update();
+				if(EncoderA->GetCount()>10||EncoderB->GetCount()>10){
+					MotorA->SetPower(200);
+					MotorB->SetPower(200);
+				}else{
+					MotorA->SetPower(0);
+					MotorB->SetPower(0);
+				}
+//				Camera2DArrayPrint(LCD);
+//				switch(featureIdentify(camPtr)){
+//					case 0:
+//						LCD->SetRegion(Lcd::Rect(0,0,100,100));
+//						LCD->FillColor(Lcd::kBlue);
+//						break;
+//					case 1:
+//						LCD->SetRegion(Lcd::Rect(0,0,100,100));
+//						LCD->FillColor(Lcd::kGreen);
+//						break;
+//					case 2:
+//						LCD->SetRegion(Lcd::Rect(0,0,100,100));
+//						LCD->FillColor(Lcd::kRed);
+//						break;
+//				}
 
 				//for bluetooth
-				BT.SendBuffer(temp,1);
-				BT.SendBuffer(camPtr, Cam->GetBufferSize());
+//				BT.SendBuffer(temp,1);
+//				BT.SendBuffer(camPtr, Cam->GetBufferSize());
+
 
 
 				Cam->UnlockBuffer();
+				led1.Switch();
 			}
 		}
 	}
@@ -302,69 +336,76 @@ int smart_car(Joystick *FiveWaySwitch,St7735r *LCD,LcdConsole *Console,Ov7725 *C
 }
 
 
-bool BtListener(const Byte *data, const size_t size){
-	switch(data[0]){
-	case 0:
-		servoPt->SetDegree(700);
-		motorAPt->SetPower(0);
-		motorBPt->SetPower(0);
-		break;
-	case 1:
-		servoPt->SetDegree(430);
-		motorAPt->SetClockwise(false);
-		motorBPt->SetClockwise(true);
-		motorAPt->SetPower(300);
-		motorBPt->SetPower(300);
-		break;
-	case 2:
-		servoPt->SetDegree(565);
-		motorAPt->SetClockwise(false);
-		motorBPt->SetClockwise(true);
-		motorAPt->SetPower(300);
-		motorBPt->SetPower(300);
-		break;
-	case 3:
-		servoPt->SetDegree(700);
-		motorAPt->SetClockwise(false);
-		motorBPt->SetClockwise(true);
-		motorAPt->SetPower(300);
-		motorBPt->SetPower(300);
-		break;
-	case 4:
-		servoPt->SetDegree(800);
-		motorAPt->SetClockwise(false);
-		motorBPt->SetClockwise(true);
-		motorAPt->SetPower(300);
-		motorBPt->SetPower(300);
-		break;
-	case 5:
-		servoPt->SetDegree(900);
-		motorAPt->SetClockwise(false);
-		motorBPt->SetClockwise(true);
-		motorAPt->SetPower(300);
-		motorBPt->SetPower(300);
-		break;
-	case 6:
-		servoPt->SetDegree(800);
-		motorAPt->SetClockwise(true);
-		motorBPt->SetClockwise(false);
-		motorAPt->SetPower(300);
-		motorBPt->SetPower(300);
-		break;
-	case 7:
-		servoPt->SetDegree(700);
-		motorAPt->SetClockwise(true);
-		motorBPt->SetClockwise(false);
-		motorAPt->SetPower(300);
-		motorBPt->SetPower(300);
-		break;
-	case 8:
-		servoPt->SetDegree(565);
-		motorAPt->SetClockwise(true);
-		motorBPt->SetClockwise(false);
-		motorAPt->SetPower(300);
-		motorBPt->SetPower(300);
-		break;
-	}
-	return true;
-}
+//bool BtListener(const Byte *data, const size_t size){
+//	switch(data[0]){
+//	case 0:
+//		servoPt->SetDegree(700);
+//		motorAPt->SetPower(0);
+//		motorBPt->SetPower(0);
+//		break;
+//	case 1:
+//		servoPt->SetDegree(430);
+//		motorAPt->SetClockwise(false);
+//		motorBPt->SetClockwise(true);
+//		motorAPt->SetPower(300);
+//		motorBPt->SetPower(300);
+//		break;
+//	case 2:
+//		servoPt->SetDegree(565);
+//		motorAPt->SetClockwise(false);
+//		motorBPt->SetClockwise(true);
+//		motorAPt->SetPower(300);
+//		motorBPt->SetPower(300);
+//		break;
+//	case 3:
+//		servoPt->SetDegree(700);
+//		motorAPt->SetClockwise(false);
+//		motorBPt->SetClockwise(true);
+//		motorAPt->SetPower(300);
+//		motorBPt->SetPower(300);
+//		break;
+//	case 4:
+//		servoPt->SetDegree(800);
+//		motorAPt->SetClockwise(false);
+//		motorBPt->SetClockwise(true);
+//		motorAPt->SetPower(300);
+//		motorBPt->SetPower(300);
+//		break;
+//	case 5:
+//		servoPt->SetDegree(900);
+//		motorAPt->SetClockwise(false);
+//		motorBPt->SetClockwise(true);
+//		motorAPt->SetPower(300);
+//		motorBPt->SetPower(300);
+//		break;
+//	case 6:
+//		servoPt->SetDegree(800);
+//		motorAPt->SetClockwise(true);
+//		motorBPt->SetClockwise(false);
+//		motorAPt->SetPower(300);
+//		motorBPt->SetPower(300);
+//		break;
+//	case 7:
+//		servoPt->SetDegree(700);
+//		motorAPt->SetClockwise(true);
+//		motorBPt->SetClockwise(false);
+//		motorAPt->SetPower(300);
+//		motorBPt->SetPower(300);
+//		break;
+//	case 8:
+//		servoPt->SetDegree(565);
+//		motorAPt->SetClockwise(true);
+//		motorBPt->SetClockwise(false);
+//		motorAPt->SetPower(300);
+//		motorBPt->SetPower(300);
+//		break;
+//	case '1':
+//		servoPt->SetDegree(565);
+//		motorAPt->SetClockwise(true);
+//		motorBPt->SetClockwise(false);
+//		motorAPt->SetPower(300);
+//		motorBPt->SetPower(300);
+//		break;
+//	}
+//	return true;
+//}

@@ -35,8 +35,8 @@ using namespace libutil;
 using namespace std;
 
 //Global variable-----------------------------------------------------------------------------------------------------------
-const Uint CamHeight=120;
-const Uint CamWidth=160;
+const Uint CamHeight=60;
+const Uint CamWidth=80;
 const Uint MotorPower=25;
 const Uint MotorStSpeed=25;
 const Uint MotorSlowDownPower=25;
@@ -84,37 +84,13 @@ void CameraFilter(){
 	}
 }
 
-void camera()
-{
-////LCD Configuration---------------------------------------------------------------------------------------------------------
-//	St7735r::Config ConfigLCD;
-//	ConfigLCD.is_revert=true;
-//	ConfigLCD.is_bgr=false;
-//	ConfigLCD.fps=60;
-//	St7735r LCD(ConfigLCD);
-//
-//	LcdConsole::Config ConfigConsole;
-//	ConfigConsole.lcd=&LCD;
-//	ConfigConsole.region=Lcd::Rect(0,0,128,80);
-//	LcdConsole Console(ConfigConsole);
-//
-////Camera Configuration------------------------------------------------------------------------------------------------------
-//	Ov7725::Config ConfigCam;
-//	ConfigCam.id=0;
-//	ConfigCam.h=CamHeight;
-//	ConfigCam.w=CamWidth;
-//	Ov7725 Cam(ConfigCam);
-//
-//	while(1){
-//	}
-}
-
 //Center Line finding function------------------------------------------------------------------------------------
 void CenterLine(){
 	int MidPt=CamWidth/2;
 	int LeftEdge=0;
 	int RightEdge=0;
 	int RowClear=0;
+	int ClearRowHeight=0;
 	bool PrevRowClear=false;
 	for(int y=CamHeight-2;y>-1;y--){
 		bool LeftClear=false;
@@ -146,381 +122,496 @@ void CenterLine(){
 		}
 		MidPt=(RightEdge+LeftEdge)/2;
 		Cam2DArray[y][MidPt]=2;
-		if(LeftClear!=true||RightClear!=true){
-			PrevRowClear=false;
-		}else if(LeftClear==true&&RightClear==true&&PrevRowClear==true){
-			PrevRowClear=true;
-			RowClear++;
-		}else if(LeftClear==true&&RightClear==true){
-			PrevRowClear=true;
-		}
-		if(RowClear>1&&LeftClear==true&&RightClear==true){
-			Cam2DArray[y][MidPt]=3;
-		}
-	}
-}
-
-void PathWidthFinder(Joystick *FiveWaySwitch,LcdConsole *console){
-	int error[60];
-	int MidPt=CamWidth/2;
-	int LeftEdge=0;
-	int RightEdge=0;
-	for(int y=CamHeight-1;y>=0;y--){
-		for(int x=MidPt;x>-1;x--){
-			if(Cam2DArray[y][x]==1){
-				LeftEdge=x+1;
-				break;
-			}
-			if(x==0){
-				LeftEdge=0;
-				break;
-			}
-		}
-		for(int x=MidPt;x<CamWidth;x++){
-			if(Cam2DArray[y][x]==1){
-				RightEdge=x-1;
-				break;
-			}
-			if(x==CamWidth-1){
-				RightEdge=CamWidth-1;
-				break;
-			}
-		}
-		MidPt=(RightEdge+LeftEdge)/2;
-		Cam2DArray[y][MidPt]=2;
-		error[y]=(CamWidth/2)-LeftEdge;
-		Cam2DArray[y][CamWidth/2]=3;
-	}
-	if(FiveWaySwitch->GetState()==Joystick::State::kSelect){
-		for(int i=0;i<60;i++){
-			char buff[20];
-			sprintf(buff,"%d",error[i]);
-			console->SetCursorRow(0);
-			console->WriteString(buff);
-			System::DelayS(1);
-		}
-	}
-}
-
-void PathFinder(){
-	int error[60]={2,2,2,3,4,6,6,7,7,8,9,10,10,11,12,13,14,15,16,16,17,18,18,19,20,21,21,21,22,22,23,24,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,40,40,40,40,40};
-	int MidPt=CamWidth/2;
-	int LeftEdge=0;
-	int RightEdge=0;
-	int RowClear=0;
-	bool PrevRowClear=false;
-	for(int y=CamHeight-3;y>-1;y--){
-		bool LeftClear=false;
-		bool RightClear=false;
-		if(Cam2DArray[y][MidPt]==1){
-			break;
-		}
-		for(int x=MidPt;x>-1;x--){
-			if(Cam2DArray[y][x]==1){
-				LeftEdge=x+1;
-				break;
-			}
-			if(x==0){
-				LeftEdge=0;
-				LeftClear=true;
-				break;
-			}
-		}
-		for(int x=MidPt;x<CamWidth;x++){
-			if(Cam2DArray[y][x]==1){
-				RightEdge=x-1;
-				break;
-			}
-			if(x==CamWidth-1){
-				RightEdge=CamWidth-1;
-				RightClear=true;
-				break;
-			}
-		}
-		MidPt=(RightEdge+LeftEdge)/2;
-		if(LeftClear!=RightClear){
-			if(LeftClear==true){
-				MidPt=RightEdge-error[y];
-			}else{
-				MidPt=LeftEdge+error[y];
-			}
-			if(MidPt<0||MidPt>CamWidth){
-				continue;
-			}
-		}
-		Cam2DArray[y][MidPt]=2;
-		if(LeftClear!=true||RightClear!=true){
-			PrevRowClear=false;
-		}else if(LeftClear==true&&RightClear==true&&PrevRowClear==true){
-			PrevRowClear=true;
-			RowClear++;
-		}else if(LeftClear==true&&RightClear==true){
-			PrevRowClear=true;
-		}
-		if(RowClear>1&&LeftClear==true&&RightClear==true){
-			Cam2DArray[y][MidPt]=3;
-		}
-	}
-}
-
-void EdgeFinder(){
-	for(int y=CamHeight-1;y>-1;y--){
-		for(int x=1;x<CamWidth;x++){
-			if(Cam2DArray[y][x]!=Cam2DArray[y][x-1]&&Cam2DArray[y][x-1]!=2&&Cam2DArray[y][x]!=2){
-				Cam2DArray[y][x]=2;
-			}
-		}
-	}
-	for(int x=0;x<CamWidth;x++){
-		for(int y=CamHeight-1;y>-1;y--){
-			if(Cam2DArray[y][x]!=Cam2DArray[y+1][x]&&Cam2DArray[y+1][x]!=2&&Cam2DArray[y][x]!=2){
-				Cam2DArray[y][x]=2;
-			}
-		}
-	}
-}
-
-void EdgeSlope(){
-	int LeftEdge[10][2];
-	int RightEdge[10][2];
-	for(int y=CamHeight-2;y>-1;y--){
-		int EdgeCount=0;
-		for(int x=0;x<CamWidth;x++){
-			if(Cam2DArray[y][x]==2&&y!=0&&x!=0&&y!=CamHeight-1&&x!=CamWidth-1){
-				EdgeCount++;
-				if(EdgeCount==1){
-					LeftEdge[0][0]=x;
-					LeftEdge[0][1]=y;
-				}else{
-					RightEdge[0][0]=x;
-					RightEdge[0][1]=y;
-				}
-			}
-			if(EdgeCount==2){
-				break;
-			}
-		}
-		if(EdgeCount==2){
-			break;
-		}
-	}
-	vector <float> LeftEdgeSlope;
-	while(1){
-		int direction=8; /* 1 2 3
-							4 5 6
-		 	 	 	 	 	7 8 9 */
-		int EdgeCount=1;
-		while(EdgeCount<9){
-			int LeftEdgeX=LeftEdge[EdgeCount-1][0];
-			int LeftEdgeY=LeftEdge[EdgeCount-1][1];
-			if(Cam2DArray[LeftEdgeY-1][LeftEdgeX]==2&&direction!=2){
-				LeftEdge[EdgeCount][0]=LeftEdgeX;
-				LeftEdge[EdgeCount][1]=LeftEdgeY-1;
-				direction=8;
-			}else if(Cam2DArray[LeftEdgeY][LeftEdgeX-1]==2&&direction!=4){
-				LeftEdge[EdgeCount][0]=LeftEdgeX-1;
-				LeftEdge[EdgeCount][1]=LeftEdgeY;
-				direction=6;
-			}else if(Cam2DArray[LeftEdgeY][LeftEdgeX+1]==2&&direction!=6){
-				LeftEdge[EdgeCount][0]=LeftEdgeX+1;
-				LeftEdge[EdgeCount][1]=LeftEdgeY;
-				direction=4;
-			}else if(Cam2DArray[LeftEdgeY+1][LeftEdgeX]==2&&direction!=8){
-				LeftEdge[EdgeCount][0]=LeftEdgeX;
-				LeftEdge[EdgeCount][1]=LeftEdgeY+1;
-				direction=2;
-			}else if(Cam2DArray[LeftEdgeY-1][LeftEdgeX-1]==2&&direction!=1){
-				LeftEdge[EdgeCount][0]=LeftEdgeX-1;
-				LeftEdge[EdgeCount][1]=LeftEdgeY-1;
-				direction=9;
-			}else if(Cam2DArray[LeftEdgeY-1][LeftEdgeX+1]==2&&direction!=3){
-				LeftEdge[EdgeCount][0]=LeftEdgeX+1;
-				LeftEdge[EdgeCount][1]=LeftEdgeY-1;
-				direction=7;
-			}else if(Cam2DArray[LeftEdgeY+1][LeftEdgeX-1]==2&&direction!=7){
-				LeftEdge[EdgeCount][0]=LeftEdgeX-1;
-				LeftEdge[EdgeCount][1]=LeftEdgeY+1;
-				direction=3;
-			}else if(Cam2DArray[LeftEdgeY+1][LeftEdgeX+1]==2&&direction!=9){
-				LeftEdge[EdgeCount][0]=LeftEdgeX+1;
-				LeftEdge[EdgeCount][1]=LeftEdgeY+1;
-				direction=1;
-			}
-			if(LeftEdge[EdgeCount][0]==0||LeftEdge[EdgeCount][0]==CamWidth-1||LeftEdge[EdgeCount][1]==0||LeftEdge[EdgeCount][1]==CamHeight-1){
-				break;
-			}
-			EdgeCount++;
-		}
-		LeftEdgeSlope.push_back((LeftEdge[EdgeCount][1]-LeftEdge[0][1])/(LeftEdge[EdgeCount][0]-LeftEdge[0][0]));
-		if(LeftEdge[EdgeCount][0]==0||LeftEdge[EdgeCount][0]==CamWidth-1||LeftEdge[EdgeCount][1]==0||LeftEdge[EdgeCount][1]==CamHeight-1){
-			break;
-		}
-	}
-
-	vector <float> RightEdgeSlope;
-	while(1){
-		int direction=8; /* 1 2 3
-							4 5 6
-		 	 	 	 	 	7 8 9 */
-		int EdgeCount=1;
-		while(EdgeCount<9){
-			int RightEdgeX=RightEdge[EdgeCount-1][0];
-			int RightEdgeY=RightEdge[EdgeCount-1][1];
-			if(Cam2DArray[RightEdgeY-1][RightEdgeX]==2&&direction!=2){
-				RightEdge[EdgeCount][0]=RightEdgeX;
-				RightEdge[EdgeCount][1]=RightEdgeY-1;
-				direction=8;
-			}else if(Cam2DArray[RightEdgeY][RightEdgeX-1]==2&&direction!=4){
-				RightEdge[EdgeCount][0]=RightEdgeX-1;
-				RightEdge[EdgeCount][1]=RightEdgeY;
-				direction=6;
-			}else if(Cam2DArray[RightEdgeY][RightEdgeX+1]==2&&direction!=6){
-				RightEdge[EdgeCount][0]=RightEdgeX+1;
-				RightEdge[EdgeCount][1]=RightEdgeY;
-				direction=4;
-			}else if(Cam2DArray[RightEdgeY+1][RightEdgeX]==2&&direction!=8){
-				RightEdge[EdgeCount][0]=RightEdgeX;
-				RightEdge[EdgeCount][1]=RightEdgeY+1;
-				direction=2;
-			}else if(Cam2DArray[RightEdgeY-1][RightEdgeX-1]==2&&direction!=1){
-				RightEdge[EdgeCount][0]=RightEdgeX-1;
-				RightEdge[EdgeCount][1]=RightEdgeY-1;
-				direction=9;
-			}else if(Cam2DArray[RightEdgeY-1][RightEdgeX+1]==2&&direction!=3){
-				RightEdge[EdgeCount][0]=RightEdgeX+1;
-				RightEdge[EdgeCount][1]=RightEdgeY-1;
-				direction=7;
-			}else if(Cam2DArray[RightEdgeY+1][RightEdgeX-1]==2&&direction!=7){
-				RightEdge[EdgeCount][0]=RightEdgeX-1;
-				RightEdge[EdgeCount][1]=RightEdgeY+1;
-				direction=3;
-			}else if(Cam2DArray[RightEdgeY+1][RightEdgeX+1]==2&&direction!=9){
-				RightEdge[EdgeCount][0]=RightEdgeX+1;
-				RightEdge[EdgeCount][1]=RightEdgeY+1;
-				direction=1;
-			}
-			if(RightEdge[EdgeCount][0]==0||RightEdge[EdgeCount][0]==CamWidth-1||RightEdge[EdgeCount][1]==0||RightEdge[EdgeCount][1]==CamHeight-1){
-				break;
-			}
-			EdgeCount++;
-		}
-		RightEdgeSlope.push_back((RightEdge[EdgeCount][1]-RightEdge[0][1])/(RightEdge[EdgeCount][0]-RightEdge[0][0]));
-		if(RightEdge[EdgeCount][0]==0||RightEdge[EdgeCount][0]==CamWidth-1||RightEdge[EdgeCount][1]==0||RightEdge[EdgeCount][1]==CamHeight-1){
-			break;
-		}
-	}
-
-	float LeftEdgeError=0;
-
-}
-
-void EdgeTurnDetermine(){
-	int LeftEdge[2];
-	int RightEdge[2];
-	for(int y=CamHeight-2;y>-1;y--){
-		int EdgeCount=0;
-		for(int x=0;x<CamWidth;x++){
-			if(Cam2DArray[y][x]==2&&y!=0&&x!=0&&y!=CamHeight-1&&x!=CamWidth-1){
-				EdgeCount++;
-				if(EdgeCount==1){
-					LeftEdge[0]=x;
-					LeftEdge[1]=y;
-				}else{
-					RightEdge[0]=x;
-					RightEdge[1]=y;
-				}
-			}
-			if(EdgeCount==2){
-				break;
-			}
-		}
-		if(EdgeCount==2){
-			break;
-		}
-	}
-	while(1){
-		int direction=8; /* 1 2 3
-							4 5 6
-		 	 	 	 	 	7 8 9 */
-		enum turn{negative,neutral,positive};
-		turn X=positive;
-		turn Y=negative;
-		turn LeftEdgeTurn=neutral;
-		turn RightEdgeTurn=neutral;
-		bool checkY=false;
-		int EdgeCount=1;
-		while(1){
-			int LeftEdgeX=LeftEdge[0];
-			int LeftEdgeY=LeftEdge[1];
-			turn PrevX=X;
-			turn PrevY=Y;
-			if(Cam2DArray[LeftEdgeY-1][LeftEdgeX]==2&&direction!=2){
-				LeftEdge[0]=LeftEdgeX;
-				LeftEdge[1]=LeftEdgeY-1;
-				Y=negative;
-				direction=8;
-			}else if(Cam2DArray[LeftEdgeY][LeftEdgeX-1]==2&&direction!=4){
-				LeftEdge[0]=LeftEdgeX-1;
-				LeftEdge[1]=LeftEdgeY;
-				X=negative;
-				Y=neutral;
-				direction=6;
-			}else if(Cam2DArray[LeftEdgeY][LeftEdgeX+1]==2&&direction!=6){
-				LeftEdge[0]=LeftEdgeX+1;
-				LeftEdge[1]=LeftEdgeY;
-				X=positive;
-				Y=neutral;
-				direction=4;
-			}else if(Cam2DArray[LeftEdgeY+1][LeftEdgeX]==2&&direction!=8){
-				LeftEdge[0]=LeftEdgeX;
-				LeftEdge[1]=LeftEdgeY+1;
-				Y=positive;
-				direction=2;
-			}else if(Cam2DArray[LeftEdgeY-1][LeftEdgeX-1]==2&&direction!=1){
-				LeftEdge[0]=LeftEdgeX-1;
-				LeftEdge[1]=LeftEdgeY-1;
-				X=negative;
-				Y=negative;
-				direction=9;
-			}else if(Cam2DArray[LeftEdgeY-1][LeftEdgeX+1]==2&&direction!=3){
-				LeftEdge[0]=LeftEdgeX+1;
-				LeftEdge[1]=LeftEdgeY-1;
-				X=positive;
-				Y=negative;
-				direction=7;
-			}else if(Cam2DArray[LeftEdgeY+1][LeftEdgeX-1]==2&&direction!=7){
-				LeftEdge[0]=LeftEdgeX-1;
-				LeftEdge[1]=LeftEdgeY+1;
-				X=negative;
-				Y=positive;
-				direction=3;
-			}else if(Cam2DArray[LeftEdgeY+1][LeftEdgeX+1]==2&&direction!=9){
-				LeftEdge[0]=LeftEdgeX+1;
-				LeftEdge[1]=LeftEdgeY+1;
-				X=positive;
-				Y=positive;
-				direction=1;
-			}
-			if(X!=PrevX){
-				if(checkY==false){
-					checkY=true;
-				}else{
-					checkY=false;
-				}
-			}
-			if(checkY==true){
-				if(Y!=PrevY){
-					LeftEdgeTurn=X;
-					checkY=false;
+		if(LeftClear&&!RightClear){
+			ClearRowHeight=y;
+			for(int i=y;i>0;i--){
+				if(Cam2DArray[i][0]){
+					ClearRowHeight=i-ClearRowHeight;
 					break;
 				}
 			}
-			if(LeftEdge[0]==0||LeftEdge[0]==CamWidth-1||LeftEdge[1]==0||LeftEdge[1]==CamHeight-1){
-				break;
+		}else if(!LeftClear&&RightClear){
+			ClearRowHeight=y;
+			for(int i=y;i>0;i--){
+				if(Cam2DArray[i][CamWidth-1]){
+					ClearRowHeight=i-ClearRowHeight;
+					break;
+				}
 			}
-			EdgeCount++;
+		}
+		if(LeftClear!=true||RightClear!=true){
+			PrevRowClear=false;
+		}else if(LeftClear==true&&RightClear==true&&PrevRowClear==true){
+			PrevRowClear=true;
+			RowClear++;
+		}else if(LeftClear==true&&RightClear==true){
+			PrevRowClear=true;
+		}
+		if(RowClear>1&&LeftClear==true&&RightClear==true){
+			Cam2DArray[y][MidPt]=3;
 		}
 	}
+}
+
+//void scanHorizontial(int col,int row,const Byte *camBuffer){
+//	int leftEdgeX=col;
+//	bool notFind=true;
+//	for(int y=col;y>=0;y++){
+//		for(int x=leftEdgeX+3;x>3;x--){
+//			notFind=true;
+//			if(camPointCheck(y,x,camBuffer)){
+//				leftEdgeX=x;
+//				notFind=false;
+//				break;
+//			}
+//		}
+//		if(notFind){
+//			scanVertical(leftEdgeX,y,camBuffer);
+//		}
+//	}
+//}
+//
+//void scanVertical(int col,int row,const Byte *camBuffer){
+//
+//}
+
+int camPointCheck(int row,int col,const Byte *camBuffer){
+	bool output;
+	Byte camByte=camBuffer[col/8+row*CamWidth/8];
+	switch (col%8){
+	case 0:
+		output=camByte&0x80;
+		break;
+	case 1:
+		output=camByte&0x40;
+		break;
+	case 2:
+		output=camByte&0x20;
+		break;
+	case 3:
+		output=camByte&0x10;
+		break;
+	case 4:
+		output=camByte&0x08;
+		break;
+	case 5:
+		output=camByte&0x04;
+		break;
+	case 6:
+		output=camByte&0x02;
+		break;
+	case 7:
+		output=camByte&0x01;
+		break;
+	}
+	if(output){
+		return 1;
+	}else{
+		return 0;
+	}
+}
+
+int featureIdentify(const Byte *camBuffer){
+	int rightEdge=CamWidth-1;
+	int leftEdge=0;
+	int midPt=CamWidth/2;
+	int trackWidth;
+	int prevTrackWidth;
+	bool isCrossOrRoundabout=false;
+	bool isRoundabout=false;
+	bool isCross=false;
+	for(int x=CamWidth-1;x>0;x--){
+		if(!camPointCheck(CamHeight-2,x,camBuffer)){
+			rightEdge=x;
+			break;
+		}
+	}
+	for(int x=0;x<CamWidth;x++){
+		if(!camPointCheck(CamHeight-2,x,camBuffer)){
+			leftEdge=x;
+			break;
+		}
+	}
+	trackWidth=rightEdge-leftEdge;
+	for(int y=CamWidth-3;y>0;y--){
+		prevTrackWidth=trackWidth;
+		if(camPointCheck(y,rightEdge,camBuffer)){
+			for(int x=rightEdge;x>0;x--){
+				if(!camPointCheck(y,x,camBuffer)){
+					rightEdge=x;
+					break;
+				}
+			}
+		}else{
+			for(int x=rightEdge;x<CamWidth;x++){
+				if(camPointCheck(y,x,camBuffer)){
+					rightEdge=x-1;
+					break;
+				}
+			}
+		}
+		if(camPointCheck(y,leftEdge,camBuffer)){
+			for(int x=leftEdge;x<CamWidth;x++){
+				if(!camPointCheck(y,x,camBuffer)){
+					leftEdge=x;
+					break;
+				}
+			}
+		}else{
+			for(int x=leftEdge;x>0;x--){
+				if(camPointCheck(y,x,camBuffer)){
+					rightEdge=x+1;
+					break;
+				}
+			}
+		}
+		trackWidth=rightEdge-leftEdge;
+		if(trackWidth>prevTrackWidth){
+			isCrossOrRoundabout=true;
+		}else if(isCrossOrRoundabout){
+			int count=0;
+			for(int x=leftEdge;x<rightEdge;x++){
+				if(camPointCheck(y,x,camBuffer)!=camPointCheck(y,x+1,camBuffer)){
+					count++;
+				}
+				if(count==2){
+					isRoundabout=true;
+					return 1;
+					break;
+				}else{
+					isCross=true;
+					return 2;
+					break;
+				}
+			}
+		}
+		if(camPointCheck(y,(rightEdge+leftEdge)/2,camBuffer)){
+			//return 0;
+			break;
+		}
+	}
+	return 0;
+}
+
+void resetCam2DArray(){
+	for(int y=0;y<CamHeight;y++){
+		for(int x=0;x<CamWidth;x++){
+			Cam2DArray[y][x]=0;
+		}
+	}
+}
+
+bool roundabout=false;
+
+//void EdgeFinder(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo){
+//int midAngle=800;
+//#define servoAngle 400;
+//	int error=0;
+//	int rowFinished=0;
+//	int leftEdge=0;
+//	int prevLeftEdge=0;
+//	int leftCornerX;
+//	int leftCornerY;
+//	bool likelyLeftCorner=false;
+//	bool findLeftCorner=false;
+//	int rightEdge=CamWidth-1;
+//	int prevRightEdge=CamWidth-1;
+//	int rightCornerX;
+//	int rightCornerY;
+//	bool likelyRightCorner=false;
+//	bool findRightCorner=false;
+//	int midPt=CamWidth/2;
+//	bool isRoundabout=false;
+//	for(int y=CamHeight-1;y>=0;y--){
+//		prevLeftEdge=leftEdge;
+//		if(camPointCheck(y,leftEdge,camBuffer)){
+//			for(int x=leftEdge;x<CamWidth;x++){
+//				leftEdge=x;
+//				if(!camPointCheck(y,leftEdge,camBuffer)){
+//					leftEdge--;
+//					break;
+//				}
+//			}
+//		}else{
+//			for(int x=leftEdge;x>=0;x--){
+//				leftEdge=x;
+//				if(camPointCheck(y,leftEdge,camBuffer)){
+//					break;
+//				}
+//			}
+//		}
+//		if(leftEdge<prevLeftEdge&&!likelyLeftCorner){
+//			likelyLeftCorner=true;
+//			leftCornerX=prevLeftEdge;
+//			leftCornerY=y-1;
+//		}else if(leftEdge<=leftCornerX&&likelyLeftCorner){
+//			findLeftCorner=true;
+//		}else if(leftCornerX>leftEdge&&likelyLeftCorner&&!findLeftCorner){
+//			likelyLeftCorner=false;
+//		}
+//		prevRightEdge=rightEdge;
+//		if(camPointCheck(y,rightEdge,camBuffer)){
+//			for(int x=rightEdge;x>=0;x--){
+//				rightEdge=x;
+//				if(!camPointCheck(y,rightEdge,camBuffer)){
+//					rightEdge++;
+//					break;
+//				}
+//			}
+//		}else{
+//			for(int x=rightEdge;x<CamWidth;x++){
+//				rightEdge=x;
+//				if(camPointCheck(y,rightEdge,camBuffer)){
+//					break;
+//				}
+//			}
+//		}
+//		midPt=(rightEdge+leftEdge)/2;
+//		if(camPointCheck(y,midPt,camBuffer)){
+//			break;
+//		}
+//		error+=CamWidth/2-midPt;
+//		rowFinished++;
+//		lcd->SetRegion(Lcd::Rect(midPt,y,1,1));
+//		lcd->FillColor(Lcd::kGreen);
+//		if(rightEdge>prevRightEdge&&!likelyRightCorner){
+//			likelyRightCorner=true;
+//			rightCornerX=prevRightEdge;
+//			rightCornerY=y-1;
+//		}else if(rightEdge>=rightCornerX&&likelyRightCorner){
+//			findRightCorner=true;
+//		}else if(rightCornerX>rightEdge&&likelyRightCorner&&!findRightCorner){
+//			likelyRightCorner=false;
+//		}
+//		if(findLeftCorner&&findRightCorner&&!roundabout){
+//			if(((rightCornerY-leftCornerY)>5||(rightCornerY-leftCornerY)<-5)||((rightCornerX-leftCornerX)<5&&(rightCornerX-leftCornerX)>-5)){
+//				findLeftCorner=false;
+//				findRightCorner=false;
+//				likelyLeftCorner=false;
+//				likelyRightCorner=false;
+//			}
+//		}
+//		if(findLeftCorner&&findRightCorner){
+//			lcd->SetRegion(Lcd::Rect(rightCornerX,y,5,5));
+//			lcd->FillColor(Lcd::kRed);
+//			lcd->SetRegion(Lcd::Rect(leftCornerX,y,5,5));
+//			lcd->FillColor(Lcd::kRed);
+//			for(int y=(rightCornerY+leftCornerY)/2;y>=0;y--){
+//				bool likelyRoundabout=false;
+//				if(camPointCheck(y,(rightCornerX+leftCornerX)/2,camBuffer)){
+//					for(int x=(rightCornerX+leftCornerX)/2;x>=0;x--){
+//						if(!camPointCheck(y,x,camBuffer)){
+//							likelyRoundabout=true;
+//							lcd->SetRegion(Lcd::Rect(x,y,5,5));
+//							lcd->FillColor(Lcd::kGreen);
+//							break;
+//						}
+//					}
+//					if(!likelyRoundabout){
+//						break;
+//					}
+//					if(likelyRoundabout){
+//						for(int x=(rightCornerX+leftCornerX)/2;x<CamWidth;x++){
+//							if(!camPointCheck(y,x,camBuffer)){
+//								isRoundabout=true;
+//								leftEdge=x-1;
+//								lcd->SetRegion(Lcd::Rect(x,y,5,5));
+//								lcd->FillColor(Lcd::kGreen);
+//								break;
+//							}
+//						}
+//					}
+//					break;
+//				}
+//			}
+//			if(isRoundabout){
+//				lcd->SetRegion(Lcd::Rect(0,61,50,50));
+//				lcd->FillColor(Lcd::kBlue);
+//				for(int x=leftEdge+1;x<CamWidth;x++){
+//					rightEdge=x;
+//					if(camPointCheck(y,x,camBuffer)){
+//						break;
+//					}
+//				}
+//				midPt=(rightEdge+leftEdge)/2;
+//				rowFinished=1;
+////				int slope=(y-(rightCornerY+leftCornerY)/2)/((leftEdge+rightEdge)/2-midPt);
+////				rowFinished=0;
+////				for(int row=(rightCornerY+leftCornerY)/2+1;row>y;row--){
+////					midPt=((row-y)/slope)+(leftEdge+rightEdge)/2;
+////					error+=CamWidth/2-midPt;
+////					rowFinished++;
+////					lcd->SetRegion(Lcd::Rect(midPt,row,1,1));
+////					lcd->FillColor(Lcd::kGreen);
+////				}
+//				roundabout=true;
+//			}else{
+//				lcd->SetRegion(Lcd::Rect(0,61,50,50));
+//				lcd->FillColor(Lcd::kWhite);
+//				break;
+//			}
+//			break;
+////		}else if(roundabout&&findRightCorner){
+////			roundabout=false;
+////			servo->SetDegree(midAngle-200);
+////			return;
+//		}else if(leftEdge==0&&rightEdge!=CamWidth-1){
+//			for(int row=y;y>0;y--){
+//				if(camPointCheck(row,0,camBuffer)){
+//					error+=(CamWidth/2)*(row-y);
+//					rowFinished+=row-y;
+//					break;
+//				}
+//			}
+//			break;
+//		}else if(rightEdge==CamWidth-1&&leftEdge!=0){
+//			for(int row=y;y>0;y--){
+//				if(camPointCheck(row,0,camBuffer)){
+//					error+=(-CamWidth/2)*(row-y);
+//					rowFinished+=row-y;
+//					break;
+//				}
+//			}
+//			break;
+//		}
+//	}
+//	int degree=midAngle+error/rowFinished/6*servoAngle;
+//	if(degree>1190){
+//		degree=1190;
+//	}else if(degree<390){
+//		degree=390;
+//	}
+//	servo->SetDegree(degree);
+//	return;
+//}
+
+void EdgeFinder(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo){
+int midAngle=800;
+#define servoAngle 400;
+	int error=0;
+	int rowFinished=0;
+	int leftEdge=0;
+	int prevLeftEdge=0;
+	int leftCornerX;
+	int leftCornerY;
+	bool likelyLeftCorner=false;
+	bool findLeftCorner=false;
+	int rightEdge=CamWidth-1;
+	int prevRightEdge=CamWidth-1;
+	int rightCornerX;
+	int rightCornerY;
+	bool likelyRightCorner=false;
+	bool findRightCorner=false;
+	int midPt=CamWidth/2;
+	int prevMidPt=CamWidth/2;
+	bool isRoundabout=false;
+	for(int y=CamHeight-1;y>=0;y--){
+		if(camPointCheck(y,leftEdge,camBuffer)){
+			for(int x=leftEdge;x<CamWidth;x++){
+				leftEdge=x;
+				if(!camPointCheck(y,leftEdge,camBuffer)){
+					leftEdge--;
+					break;
+				}
+			}
+		}else{
+			for(int x=leftEdge;x>=0;x--){
+				leftEdge=x;
+				if(camPointCheck(y,leftEdge,camBuffer)){
+					break;
+				}
+			}
+		}
+		if(leftEdge==CamWidth-1){
+			break;
+		}
+		if(camPointCheck(y,rightEdge,camBuffer)){
+			for(int x=rightEdge;x>=0;x--){
+				rightEdge=x;
+				if(!camPointCheck(y,rightEdge,camBuffer)){
+					rightEdge++;
+					break;
+				}
+			}
+		}else{
+			for(int x=rightEdge;x<CamWidth;x++){
+				rightEdge=x;
+				if(camPointCheck(y,rightEdge,camBuffer)){
+					break;
+				}
+			}
+		}
+		if(rightEdge==0){
+			break;
+		}
+		if((leftEdge!=0&&rightEdge!=CamWidth-1)){
+			midPt=(rightEdge+leftEdge)/2;
+			error+=CamWidth/2-5-midPt;
+			rowFinished++;
+			lcd->SetRegion(Lcd::Rect(midPt,y,1,1));
+			lcd->FillColor(Lcd::kGreen);
+		}else if(leftEdge==0&&rightEdge!=CamWidth-1&&y>CamHeight/2){
+			midPt=rightEdge-y/2;
+			error+=CamWidth/2-5-midPt;
+			rowFinished++;
+			lcd->SetRegion(Lcd::Rect(midPt,y,1,1));
+			lcd->FillColor(Lcd::kGreen);
+		}else if(leftEdge!=0&&rightEdge==CamWidth-1&&y>CamHeight/2){
+			midPt=leftEdge+y/2;
+			error+=CamWidth/2-5-midPt;
+			rowFinished++;
+			lcd->SetRegion(Lcd::Rect(midPt,y,1,1));
+			lcd->FillColor(Lcd::kGreen);
+		}else{
+			midPt=(rightEdge+leftEdge)/2;
+			if(camPointCheck(y,midPt,camBuffer)){
+				for(int row=y;row>5;row--){
+					if(!camPointCheck(row,midPt,camBuffer)){
+						roundabout=true;
+						isRoundabout=true;
+						break;
+					}else{
+						isRoundabout=false;
+					}
+				}
+			}
+			if(camPointCheck(y,midPt,camBuffer)&&roundabout){
+				for(int x=midPt;x>0;x--){
+					if(!camPointCheck(y,x,camBuffer)){
+						rightEdge=x-1;
+						break;
+					}
+				}
+				lcd->SetRegion(Lcd::Rect(rightEdge,y,5,5));
+				lcd->FillColor(Lcd::kRed);
+				for(int x=rightEdge;x>0;x--){
+					leftEdge=x;
+					if(camPointCheck(y,leftEdge,camBuffer)){
+						break;
+					}
+				}
+				lcd->SetRegion(Lcd::Rect(leftEdge,y,5,5));
+				lcd->FillColor(Lcd::kRed);
+				midPt=(rightEdge+leftEdge)/2;
+				lcd->SetRegion(Lcd::Rect(midPt,y,5,5));
+				lcd->FillColor(Lcd::kRed);
+				error=CamWidth/2-5-midPt;
+				rowFinished=1;
+				if(!isRoundabout){
+					roundabout=false;
+				}
+				break;
+			}
+		}
+	}
+	int degree=midAngle+error/rowFinished/5*servoAngle;
+	if(degree>1180){
+		degree=1180;
+	}else if(degree<420){
+		degree=420;
+	}
+	servo->SetDegree(degree);
+	return;
 }
 
 void CameraPrint(St7735r *lcd,Ov7725 *Cam){
@@ -536,10 +627,19 @@ void Camera2DArrayPrint(St7735r *lcd){
 				lcd->FillColor(0xFFFF);
 			}else if(Cam2DArray[y][x]==1){
 				lcd->FillColor(0x001F);
-			}else if(Cam2DArray[y][x]==2){
-				lcd->FillColor(0xF800);
-			}else if(Cam2DArray[y][x]==3){
-				lcd->FillColor(0xFFE0);
+			}
+		}
+	}
+}
+
+void Camera2DArrayPrintTest(St7735r *lcd,Ov7725 *Cam){
+	for(Uint y=0;y<CamHeight;y++){
+		for(Uint x=0;x<CamWidth;x++){
+			lcd->SetRegion(Lcd::Rect(x,y,1,1));
+			if(camPointCheck(y,x,Cam->LockBuffer())==0){
+				lcd->FillColor(0xFFFF);
+			}else if(camPointCheck(y,x,Cam->LockBuffer())==1){
+				lcd->FillColor(0x001F);
 			}
 		}
 	}

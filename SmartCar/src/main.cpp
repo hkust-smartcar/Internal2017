@@ -8,8 +8,8 @@
 
 #include "../inc/main.h"
 
-const Uint CamHeight=120;
-const Uint CamWidth=160;
+const Uint CamHeight=60;
+const Uint CamWidth=80;
 //160*120
 
 //Required DON'T DELETE IT !!!----------------------------------------------------------------------------------------------
@@ -85,6 +85,18 @@ int main(void)
 	ConfigConsole.lcd=&LCD;
 	ConfigConsole.region=Lcd::Rect(10,128,128,30);
 	LcdConsole Console(ConfigConsole);
+
+//	DirMotor::Config test;
+//	test.id=0;
+//	DirMotor motor(test);
+//	motor.SetClockwise(true);
+//	motor.SetPower(200);
+//
+//	DirMotor::Config test1;
+//	test1.id=1;
+//	DirMotor motor1(test1);
+//	motor1.SetClockwise(true);
+//	motor1.SetPower(200);
 
 	gui(&FiveWaySwitch,&LCD,&Console,&Cam,&Servo,&MotorA,&MotorB,&EncoderA,&EncoderB);
 }

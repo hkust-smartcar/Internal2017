@@ -28,7 +28,8 @@
 #include<libsc/futaba_s3010.h>
 
 //Motor Header File---------------------------------------------------------------------------------------------------------
-#include<libsc/alternate_motor.h>
+//#include<libsc/alternate_motor.h>
+#include<libsc/dir_motor.h>
 #include<libsc/motor.h>
 
 //Dir Encoder Header File
