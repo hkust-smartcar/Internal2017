@@ -45,7 +45,7 @@ unsigned char* readBMP(char* filename){
 }
 
 bool get_bit(int x, int y){
-	//if (x<0||x>=width||y<0||y>=height) return true;
+	if (x<0||x>=width||y<0||y>=height) return true;
 	return map[3 * width * height - (y*width+x)*3 - 1];
 }
 
@@ -90,19 +90,22 @@ class Point{
 };
 
 void colorxy(Point);
+bool get_bit(Point pt){
+	return get_bit(pt.x,pt.y);
+}
 
 class BufferManager{
 public:
 	//const Byte* buff;
 	//BufferManager(const Byte* buff):buff(buff){}
-	BufferManager(){
-	}
+	BufferManager(){}
 	bool get(int x, int y){
 		return map[3 * width * height - (y*width+x)*3 - 1];//buff[y*WIDTH/8+x/8] & 0x80>>x%8;
 	}
 	bool get(Point pt){
 		return get(pt.x,pt.y);
 	}
+	public:
 	Point search(Point base,int from){
 		//const bool BLACK=true,WHITE=false;
 		if(base.x<0||base.y<0||base.x>WIDTH||base.y>HEIGHT) return base;
@@ -132,7 +135,15 @@ public:
 			}
 		}
 	}
+	
+	bool isEdge(Point base, int from_direction){
+		return get_bit(base.NeiPt((from_direction+4)%8))!=get_bit(base);
+	}
 };
+
+bool isEdge(Point base, int from_direction){
+		return get_bit(base.NeiPt((from_direction+4)%8))!=get_bit(base);
+	}
 
 void colorxy(Point pt){
 	gotoxy(pt.x,pt.y);
@@ -142,4 +153,45 @@ void colorxy(Point pt){
 void colorxy(int x, int y){
 	gotoxy(x,y);
 	cout<<"*";
+}
+
+void printxy(int x, int y, char* c){
+	gotoxy(x,y);
+	cout<<c;
+}
+
+int main(){
+	getch();
+	load_picture();
+	print_raw();
+	Point base(0,height-1);
+	BufferManager buff;
+	int from=4;
+	if (get_bit(base)){
+		while (get_bit(base)){
+			base=base.NeiPt(6);
+			cout<<"shift";
+		}
+		from=2;
+	}
+	cout<<"hi";
+	while (1){
+		printxy(base.x,base.y,"*");
+		for(int i=from; i>=from-8; --i){
+			if(!get_bit(base.NeiPt(i+1))&&get_bit(base.NeiPt(i))) {
+			base=base.NeiPt(i+1);
+			from=(i+5)%8;
+			break;
+			}
+		}
+		/*
+		if(!get_bit(base.NeiPt(from-2))&&get_bit(base.NeiPt(from-1))) {
+		base=base.NeiPt(from-2);
+		from+=2;
+		}
+		else if(!get_bit(base.NeiPt(from-4))&&(get_bit(base.NeiPt(from-3))||get_bit(base.NeiPt(from-5)))){
+			base=base.NeiPt(from-4);
+		}*/
+	}
+	
 }
