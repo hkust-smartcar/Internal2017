@@ -614,6 +614,171 @@ int midAngle=800;
 	return;
 }
 
+void midPtFinder(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo){
+	int midAngle=800;
+	#define servoAngle 400;
+	int midPt=CamWidth/2;
+	int leftEdge=0;
+	int rightEdge=CamWidth-1;
+	for(int y=CamHeight-5;y>=30;y--){
+		for(int x=midPt;x>0;x--){
+			leftEdge=x;
+			if(camPointCheck(y,leftEdge,camBuffer)){
+				break;
+			}
+		}
+		for(int x=midPt;x<CamWidth;x++){
+			rightEdge=x;
+			if(camPointCheck(y,rightEdge,camBuffer)){
+				break;
+			}
+		}
+	}
+}
+
+void moveAlgo(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo){
+//	int midAngle=800;
+//	const int servoP=20;
+	int midAngle=710;
+	const int servoP=25;
+	int rightEdge=CamWidth/2;
+	int prevRightEdge=CamWidth/2;
+	bool rightCornerFind=false;
+	int leftEdge=CamWidth/2;
+	int prevLeftEdge=CamWidth/2;
+	bool leftCornerFind=false;
+	int sum=0;
+	int rowFinded=0;
+	if(camPointCheck(CamHeight-1,leftEdge,camBuffer)){
+		for(int x=leftEdge;x<CamWidth;x++){
+			leftEdge=x;
+			if(!camPointCheck(CamHeight-1,leftEdge,camBuffer)){
+				leftEdge--;
+				break;
+			}
+		}
+	}else{
+		for(int x=leftEdge;x>=0;x--){
+			leftEdge=x;
+			if(camPointCheck(CamHeight-1,leftEdge,camBuffer)){
+				break;
+			}
+		}
+	}
+	if(camPointCheck(CamHeight-1,rightEdge,camBuffer)){
+		for(int x=rightEdge;x>=0;x--){
+			rightEdge=x;
+			if(!camPointCheck(CamHeight-1,rightEdge,camBuffer)){
+				rightEdge++;
+				break;
+			}
+		}
+	}else{
+		for(int x=rightEdge;x<CamWidth;x++){
+			rightEdge=x;
+			if(camPointCheck(CamHeight-1,rightEdge,camBuffer)){
+				break;
+			}
+		}
+	}
+	for(int y=CamHeight-1;y>=30;y--){
+		prevLeftEdge=leftEdge;
+		if(camPointCheck(y,leftEdge,camBuffer)){
+			for(int x=leftEdge;x<CamWidth;x++){
+				leftEdge=x;
+				if(!camPointCheck(y,leftEdge,camBuffer)){
+					leftEdge--;
+					break;
+				}
+			}
+		}else{
+			for(int x=leftEdge;x>=0;x--){
+				leftEdge=x;
+				if(camPointCheck(y,leftEdge,camBuffer)){
+					break;
+				}
+			}
+		}
+		if(leftEdge==CamWidth-1){
+			break;
+		}
+		if(abs(leftEdge-prevLeftEdge)>5){
+			lcd->SetRegion(Lcd::Rect(leftEdge,y,5,5));
+			lcd->FillColor(Lcd::kRed);
+			leftCornerFind=true;
+		}
+		prevRightEdge=rightEdge;
+		if(camPointCheck(y,rightEdge,camBuffer)){
+			for(int x=rightEdge;x>=0;x--){
+				rightEdge=x;
+				if(!camPointCheck(y,rightEdge,camBuffer)){
+					rightEdge++;
+					break;
+				}
+			}
+		}else{
+			for(int x=rightEdge;x<CamWidth;x++){
+				rightEdge=x;
+				if(camPointCheck(y,rightEdge,camBuffer)){
+					break;
+				}
+			}
+		}
+		if(rightEdge==0){
+			break;
+		}
+		if(abs(rightEdge-prevRightEdge)>5){
+			lcd->SetRegion(Lcd::Rect(rightEdge,y,5,5));
+			lcd->FillColor(Lcd::kRed);
+			rightCornerFind=true;
+		}
+		if(y>CamHeight-7&&rightEdge==CamWidth-1&&leftEdge==0){
+//			midPtFinder(camBuffer,lcd,servo);
+//			break;
+		}
+		if(leftCornerFind&&rightCornerFind){
+			break;
+		}else{
+			if(camPointCheck(y,(leftEdge+rightEdge)/2,camBuffer)){
+				for(int x=(leftEdge+rightEdge)/2;x>0;x--){
+					if(!camPointCheck(y,x,camBuffer)){
+						rightEdge=x-1;
+						break;
+					}
+				}
+				lcd->SetRegion(Lcd::Rect(rightEdge,y,5,5));
+				lcd->FillColor(Lcd::kGreen);
+				for(int x=rightEdge;x>=0;x--){
+					leftEdge=x;
+					if(camPointCheck(y,leftEdge,camBuffer)){
+						break;
+					}
+				}
+				lcd->SetRegion(Lcd::Rect(leftEdge,y,5,5));
+				lcd->FillColor(Lcd::kGreen);
+				sum=(rightEdge+leftEdge)/2;
+//				rowFinded++;
+				lcd->SetRegion(Lcd::Rect((leftEdge+rightEdge)/2,y,1,1));
+				lcd->FillColor(Lcd::kRed);
+				rowFinded=1;
+				break;
+			}
+			sum+=(leftEdge+rightEdge)/2;
+			lcd->SetRegion(Lcd::Rect((leftEdge+rightEdge)/2,y,1,1));
+			lcd->FillColor(Lcd::kRed);
+			rowFinded++;
+		}
+	}
+	int average=sum/rowFinded;
+	int degree=midAngle-(average-40)*servoP;
+	if(degree>1180){
+		degree=1180;
+	}else if(degree<420){
+		degree=420;
+	}
+	servo->SetDegree(degree);
+}
+
 void CameraPrint(St7735r *lcd,Ov7725 *Cam){
 	lcd->SetRegion(Lcd::Rect(1,1,80,60));
 	lcd->FillBits(0x001F,0xFFFF,Cam->LockBuffer(),Cam->GetBufferSize()*8);

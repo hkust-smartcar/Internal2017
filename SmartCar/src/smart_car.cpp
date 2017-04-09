@@ -244,15 +244,17 @@ int smart_car(Joystick *FiveWaySwitch,St7735r *LCD,LcdConsole *Console,Ov7725 *C
 //	JyMcuBt106 BT(ConfigBT);
 //	BtPt=&BT;
 
+//	MotorA->SetClockwise(true);
 	MotorA->SetClockwise(false);
 	motorAPt=MotorA;
 	//SetMotorPower(&MotorA,&EncoderA,260);
-	MotorA->SetPower(200);
+	MotorA->SetPower(250);
 
+//	MotorB->SetClockwise(false);
 	MotorB->SetClockwise(true);
 	motorBPt=MotorB;
 	//SetMotorPower(&MotorB,&EncoderB,260);
-	MotorB->SetPower(200);
+	MotorB->SetPower(250);
 
 	servoPt=Servo;
 	Servo->SetDegree(800);//Servo 0 degree turned
@@ -268,7 +270,7 @@ int smart_car(Joystick *FiveWaySwitch,St7735r *LCD,LcdConsole *Console,Ov7725 *C
 	while (true){
 		while(t!=System::Time()){
 			t = System::Time();
-			if(t % 100 == 0){
+			if(t % 5 == 0){
 //				Camera2DArrayPrintTest(LCD,Cam);
 				const Byte* camPtr;
 				const Byte tempInt = 49;
@@ -277,16 +279,17 @@ int smart_car(Joystick *FiveWaySwitch,St7735r *LCD,LcdConsole *Console,Ov7725 *C
 //				if(FiveWaySwitch->GetState()==Joystick::State::kDown){
 //					Servo->SetDegree(Servo->GetDegree()+10);
 //				}
-//				CameraPrint(LCD,Cam);
-				EdgeFinder(camPtr,LCD,Servo);
+				CameraPrint(LCD,Cam);
+				moveAlgo(camPtr,LCD,Servo);
+//				EdgeFinder(camPtr,LCD,Servo);
 				EncoderA->Update();
 				EncoderB->Update();
 				if(EncoderA->GetCount()>10||EncoderB->GetCount()>10){
-					MotorA->SetPower(200);
-					MotorB->SetPower(200);
+					MotorA->SetPower(150);
+					MotorB->SetPower(150);
 				}else{
-					MotorA->SetPower(0);
-					MotorB->SetPower(0);
+					MotorA->SetPower(150);
+					MotorB->SetPower(150);
 				}
 //				Camera2DArrayPrint(LCD);
 //				switch(featureIdentify(camPtr)){

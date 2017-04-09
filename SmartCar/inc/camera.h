@@ -26,6 +26,7 @@ void Camera2DConverter(const Byte* CameraBuffer);
 void CameraFilter();
 void PathWidthFinder(Joystick *FiveWaySwitch,LcdConsole *console);
 void EdgeFinder(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo);
+void moveAlgo(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo);
 void PathFinder();
 void CenterLine();
 void camera();
