@@ -614,12 +614,11 @@ int midAngle=800;
 	return;
 }
 
-void midPtFinder(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo){
-	int midAngle=800;
-	#define servoAngle 400;
+int midPtFinder(const Byte *camBuffer){
 	int midPt=CamWidth/2;
 	int leftEdge=0;
 	int rightEdge=CamWidth-1;
+	int trackWidth=CamWidth;
 	for(int y=CamHeight-5;y>=30;y--){
 		for(int x=midPt;x>0;x--){
 			leftEdge=x;
@@ -633,14 +632,54 @@ void midPtFinder(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo){
 				break;
 			}
 		}
+		if(trackWidth-rightEdge+leftEdge>10){
+			return midPt;
+		}
 	}
+	return 0;
 }
+
+bool isRoundabout(const Byte *camBuffer,int row,int midPt){
+//	loop the upper bound of the roundabout island
+	for(int y=row;y>-1;y--){
+//		check if reaching the track (= find the upper bound of the roundabout island)
+		if(!camPointCheck(y,midPt,camBuffer)){
+//			loop from the bottom to the upper bound of the roundabout island
+			for(int i=row;i>row;i--){
+//				loop leftward from midPt
+				for(int x=midPt;x>-1;x--){
+//					if track find then passed the test, if not find the track at camera boundary, it is not a roundabout
+					if(!camPointCheck(i,x,camBuffer)){
+						break;
+					}else if(x==0){
+						return false;
+					}
+				}
+//				loop rightward from midPt
+				for(int x=midPt;x<CamWidth;x++){
+//					if track find then passed the test, if not find the track at camera boundary, it is not a roundabout
+					if(!camPointCheck(i,x,camBuffer)){
+						break;
+					}else if(x==0){
+						return false;
+					}
+				}
+			}
+//			as it passes all the test, so it is a roundabout
+			return true;
+		}
+	}
+//	since cannot find the upper bound of the roundabout island, it is not roundabout
+	return false;
+}
+
+bool roundaboutTurnLeft=true;
 
 void moveAlgo(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo){
 //	int midAngle=800;
 //	const int servoP=20;
 	int midAngle=710;
-	const int servoP=25;
+	const int servoP=20;
 	int rightEdge=CamWidth/2;
 	int prevRightEdge=CamWidth/2;
 	bool rightCornerFind=false;
@@ -649,38 +688,20 @@ void moveAlgo(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo){
 	bool leftCornerFind=false;
 	int sum=0;
 	int rowFinded=0;
-	if(camPointCheck(CamHeight-1,leftEdge,camBuffer)){
-		for(int x=leftEdge;x<CamWidth;x++){
-			leftEdge=x;
-			if(!camPointCheck(CamHeight-1,leftEdge,camBuffer)){
-				leftEdge--;
-				break;
-			}
-		}
-	}else{
-		for(int x=leftEdge;x>=0;x--){
-			leftEdge=x;
-			if(camPointCheck(CamHeight-1,leftEdge,camBuffer)){
-				break;
-			}
+//	initialize bottom left edge and right edge
+	for(int x=leftEdge;x>=0;x--){
+		leftEdge=x;
+		if(camPointCheck(CamHeight-1,leftEdge,camBuffer)){
+			break;
 		}
 	}
-	if(camPointCheck(CamHeight-1,rightEdge,camBuffer)){
-		for(int x=rightEdge;x>=0;x--){
-			rightEdge=x;
-			if(!camPointCheck(CamHeight-1,rightEdge,camBuffer)){
-				rightEdge++;
-				break;
-			}
-		}
-	}else{
-		for(int x=rightEdge;x<CamWidth;x++){
-			rightEdge=x;
-			if(camPointCheck(CamHeight-1,rightEdge,camBuffer)){
-				break;
-			}
+	for(int x=rightEdge;x<CamWidth;x++){
+		rightEdge=x;
+		if(camPointCheck(CamHeight-1,rightEdge,camBuffer)){
+			break;
 		}
 	}
+//	find left edge and right edge
 	for(int y=CamHeight-1;y>=30;y--){
 		prevLeftEdge=leftEdge;
 		if(camPointCheck(y,leftEdge,camBuffer)){
@@ -702,9 +723,11 @@ void moveAlgo(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo){
 		if(leftEdge==CamWidth-1){
 			break;
 		}
+//		check if facing a left corner, if yes the left edge use prev left edge
 		if(abs(leftEdge-prevLeftEdge)>5){
 			lcd->SetRegion(Lcd::Rect(leftEdge,y,5,5));
 			lcd->FillColor(Lcd::kRed);
+			leftEdge=prevLeftEdge;
 			leftCornerFind=true;
 		}
 		prevRightEdge=rightEdge;
@@ -727,54 +750,122 @@ void moveAlgo(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo){
 		if(rightEdge==0){
 			break;
 		}
+//		check if facing a right corner, if yes the right edge use prev right edge
 		if(abs(rightEdge-prevRightEdge)>5){
-			lcd->SetRegion(Lcd::Rect(rightEdge,y,5,5));
+			lcd->SetRegion(Lcd::Rect(rightEdge,y,2,2));
 			lcd->FillColor(Lcd::kRed);
+			rightEdge=prevRightEdge;
 			rightCornerFind=true;
 		}
+//		check if whole row are track, if yes mean car may be on cross road and change edge finding method(search from mid point)
 		if(y>CamHeight-7&&rightEdge==CamWidth-1&&leftEdge==0){
-//			midPtFinder(camBuffer,lcd,servo);
-//			break;
+			sum=midPtFinder(camBuffer);
+			rowFinded=1;
+			break;
 		}
+//		check if left corner and right corner appear, if yes stop searching upper row (as near cross road, upper data is useless)
 		if(leftCornerFind&&rightCornerFind){
 			break;
 		}else{
+//			check if the mid point is not track, if yes it likely be roundabout or likely be exit of roundabout
 			if(camPointCheck(y,(leftEdge+rightEdge)/2,camBuffer)){
-				for(int x=(leftEdge+rightEdge)/2;x>0;x--){
-					if(!camPointCheck(y,x,camBuffer)){
-						rightEdge=x-1;
-						break;
+//				check is it really a roundabout
+				if(isRoundabout(camBuffer,y,(leftEdge+rightEdge)/2)){
+//					as it is in front of the roundabout, use area method to identify which is the shortest path to go through roundabout
+					int leftArea=0;
+					int rightArea=0;
+					for(int row=y;y>10;y--){
+						if(camPointCheck(row,CamWidth/2,camBuffer)){
+							break;
+						}
+						for(int col=CamWidth/2-1;col>0;col--){
+							leftArea+=!camPointCheck(row,col,camBuffer);
+						}
+						for(int col=CamWidth/2;col<CamWidth;col++){
+							rightArea+=!camPointCheck(row,col,camBuffer);
+						}
+					}
+//					when right track area is larger than left, exit of roundabout is at right side, so it should not turn left
+					if(rightArea>leftArea){
+						roundaboutTurnLeft=false;
 					}
 				}
-				lcd->SetRegion(Lcd::Rect(rightEdge,y,5,5));
-				lcd->FillColor(Lcd::kGreen);
-				for(int x=rightEdge;x>=0;x--){
-					leftEdge=x;
-					if(camPointCheck(y,leftEdge,camBuffer)){
-						break;
+				if(roundaboutTurnLeft){
+					for(int x=(leftEdge+rightEdge)/2;x>0;x--){
+						if(!camPointCheck(y,x,camBuffer)){
+							rightEdge=x;
+							break;
+						}
 					}
+					lcd->SetRegion(Lcd::Rect(rightEdge,y,2,2));
+					lcd->FillColor(Lcd::kGreen);
+					for(int x=rightEdge;x>=0;x--){
+						leftEdge=x;
+						if(camPointCheck(y,leftEdge,camBuffer)){
+							break;
+						}
+					}
+					lcd->SetRegion(Lcd::Rect(leftEdge,y,2,2));
+					lcd->FillColor(Lcd::kGreen);
+					sum=(rightEdge+leftEdge)/2;
+					lcd->SetRegion(Lcd::Rect((leftEdge+rightEdge)/2,y,1,1));
+					lcd->FillColor(Lcd::kRed);
+					rowFinded=1;
+					break;
+				}else{
+					for(int x=(leftEdge+rightEdge)/2;x<CamWidth;x++){
+						if(!camPointCheck(y,x,camBuffer)){
+							leftEdge=x;
+							break;
+						}
+					}
+					lcd->SetRegion(Lcd::Rect(leftEdge,y,2,2));
+					lcd->FillColor(Lcd::kGreen);
+					for(int x=leftEdge;x<CamWidth;x++){
+						rightEdge=x;
+						if(camPointCheck(y,rightEdge,camBuffer)){
+							break;
+						}
+					}
+					lcd->SetRegion(Lcd::Rect(rightEdge,y,2,2));
+					lcd->FillColor(Lcd::kGreen);
+					sum=(rightEdge+leftEdge)/2;
+					lcd->SetRegion(Lcd::Rect((leftEdge+rightEdge)/2,y,1,1));
+					lcd->FillColor(Lcd::kRed);
+					rowFinded=1;
+					break;
 				}
-				lcd->SetRegion(Lcd::Rect(leftEdge,y,5,5));
-				lcd->FillColor(Lcd::kGreen);
-				sum=(rightEdge+leftEdge)/2;
-//				rowFinded++;
+			}
+//			use right edge to find the midPt when only right edge found
+			if(leftEdge==0&&rightEdge<CamWidth){
+				sum+=rightEdge-y/2;
+				lcd->SetRegion(Lcd::Rect(rightEdge-y/2,y,1,1));
+				lcd->FillColor(Lcd::kRed);
+				rowFinded++;
+//			use left edge to find the midPt when only left edge found
+			}else if(leftEdge>=0&&rightEdge==CamWidth){
+				sum+=leftEdge+y/2;
+				lcd->SetRegion(Lcd::Rect(leftEdge-y/2,y,1,1));
+				lcd->FillColor(Lcd::kRed);
+				rowFinded++;
+//			normal method to find the midPt
+			}else{
+				sum+=(leftEdge+rightEdge)/2;
 				lcd->SetRegion(Lcd::Rect((leftEdge+rightEdge)/2,y,1,1));
 				lcd->FillColor(Lcd::kRed);
-				rowFinded=1;
-				break;
+				rowFinded++;
 			}
-			sum+=(leftEdge+rightEdge)/2;
-			lcd->SetRegion(Lcd::Rect((leftEdge+rightEdge)/2,y,1,1));
-			lcd->FillColor(Lcd::kRed);
-			rowFinded++;
 		}
 	}
+//	find the average midPt found
 	int average=sum/rowFinded;
+//	determine the servo degree
 	int degree=midAngle-(average-40)*servoP;
-	if(degree>1180){
-		degree=1180;
-	}else if(degree<420){
-		degree=420;
+//	prevent servo degree too large or too small
+	if(degree>1050){
+		degree=1050;
+	}else if(degree<410){
+		degree=410;
 	}
 	servo->SetDegree(degree);
 }
