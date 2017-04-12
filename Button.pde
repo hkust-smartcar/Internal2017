@@ -1,5 +1,5 @@
-String btName[];
-int btSize = 6;
+String[] btName;
+int btSize = 8;
 
 int buttonDiameter = 50;
 int leftX = 100, leftY = 600;
@@ -13,105 +13,144 @@ boolean tuneButtonOver = false;
 void buttonSetUp() {
 
   btName[0] = "mode";
-  btName[1] = "left";
-  btName[2] = "middle";
-  btName[3] = "right";
-  btName[4] = "refresh";
-  btName[5] = "tune";
+  btName[1] = "moveUp";
+  btName[2] = "moveDown";
+  btName[3] = "delete";
+  btName[4] = "saveImage";
+  btName[5] = "refresh";
+  btName[6] = "tune";
+  btName[7] = "rename";
 
   cp5.addButton(btName[0])
-    .setValue(0)
     .setPosition(1100, 30)
     .setSize(50, 20)
     ;
-
+    
   cp5.addButton(btName[1])
-    .setValue(0)
-    .setPosition(100, 600)
+    .setPosition(80, 480)
     .setSize(50, 20)
     ;
-
+  
   cp5.addButton(btName[2])
-    .setValue(0)
-    .setPosition(200, 600)
+    .setPosition(80, 520)
     .setSize(50, 20)
     ;
 
   cp5.addButton(btName[3])
-    .setValue(0)
-    .setPosition(300, 600)
+    .setPosition(80, 560)
     .setSize(50, 20)
     ;
 
   cp5.addButton(btName[4])
-    .setValue(0)
+    .setPosition(80, 600)
+    .setSize(50, 20)
+    ;
+
+  cp5.addButton(btName[5])
     .setPosition(1100, 50)
     .setSize(50, 20)
     ;
     
-  cp5.addButton(btName[5])
-    .setValue(0)
-    .setPosition(1000, 600)
+  cp5.addButton(btName[6])
+    .setPosition(1100, 600)
     .setSize(50, 20)
     ;
     
-  cp5.get(Button.class, btName[5]).hide();
+  cp5.addButton(btName[7])
+    .setPosition(80, 440)
+    .setSize(50, 20)
+    ;
+    
+  cp5.get(Button.class, btName[1]).hide();
+  cp5.get(Button.class, btName[2]).hide();
+  cp5.get(Button.class, btName[3]).hide();
+  cp5.get(Button.class, btName[6]).hide();
+  cp5.get(Button.class, btName[7]).hide();
 }
 
 void mode() {
-
-  background(#04001F);
-  overviewMode = ++overviewMode % 3;
-
-  if (overviewMode == 0) {
-
-    graphWidth = 400;
-    graphHeight = 250;
-    graphOneX = 100;
-    graphOneY = 300;
-    graphTwoX = 600;
-    graphTwoY = 300;
-
-    fill(#898989);
-    noStroke();
-    rect(imageX, imageY, camWidth*pixelSide, camHeight*pixelSide);
-    rect(boundaryX, boundaryY, camWidth*pixelSide, camHeight*pixelSide);
-    rect(regionX, regionY, camWidth*pixelSide, camHeight*pixelSide);
-
-    cp5.get(Button.class, btName[1]).show();
-    cp5.get(Button.class, btName[2]).show();
-    cp5.get(Button.class, btName[3]).show();
-  } else if (overviewMode == 1) {
-    
-    graphOneY = 50;
-    graphTwoY = 50;
-
-    readConstant();
-    displayConstant();
-    tfShow();
-
-    cp5.get(Button.class, btName[5]).show();
-    cp5.get(Button.class, btName[1]).hide();
-    cp5.get(Button.class, btName[2]).hide();
-    cp5.get(Button.class, btName[3]).hide();
-  } else if (overviewMode == 2) {
-    
-    graphWidth = 400;
-    graphHeight = 500;
-    graphOneY = 50;
-    graphTwoY = 50;
-
-    cp5.get(Button.class, btName[5]).hide();
-    tfHide();
+  
+  if (millis() > 2000) {
+  
+    background(#D3D3D3);
+    overviewMode = ++overviewMode % 3;
+  
+    if (overviewMode == 0) {
+  
+      graphWidth = 400;
+      graphHeight = 250;
+      graphOneX = 100;
+      graphOneY = 320;
+      graphTwoX = 600;
+      graphTwoY = 320;
+      plotGraph();
+  
+      fill(#898989);
+      noStroke();
+      rect(imageX, imageY, camWidth*pixelSide, camHeight*pixelSide);
+      rect(boundaryX, boundaryY, camWidth*pixelSide, camHeight*pixelSide);
+      rect(regionX, regionY, camWidth*pixelSide, camHeight*pixelSide);
+  
+      cp5.get(Button.class, btName[4]).show();
+      cp5.get(Button.class, btName[1]).hide();
+      cp5.get(Button.class, btName[2]).hide();
+      cp5.get(Button.class, btName[3]).hide();
+      cp5.get(Button.class, btName[7]).hide();
+      cp5.get(Textfield.class, "newName").hide();
+      cp5.get(ScrollableList.class, "ImageList").hide();
+      
+      selectedIndex = -1;
+      
+    } else if (overviewMode == 1) {
+      
+      graphOneY = 50;
+      graphTwoY = 50;
+      plotGraph();
+  
+      readConstant();
+      displayConstant();
+      tfShow();
+  
+      cp5.get(Button.class, btName[6]).show();
+      cp5.get(Button.class, btName[4]).hide();
+    } else if (overviewMode == 2) {
+      
+      readImage();
+      list = new String[imageName.size()];
+      for (int i=0; i<imageName.size(); i++) {
+        list[i] = imageName.get(i);
+      }
+      List l = Arrays.asList(list);
+      cp5.get(ScrollableList.class, "ImageList").setItems(l);
+      
+      cp5.get(Button.class, btName[1]).show();
+      cp5.get(Button.class, btName[2]).show();
+      cp5.get(Button.class, btName[3]).show();
+      cp5.get(Button.class, btName[7]).show();
+      cp5.get(Textfield.class, "newName").show();
+      cp5.get(ScrollableList.class, "ImageList").show();
+      cp5.get(Button.class, btName[6]).hide();
+      tfHide();
+      
+    }
+  
   }
 }
 
 void refresh() {
-  myPort.clear();
+  if (millis() > 1000) {
+    myPort.clear();
+  }
+}
+
+void saveImage() {
+  if (millis() > 1000) {
+    saveTo("imageData.txt");
+  }
 }
 
 void tune() {
-  if (overviewMode == 1) {
+  if (millis() > 1000 && overviewMode == 1) {
     editConstant();
     displayConstant();
     String sendStr = "";
@@ -121,5 +160,82 @@ void tune() {
       sendStr += constantArr[i];
     }
     myPort.write('t' + sendStr + '\n');
+  }
+}
+
+void rename() {
+  if (millis() > 1000 && selectedIndex >= 0) {
+    imageName.set(selectedIndex, "#" + cp5.get(Textfield.class,"newName").getText());
+    saveData();
+    
+    list[selectedIndex] = imageName.get(selectedIndex);
+    List l = Arrays.asList(list);
+    cp5.get(ScrollableList.class, "ImageList").setItems(l);
+    CColor c = new CColor();
+    c.setBackground(color(255,0,0));
+    cp5.get(ScrollableList.class, "ImageList").getItem(selectedIndex).put("color", c);
+  }
+}
+
+void moveUp() {
+  if (millis() > 1000 && selectedIndex >= 1) {
+    String temp = imageName.get(selectedIndex-1);
+    imageName.set(selectedIndex-1, imageName.get(selectedIndex));
+    imageName.set(selectedIndex, temp);
+    Boolean[][] imageTemp = new Boolean[camHeight][camWidth];
+    imageTemp = imageData.get(selectedIndex-1);
+    imageData.set(selectedIndex-1, imageData.get(selectedIndex));
+    imageData.set(selectedIndex, imageTemp);
+    saveData();
+    
+    list[selectedIndex] = imageName.get(selectedIndex);
+    list[selectedIndex-1] = imageName.get(selectedIndex-1);
+    List l = Arrays.asList(list);
+    cp5.get(ScrollableList.class, "ImageList").setItems(l);
+    
+    selectedIndex--;
+    CColor c = new CColor();
+    c.setBackground(color(255,0,0));
+    cp5.get(ScrollableList.class, "ImageList").getItem(selectedIndex).put("color", c);
+  }
+}
+
+void moveDown() {
+  if (millis() > 1000 && selectedIndex >= 0 && selectedIndex <= imageName.size()-2 ) {
+    String temp = imageName.get(selectedIndex+1);
+    imageName.set(selectedIndex+1, imageName.get(selectedIndex));
+    imageName.set(selectedIndex, temp);
+    Boolean[][] imageTemp = new Boolean[camHeight][camWidth];
+    imageTemp = imageData.get(selectedIndex+1);
+    imageData.set(selectedIndex+1, imageData.get(selectedIndex));
+    imageData.set(selectedIndex, imageTemp);
+    saveData();
+    
+    list[selectedIndex] = imageName.get(selectedIndex);
+    list[selectedIndex+1] = imageName.get(selectedIndex+1);
+    List l = Arrays.asList(list);
+    cp5.get(ScrollableList.class, "ImageList").setItems(l);
+    
+    selectedIndex++;
+    CColor c = new CColor();
+    c.setBackground(color(255,0,0));
+    cp5.get(ScrollableList.class, "ImageList").getItem(selectedIndex).put("color", c);
+  }
+}
+
+void delete() {
+  if (millis() > 1000 && selectedIndex >= 0) {
+    imageName.remove(selectedIndex);
+    imageData.remove(selectedIndex);
+    saveData();
+    
+    list = new String[imageName.size()];
+    for (int i=0; i<imageName.size(); i++) {
+      list[i] = imageName.get(i);
+    }
+    List l = Arrays.asList(list);
+    cp5.get(ScrollableList.class, "ImageList").setItems(l);
+    selectedIndex = -1;
+    background(#D3D3D3);
   }
 }

@@ -4,8 +4,8 @@ color[] graphColor;
 
 int graphLength = 1000;
 int graphWidth = 400, graphHeight = 250;
-int graphOneX = 100, graphOneY = 300;
-int graphTwoX = 600, graphTwoY = 300;
+int graphOneX = 100, graphOneY = 320;
+int graphTwoX = 600, graphTwoY = 320;
 
 void stringToDouble(String inputString) {
   
@@ -27,7 +27,13 @@ void getData() {
   }
   
   for (int i = 0; i < valSize; i++) {
-    value[i][graphLength-1] = map((float)newValue[i], 0-range, range, -10000, 10000);
+    if (value[i][graphLength-1] > range) {
+      value[i][graphLength-1] = range;
+    } else if (value[i][graphLength-1] < 0-range) {
+      value[i][graphLength-1] = 0-range;
+    } else {
+      value[i][graphLength-1] = map((float)newValue[i], 0-range, range, -10000, 10000);
+    }
   }
   
 }
@@ -52,7 +58,7 @@ void plotGraph() {
     line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
   }
   
-  strokeWeight(1);
+  strokeWeight(2);
 
   for (int i = 0; i < valSize; i++) {
     stroke(graphColor[i]);

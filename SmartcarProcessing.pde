@@ -4,69 +4,100 @@ import controlP5.*;
 import g4p_controls.*;
 
 //Change constant
-int consSize = 1;  //Number of constant to change
+int consSize = 16;  //Number of constant to change
 //Plot graph
 int valSize = 2;  //Number of variable to plot
-int range = 20000;  //Upper limit of the graph
-color colorArray[] = {#031DFF, #03FF04, #FF0303};  //Add color here for more variable
+int range = 100;  //Upper limit of the graph
+color[] colorArray = {#031DFF, #03FF04, #FF0303};  //Add color here for more variable
 //BT port
-int portNum = 1;  //Choose the correct port here
+Boolean btEnable = false;
+int portNum = 0;  //Choose the correct port here
+int baudRate = 115200; //Baud rate of the bluetooth
+//Frame rate
+int frate = 150; // Increase frame rate for real time graph plotting, depending on the rate of data
+
+//Camera algorithm
+void trytry() {
+
+  if (millis() > 1000 && selectedIndex >= 0) {
+
+    Boolean imageTemp[][] = imageData.get(selectedIndex);
+    int zeroX = 460, zeroY = 320;
+
+    for (int y=0; y<camHeight; y++) {
+      for (int x=0; x<camWidth; x++) {
+        if (imageTemp[y][x]) {
+          fill(255);
+        } else {
+          fill(0);
+        }
+        noStroke();
+        rect(zeroX + pixelSide*x, zeroY + pixelSide*y, pixelSide, pixelSide);
+      }
+    }
+  }
+}
 
 /*
 //Example of receiving constants in smartcar.
-string str;  //global
-bool tuning = false;  //global
-vector<double> constVector;  //global
-
-bool bluetoothListener(const Byte *data, const size_t size) {
-
-  if (data[0] == 't') {
-    tuning = 1;
-    inputStr = "";
-  } else if (tuning && data[0] != 't') {
-
-    if (data[0] != '\n') {
-      inputStr += (char)data[0];
-    } else {
-      tuning = 0;
-      constVector.clear();
-
-      char * pch;
-      pch = strtok(&inputStr[0], " ,");
-      while (pch != NULL){
-        int constant;
-        stringstream(pch) >> constant;
-        constVector.push_back(constant);
-        pch = strtok (NULL, " ,");
-      }
-
-      if (constVector[0] > 300)
-        constVector[0] = 300;
-      leftMotorPtr->SetPower(constVector[0]);
-      rightMotorPtr->SetPower(constVector[0]);
-    }
-
-  }
-
-}
-
-*/
+ string str;  //global
+ bool tuning = false;  //global
+ vector<double> constVector;  //global
+ 
+ bool bluetoothListener(const Byte *data, const size_t size) {
+ 
+ if (data[0] == 't') {
+ tune = 1;
+ inputStr = "";
+ }
+ if (tune) {
+ int i = 0;
+ while (i<size) {
+ if (data[i] != 't' && data[i] != '\n') {
+ inputStr += (char)data[i];
+ } else if (data[i] == '\n') {
+ tune = 0;
+ }
+ i++;
+ }
+ if (!tune) {
+ constVector.clear();
+ 
+ char * pch;
+ pch = strtok(&inputStr[0], " ,");
+ while (pch != NULL){
+ double constant;
+ stringstream(pch) >> constant;
+ constVector.push_back(constant);
+ pch = strtok (NULL, " ,");
+ }
+ 
+ //global variable
+ powAngP = constVector[0];
+ powAngI = constVector[1];
+ powAngD = constVector[2];
+ }
+ }
+ 
+ }
+ 
+ */
 
 /*
 //Example of sending 2 variables from smartcar.
-char speedChar[15] = {};
-sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, leftSpeed, rightSpeed); //first one must be positive, seperated by commas, end by '\n'
-string speedStr = speedChar;
-const Byte speedByte = 85;
-bluetooth1.SendBuffer(&speedByte, 1);
-bluetooth1.SendStr(speedStr);
-*/
+ char speedChar[15] = {};
+ sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, leftSpeed, rightSpeed); //first one must be positive, seperated by commas, end by '\n'
+ string speedStr = speedChar;
+ const Byte speedByte = 85;
+ bluetooth1.SendBuffer(&speedByte, 1);
+ bluetooth1.SendStr(speedStr);
+ */
 
 ControlP5 cp5;
 Serial myPort;
 
 int startTime = 0, currentTime = 0;
-int overviewMode = -1;
+int overviewMode = 0;
 String inputString = "";
 
 BufferedReader reader;
@@ -74,76 +105,81 @@ PrintWriter writer;
 
 void displayText(String text, int x, int y, int w, int size) {
 
-  fill(#04001F);
+  fill(#D3D3D3);
   noStroke();
   rect(x-size, y-size, w, size*1.5);
-  fill(255);
+  fill(0);
   textSize(size);
   text(text, x, y);
 }
 
 void keyPressed() {
 
-  if (key == 'g') {
-    //if (leftOver) {
-    //  save("leftData.txt");
-    //} else if (middleOver) {
-    //  save("middleData.txt");
-    //} else if  (rightOver) {
-    //  save("rightData.txt");
-    //}
-  } else if (key == 'w') {
-    myPort.write('w');
-  } else if (key == 's') {
-    myPort.write('s');
-  } else if (key == 'i') {
-    myPort.write('i');
+  if (overviewMode == 0) {
+    if (key == 'w') {
+      myPort.write('w');
+    } else if (key == 's') {
+      myPort.write('s');
+    } else if (key == 'i') {
+      myPort.write('i');
+    } else if (key == 'a') {
+      myPort.write('a');
+    } else if (key == 'd') {
+      myPort.write('d');
+    }
   }
-  //else if (key == 'a') {
-  //  myPort.write('a');
-  //} else if (key == 'd') {
-  //  myPort.write('d');
-  //}
 }
 
 void keyReleased() {
 
-  if (key == 'w') {
-    myPort.write('W');
-  } else if (key == 's') {
-    myPort.write('S');
+  if (overviewMode == 0) {
+    if (key == 'w') {
+      myPort.write('W');
+    } else if (key == 's') {
+      myPort.write('S');
+    } else if (key == 'a') {
+      myPort.write('A');
+    } else if (key == 'd') {
+      myPort.write('D');
+    }
   }
-  //else if (key == 'a') {
-  //  myPort.write('A');
-  //} else if (key == 'd') {
-  //  myPort.write('D');
-  //}
 }
 
 void setup() {
 
   printArray(Serial.list());
-  myPort = new Serial(this, Serial.list()[portNum], 115200);
-  myPort.clear();
+  if (btEnable) {
+    myPort = new Serial(this, Serial.list()[portNum], baudRate);
+    myPort.clear();
+  }
   startTime = millis();
-  frameRate(300);
-  size(1200, 650);
-  background(#04001F);
+  frameRate(frate);
+  size(1200, 660);
+  background(#D3D3D3);
   cp5 = new ControlP5(this);
-  
+
   btName = new String[btSize];
   tfName = new String[textFieldSize];
   constantArr = new String[textFieldSize];
-  
+  imageData = new ArrayList();
+  imageName = new ArrayList();
+
   buttonSetUp();
   tfSetUp();
+  listSetUp();
 
   for (int y=0; y<camHeight; y++) {
     for (int x=0; x<camWidth; x++) {
       pixelArray[y][x] = false;
     }
   }
-  
+
+  fill(#898989);
+  noStroke();
+  rect(imageX, imageY, camWidth*pixelSide, camHeight*pixelSide);
+  rect(boundaryX, boundaryY, camWidth*pixelSide, camHeight*pixelSide);
+  rect(regionX, regionY, camWidth*pixelSide, camHeight*pixelSide);
+
   value = new double[valSize][graphLength];
   newValue = new double[valSize];
   graphColor = new color[valSize];
@@ -157,17 +193,18 @@ void setup() {
   for (int i = 0; i < valSize; i++) {
     graphColor[i] = colorArray[i];
   }
+  plotGraph();
 }
 
 void draw() {
 
-  if (myPort.available() > 0) {
+  
+  if (btEnable && myPort.available() > 0) {
 
     int inputInt = myPort.read();
-    //println(inputInt);
 
     //encoder
-    if (inputInt == 85) {
+    if (inputInt == 85 && overviewMode <= 1) {
 
       while (true) {
         print(',');
@@ -178,7 +215,7 @@ void draw() {
       }
       if (inputString != null) {
         inputString = inputString.trim();
-        displayText(inputString, 600, 600, 500, 32);
+        //displayText(inputString, 600, 600, 500, 32);
         stringToDouble(inputString);
       }
       getData();
@@ -206,29 +243,27 @@ void draw() {
         outputBoundary();
         getRegion();
         outputRegion();
-        turningResult();
       }
     }
 
-    ////feedback
-    //if (inputInt == 171) {
+    //feedback
+    if (inputInt == 171) {
 
-    //  String inputString = "";
+      String inputString = "";
 
-    //  while (true) {
-    //    print(',');
-    //    if (myPort.available() > 0) {
-    //      inputString = myPort.readStringUntil('\n');
-    //      break;
-    //    }
-    //  }
-    //  if (inputString != null) {
-    //    println(inputString);
-    //  }
-    //  delay(1);
+      while (true) {
+        print(',');
+        if (myPort.available() > 0) {
+          inputString = myPort.readStringUntil('\n');
+          break;
+        }
+      }
+      if (inputString != null) {
+        println(inputString);
+      }
+      delay(1);
 
-    //}
+    }
   }
-
-  //println(frameRate);
+  
 }
