@@ -243,6 +243,7 @@ int main(void){
 				lcd->SetRegion(Lcd::Rect(0,0,WIDTH,HEIGHT));
 				lcd->FillBits(0x0000,0xFFFF,byte,cam->GetBufferSize()*8);
 
+				int time = System::Time();
 
 				int left_edge[200][2], right_edge[200][2], mid[200][2];
 
@@ -250,16 +251,16 @@ int main(void){
 
 				//
 				left_edge[0][0]=WIDTH-1;
-				right_edge[0][0]=0;
 				while(get_pkbit(byte,--left_edge[0][0],0));
-				while(get_pkbit(byte,++right_edge[0][0],0));
+				right_edge[0][0]=left_edge[0][0];
+				while(!get_pkbit(byte,--left_edge[0][0]-1,0));
 				left_edge[0][1]=0;
 				right_edge[0][1]=0;
 				int left_from=0;
 				int right_from=0;
 				const int dx[8]={ 0,-1,-1,-1, 0, 1, 1, 1};
 				const int dy[8]={-1,-1, 0, 1, 1, 1, 0,-1};
-				for (int count=0;count<100-1;count++){
+				for (int count=0;count<200-1;count++){
 
 					bool flag=1;
 
@@ -298,14 +299,23 @@ int main(void){
 						}
 					}
 
-					lcd->SetRegion(Lcd::Rect((x1+x)/2,HEIGHT-1-(y1+y)/2,1,1));
-					lcd->FillColor(Lcd::kBlue);
+					if (y>0&&y1>0){
+						lcd->SetRegion(Lcd::Rect((x1+x)/2,HEIGHT-1-(y1+y)/2,1,1));
+						mid[count][0]=(x1+x)/2;
+						mid[count][1]=(y1+y)/2;
+						error+=WIDTH/2-mid[count][0];
+						lcd->FillColor(Lcd::kBlue);
+					}
 
-					//if(left_edge[count][0]==x1&&left_edge[count][1]==y1) break;
+
+					if(left_edge[count][0]==x1&&left_edge[count][1]==y1) break;
 					if(flag)break;
 				}
 
-
+				char buff[10];
+				sprintf(buff," %d,%d",System::Time()-time,error);
+				lcd->SetRegion(Lcd::Rect(0,HEIGHT,100,15));
+				writer.WriteBuffer(buff,10);
 				cam->UnlockBuffer();
 				cam->Stop();
 				cam->Start();
