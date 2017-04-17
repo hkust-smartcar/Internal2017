@@ -45,7 +45,7 @@ void ImageList(int n) {
         fill(255);
       }
       noStroke();
-      rect(460 + pixelSide*x, 50 + pixelSide*y, pixelSide, pixelSide);
+      rect(280 + pixelSide*x, 200 + pixelSide*y, pixelSide, pixelSide);
     }
   }
 

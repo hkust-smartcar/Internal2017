@@ -3,38 +3,92 @@ import java.util.*;
 import controlP5.*;
 import g4p_controls.*;
 
+//Frame rate
+int frate = 200; // Increase frame rate for real time graph plotting, depending on the rate of data
+//BT port
+Boolean btEnable = true;
+int portNum = 2;  //Choose the correct port here
+int baudRate = 115200; //Baud rate of the bluetooth
 //Change constant
 int consSize = 16;  //Number of constant to change
 //Plot graph
 int valSize = 2;  //Number of variable to plot
-int range = 100;  //Upper limit of the graph
+int range = 500;  //Upper limit of the graph
 color[] colorArray = {#031DFF, #03FF04, #FF0303};  //Add color here for more variable
-//BT port
-Boolean btEnable = false;
-int portNum = 0;  //Choose the correct port here
-int baudRate = 115200; //Baud rate of the bluetooth
-//Frame rate
-int frate = 150; // Increase frame rate for real time graph plotting, depending on the rate of data
 
 //Camera algorithm
 void trytry() {
 
-  if (millis() > 1000 && selectedIndex >= 0) {
+  if (selectedIndex >= 0) {
+    
+    background(#D3D3D3);
 
     Boolean imageTemp[][] = imageData.get(selectedIndex);
-    int zeroX = 460, zeroY = 320;
+    int zeroX = 280, zeroY = 200;
 
+    noStroke();
     for (int y=0; y<camHeight; y++) {
       for (int x=0; x<camWidth; x++) {
         if (imageTemp[y][x]) {
-          fill(255);
-        } else {
           fill(0);
+        } else {
+          fill(255);
         }
-        noStroke();
         rect(zeroX + pixelSide*x, zeroY + pixelSide*y, pixelSide, pixelSide);
       }
     }
+    
+    float xInc = 0.03, yInc = 0.01;
+    pixelSide = 2;
+    for (int y=0; y<camHeight; y++) {
+      for (int x=0; x<camWidth; x++) {
+        if (imageTemp[y][x]) {
+          fill(0);
+        } else {
+          fill(255);
+        }
+        rect(900 + pixelSide*(x-camWidth/2)*(1+((camHeight-y)-1)*xInc), 600 - pixelSide*(camHeight-y)*(1+((camHeight-y)-1)*yInc), pixelSide, pixelSide);
+      }
+    }
+    pixelSide = 4;
+    
+    if (mouseX>zeroX && mouseX<zeroX+pixelSide*camWidth
+        && mouseY>zeroY && mouseY<zeroY+pixelSide*camHeight) {
+      int x = 0, y = 0;
+      x = (mouseX-zeroX)/pixelSide;
+      y = (mouseY-zeroY)/pixelSide;
+      fill(100);
+      rect(zeroX + pixelSide*x, zeroY + pixelSide*y, pixelSide, pixelSide);
+      
+      int centreX = 920, centreY = 300;
+      int sum = 0;
+      
+      sum = getSum(imageTemp, x, y, -1, 0);
+      stroke(#F20000);
+      line(centreX, centreY, centreX-sum, centreY);
+      sum = getSum(imageTemp, x, y, 1, 0);
+      stroke(#E800ED);
+      line(centreX, centreY, centreX+sum, centreY);
+      sum = getSum(imageTemp, x, y, 0, -1);
+      stroke(#3403FF);
+      line(centreX, centreY, centreX, centreY-sum);
+      sum = getSum(imageTemp, x, y, 0, 1);
+      stroke(#038901);
+      line(centreX, centreY, centreX, centreY+sum);
+      
+      stroke(100);
+      sum = getSum(imageTemp, x, y, -1, -1);
+      line(centreX, centreY, centreX-sum*cos(45), centreY-sum*cos(45));
+      sum = getSum(imageTemp, x, y, -1, 1);
+      line(centreX, centreY, centreX-sum*cos(45), centreY+sum*cos(45));
+      sum = getSum(imageTemp, x, y, 1, -1);
+      line(centreX, centreY, centreX+sum*cos(45), centreY-sum*cos(45));
+      sum = getSum(imageTemp, x, y, 1, 1);
+      line(centreX, centreY, centreX+sum*cos(45), centreY+sum*cos(45));
+      
+    }
+    
+    
   }
 }
 
@@ -102,6 +156,26 @@ String inputString = "";
 
 BufferedReader reader;
 PrintWriter writer;
+
+float getDistance(float x1, float y1, float x2, float y2) {
+  return sqrt( (x2-x1)*(x2-x1) + (y2-y1)*(y2-y1) );
+}
+
+int getSum(Boolean[][] imageTemp, int x, int y, int xInc, int yInc) {
+  float sum = 0;
+  int xTemp = x+xInc;
+  int yTemp = y+yInc;
+  while (xTemp>=0 && xTemp<camWidth
+        && yTemp>=0 && yTemp<camHeight) {
+    if (imageTemp[yTemp][xTemp]) {
+      sum += (float)50/getDistance(x, y, xTemp, yTemp);
+      //sum+=2;
+    }
+    xTemp += xInc;
+    yTemp += yInc;
+  }
+  return (int)sum;
+}
 
 void displayText(String text, int x, int y, int w, int size) {
 
@@ -193,11 +267,15 @@ void setup() {
   for (int i = 0; i < valSize; i++) {
     graphColor[i] = colorArray[i];
   }
+  readConstant();
   plotGraph();
 }
 
 void draw() {
 
+  if (overviewMode == 2) {
+    trytry();
+  }
   
   if (btEnable && myPort.available() > 0) {
 
@@ -215,7 +293,7 @@ void draw() {
       }
       if (inputString != null) {
         inputString = inputString.trim();
-        //displayText(inputString, 600, 600, 500, 32);
+        displayText(inputString, 600, 620, 500, 32);
         stringToDouble(inputString);
       }
       getData();

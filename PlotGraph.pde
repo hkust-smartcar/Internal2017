@@ -27,13 +27,12 @@ void getData() {
   }
   
   for (int i = 0; i < valSize; i++) {
-    if (value[i][graphLength-1] > range) {
-      value[i][graphLength-1] = range;
-    } else if (value[i][graphLength-1] < 0-range) {
-      value[i][graphLength-1] = 0-range;
-    } else {
-      value[i][graphLength-1] = map((float)newValue[i], 0-range, range, -10000, 10000);
+    if (newValue[i] > range) {
+      newValue[i] = range;
+    } else if (newValue[i] < 0-range) {
+      newValue[i] = 0-range;
     }
+    value[i][graphLength-1] = map((float)newValue[i], 0-range, range, -10000, 10000);
   }
   
 }
@@ -49,13 +48,8 @@ void plotGraph() {
     strokeWeight(0);
     line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
     line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
-  } else {
-    fill(#404040);
-    stroke(0);
-    rect(graphOneX, graphOneY, graphWidth, graphHeight);
-    stroke(255);
-    strokeWeight(0);
-    line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
+    //line(graphOneX+1, graphOneY+(graphHeight/2)*(float)(range-Double.parseDouble(constantArr[0]))/range, graphOneX+graphWidth-1, graphOneY+(graphHeight/2)*(float)(range-Double.parseDouble(constantArr[0]))/range);
+    
   }
   
   strokeWeight(2);
