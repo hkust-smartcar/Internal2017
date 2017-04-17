@@ -99,6 +99,21 @@ int yL=0,yR=0;
 int max(int a,int b){return (a>b?a:b);}
 int min(int a,int b){return (a<b?a:b);}
 
+int d_state(int d){
+	if(d!=0){
+		if(d<4){
+			return -1;//left
+		}
+		if(d>4){
+			return 1;//right
+		}
+		if(d==4){
+			return 0;//forward
+		}
+	}
+	return 2;//back
+}
+
 k60::Ov7725* cam;
 St7735r* lcd;
 AlternateMotor* motor;
@@ -192,20 +207,26 @@ int main(void){
 	Joystick joystick(joystick_config);
 	Joystick::State state;
 
-	/*
-	int left_edge[HEIGHT], right_edge[HEIGHT];
-	left_edge[0]=0;
-	right_edge[0]=WIDTH-1;
+	int left_edge[200][2], right_edge[200][2], mid[200][2];
+
 	while(!cam->IsAvailable());
 	{
 		const Byte* byte = cam->LockBuffer();
-		while(get_pkbit(byte,++left_edge[0],0));
-		while(get_pkbit(byte,--right_edge[0],0));
+
+		//locate the base edge
+		//locate the right first
+		right_edge[0][0]=WIDTH-1;
+		while(get_pkbit(byte,--right_edge[0][0],0)&&right_edge[0][0]>0);	//from right to left, the first white is right edge base
+		left_edge[0][0]=0;
+		while(get_pkbit(byte,++left_edge[0][0],0)&&left_edge[0][0]<WIDTH-1);		//from left to right, the first white is left edge base
+		left_edge[0][1]=0;
+		right_edge[0][1]=0;
+
 		cam->UnlockBuffer();
 		cam->Stop();
 		cam->Start();
 	}
-*/
+
 
 	servo->SetDegree(1150);
 	System::DelayMs(1000);
@@ -237,18 +258,17 @@ int main(void){
 
 				int timeStart = System::Time();
 
-				int left_edge[200][2], right_edge[200][2], mid[200][2];
+				//use previous base to estimate the base of this time
+				if(get_pkbit(byte,left_edge[0][0],left_edge[0][1]))
+					while(get_pkbit(byte,++left_edge[0][0],left_edge[0][1]));
+				else
+					while(!get_pkbit(byte,--left_edge[0][0]-1,left_edge[0][1]));
+				if(get_pkbit(byte,right_edge[0][0],right_edge[0][1]))
+					while(get_pkbit(byte,--right_edge[0][0],right_edge[0][1]));
+				else
+					while(!get_pkbit(byte,++right_edge[0][0]+1,right_edge[0][1]));
 
 				int error=0;
-
-				//locate the base edge
-				//locate the right first
-				left_edge[0][0]=WIDTH-1;
-				while(get_pkbit(byte,--left_edge[0][0],0));	//from right to left, the first white is right edge base
-				right_edge[0][0]=left_edge[0][0];
-				while(!get_pkbit(byte,--left_edge[0][0]-1,0));//from right edge base to left, the first white next to black is left edge
-				left_edge[0][1]=0;
-				right_edge[0][1]=0;
 
 				//declare variables for searching in directions
 				int left_from=0;
@@ -259,6 +279,12 @@ int main(void){
 				//declare variables for feature extraction
 				bool find_left=true;
 				bool find_right=true;
+				int left_d_state=0;
+				int right_d_state=0;
+				int left_direction=0;
+				int right_direction=0;
+				int left_contradict_sum=0;
+				int right_contradict_sum=0;
 
 				//loop for finding edge, maximum find 200 points for each edge
 				for (int count=0;count<200-1;count++){
@@ -286,6 +312,30 @@ int main(void){
 								left_edge[count+1][1]=y+dy[j];
 								find_left=true;
 								left_from=j-4;
+
+								//feature extraction: count going left or right
+								if(j!=0){
+									if(j<4){
+										if(--left_direction>0){
+											//contradiction
+											//call conclude feature
+											find_left=false;
+										}
+									}
+									else if(j>4){
+										if(++left_direction<0){
+											//contradiction
+											//call conclude feature
+											find_left=false;
+										}
+									}
+								}
+								else{
+									//go backward
+									//call conclude feature
+									find_left=false;
+								}
+
 								break;
 							}
 						}
@@ -311,6 +361,30 @@ int main(void){
 								right_edge[count+1][1]=y1+dy[j];
 								find_right=true;
 								right_from=j-4;
+
+								//feature extraction: count going left or right
+								if(j!=0){
+									if(j<4){
+										if(--right_direction>0){
+											//contradiction
+											//call conclude feature
+											find_right=false;
+										}
+									}
+									else if(j>4){
+										if(++right_direction<0){
+											//contradiction
+											//call conclude feature
+											find_right=false;
+										}
+									}
+								}
+								else{
+									//go backward
+									//call conclude feature
+									find_right=false;
+								}
+
 								break;
 							}
 						}
@@ -329,7 +403,33 @@ int main(void){
 
 					//break condition: left edge right edge meet or fail to find new edge
 					if(left_edge[count][0]==right_edge[count][0]&&left_edge[count][1]==right_edge[count][1]) break;
-					//if(flag)break;
+					if(!(find_left||find_right)){
+						char feature[10];
+						if(right_direction<0){
+							if(left_direction>=0){
+								strcpy(feature, "straight  ");
+							}
+							else{
+								strcpy(feature, "left turn ");//feature="forward";
+							}
+						}
+						else{
+							if(left_direction>0){
+								strcpy(feature, "right turn");//feature="turn right";
+							}
+							else{
+								if(left_direction<0&&right_direction>0){
+									strcpy(feature, "+ or O    ");//feature="+ or O";
+								}
+								else{
+									strcpy(feature, "unknown   ");//feature="unknown";
+								}
+							}
+						}
+						lcd->SetRegion(Lcd::Rect(0,HEIGHT+15,100,15));
+						writer.WriteBuffer(feature,10);
+						break;
+					}
 				}
 
 				//print variables
