@@ -37,10 +37,11 @@ bool readbit(int x, int y){
 	return map[3 * width * height - (y*width+x)*3 - 1];
 }
 
-int main(){int main(){
+int main(){
 	map = readBMP("input.bmp");
 	for (int i =0; i<height ; i++){
 		for (int j=0; j<width; j++)
 			printf("%d",(readbit(j,i)?1:0));
 		printf("\n");
+	}
 	}
