@@ -193,6 +193,14 @@ int main(void){
 	Joystick::State state;
 
 	int left_edge[200][2], right_edge[200][2], mid[200][2], left_from[200], right_from[200];
+
+	bool found[WIDTH][HEIGHT];
+	for(int i=0;i<WIDTH;i++){
+		for(int j=0; j<HEIGHT; j++){
+			found[i][j]=false;
+		}
+	}
+
 	left_from[0]=right_from[0]=0;
 
 		while(!cam->IsAvailable());
@@ -290,11 +298,11 @@ int main(void){
 					const int x=left_edge[count][0];
 					const int y=left_edge[count][1];
 
-					if(y>HEIGHT*5/7||y<0||x<0||x>WIDTH-1)
-						find_left=false;
+					//if(y>HEIGHT*5/7||y<0||x<0||x>WIDTH-1)
+					//	find_left=false;
 
 					//paint it
-					lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,1,1));
+					lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,2,2));
 					lcd->FillColor(Lcd::kRed);
 
 
@@ -325,9 +333,18 @@ int main(void){
 							//	lcd->FillColor(Lcd::kRed);
 							//}
 
+							if(j==0)find_left=false;
+
 							break;
 						}
 					}
+
+					if(found[x][y]){
+						find_left=false;
+						lcd->SetRegion(Lcd::Rect(left_edge[count][0],HEIGHT-1-left_edge[count][1],5,5));
+						lcd->FillColor(Lcd::kYellow);
+					}
+					found[x][y]=true;
 					}
 
 					if(find_right){
@@ -335,11 +352,11 @@ int main(void){
 					const int x1=right_edge[count][0];
 					const int y1=right_edge[count][1];
 
-					if(y1>HEIGHT*5/7||y1<0||x1<0||x1>WIDTH-1)
-											find_right=false;
+					//if(y1>HEIGHT*5/7||y1<0||x1<0||x1>WIDTH-1)
+						//					find_right=false;
 
 					//paint it
-					lcd->SetRegion(Lcd::Rect(x1,HEIGHT-y1-1,1,1));
+					lcd->SetRegion(Lcd::Rect(x1,HEIGHT-y1-1,2,2));
 					lcd->FillColor(Lcd::kPurple);
 
 					//corner
@@ -363,9 +380,17 @@ int main(void){
 							right_edge[count+1][1]=y1+dy[j];
 							flag=0;
 							right_from[count+1]=j-4;
+
+							if(j==0) find_right=false;
+
 							break;
 						}
 					}
+					if(found[x1][y1]){
+						find_right=false;
+						lcd->SetRegion(Lcd::Rect(right_edge[count][0],HEIGHT-1-right_edge[count][1],5,5));
+						lcd->FillColor(Lcd::kWhite);}
+					found[x1][y1]=true;
 					}
 
 					//find the mid point
@@ -393,6 +418,12 @@ int main(void){
 				cam->UnlockBuffer();
 				cam->Stop();
 				cam->Start();
+
+				for(int i=0;i<WIDTH;i++){
+					for(int j=0; j<HEIGHT;j++){
+						found[i][j]=false;
+					}
+				}
 			}
 
 
