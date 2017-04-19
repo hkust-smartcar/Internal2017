@@ -99,21 +99,6 @@ int yL=0,yR=0;
 int max(int a,int b){return (a>b?a:b);}
 int min(int a,int b){return (a<b?a:b);}
 
-int d_state(int d){
-	if(d!=0){
-		if(d<4){
-			return -1;//left
-		}
-		if(d>4){
-			return 1;//right
-		}
-		if(d==4){
-			return 0;//forward
-		}
-	}
-	return 2;//back
-}
-
 k60::Ov7725* cam;
 St7735r* lcd;
 AlternateMotor* motor;
@@ -209,24 +194,23 @@ int main(void){
 
 	int left_edge[200][2], right_edge[200][2], mid[200][2];
 
-	while(!cam->IsAvailable());
-	{
-		const Byte* byte = cam->LockBuffer();
+		while(!cam->IsAvailable());
+		{
+			const Byte* byte = cam->LockBuffer();
 
-		//locate the base edge
-		//locate the right first
-		right_edge[0][0]=WIDTH-1;
-		while(get_pkbit(byte,--right_edge[0][0],0)&&right_edge[0][0]>0);	//from right to left, the first white is right edge base
-		left_edge[0][0]=0;
-		while(get_pkbit(byte,++left_edge[0][0],0)&&left_edge[0][0]<WIDTH-1);		//from left to right, the first white is left edge base
-		left_edge[0][1]=0;
-		right_edge[0][1]=0;
+			//locate the base edge
+			//locate the right first
+			right_edge[0][0]=WIDTH-1;
+			while(get_pkbit(byte,--right_edge[0][0],0)&&right_edge[0][0]>0);	//from right to left, the first white is right edge base
+			left_edge[0][0]=0;
+			while(get_pkbit(byte,++left_edge[0][0],0)&&left_edge[0][0]<WIDTH-1);		//from left to right, the first white is left edge base
+			left_edge[0][1]=0;
+			right_edge[0][1]=0;
 
-		cam->UnlockBuffer();
-		cam->Stop();
-		cam->Start();
-	}
-
+			cam->UnlockBuffer();
+			cam->Stop();
+			cam->Start();
+		}
 
 	servo->SetDegree(1150);
 	System::DelayMs(1000);
@@ -253,22 +237,31 @@ int main(void){
 				const Byte* byte = cam->LockBuffer();
 
 				//print image
-				lcd->SetRegion(Lcd::Rect(0,0,WIDTH,HEIGHT));
-				lcd->FillBits(0x0000,0xFFFF,byte,cam->GetBufferSize()*8);
+				//lcd->SetRegion(Lcd::Rect(0,0,WIDTH,HEIGHT));
+				//lcd->FillBits(0x0000,0xFFFF,byte,cam->GetBufferSize()*8);
+
+
+
+				lcd->SetRegion(Lcd::Rect(0, 0, 80, 60));
+				lcd->FillColor(Lcd::kBlack);
 
 				int timeStart = System::Time();
 
-				//use previous base to estimate the base of this time
-				if(get_pkbit(byte,left_edge[0][0],left_edge[0][1]))
-					while(get_pkbit(byte,++left_edge[0][0],left_edge[0][1]));
-				else
-					while(!get_pkbit(byte,--left_edge[0][0]-1,left_edge[0][1]));
-				if(get_pkbit(byte,right_edge[0][0],right_edge[0][1]))
-					while(get_pkbit(byte,--right_edge[0][0],right_edge[0][1]));
-				else
-					while(!get_pkbit(byte,++right_edge[0][0]+1,right_edge[0][1]));
+				//int left_edge[200][2], right_edge[200][2], mid[200][2];
 
 				int error=0;
+
+				//locate the base edge
+				//locate the right first
+				if(get_pkbit(byte,left_edge[0][0],left_edge[0][1]))
+									while(get_pkbit(byte,++left_edge[0][0],left_edge[0][1]));
+								else
+									while(!get_pkbit(byte,--left_edge[0][0]-1,left_edge[0][1]));
+								if(get_pkbit(byte,right_edge[0][0],right_edge[0][1]))
+									while(get_pkbit(byte,--right_edge[0][0],right_edge[0][1]));
+								else
+									while(!get_pkbit(byte,++right_edge[0][0]+1,right_edge[0][1]));
+
 
 				//declare variables for searching in directions
 				int left_from=0;
@@ -276,82 +269,48 @@ int main(void){
 				const int dx[8]={ 0,-1,-1,-1, 0, 1, 1, 1};
 				const int dy[8]={-1,-1, 0, 1, 1, 1, 0,-1};
 
-				//declare variables for feature extraction
-				bool find_left=true;
-				bool find_right=true;
-				//int left_d_state=0;
-				//int right_d_state=0;
-				int left_direction=0;
-				int right_direction=0;
-				//int left_contradict_sum=0;
-				//int right_contradict_sum=0;
-				int left_count=0;
-				int right_count=0;
-				int left_start=0;
-				int right_start=0;
-				bool second_feature=false;
-
 				//loop for finding edge, maximum find 200 points for each edge
 				for (int count=0;count<200-1;count++){
 
-					//bool flag=1;//to break
+					bool flag=1;//to break
 
+					//x y are the last point of edge
+					const int x=left_edge[count][0];
+					const int y=left_edge[count][1];
 
-					//find left
-					if(find_left){
+					//paint it
+					lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,1,1));
+					lcd->FillColor(Lcd::kRed);
 
-						//x y are the last point of edge
-						const int x=left_edge[left_count][0];
-						const int y=left_edge[left_count][1];
-
-						//paint it
-						lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,1,1));
-						lcd->FillColor(Lcd::kRed);
-
-						//search in directions, from last direction clockwise to last direction
-						for (int i=left_from+1; i<left_from+9;i++){
-							const int j=i%8;
-							find_left=false;
-							if(!get_pkbit(byte, x+dx[j],y+dy[j])){//if the point is white, it is a new point of edge
-								left_edge[left_count+1][0]=x+dx[j];
-								left_edge[left_count+1][1]=y+dy[j];
-								find_left=true;
-								left_from=j-4;
-								left_count++;
-
-								error = max(error,HEIGHT-1-y);
-
-								break;
-							}
+					//search in directions, from last direction clockwise to last direction
+					for (int i=left_from+1; i<left_from+9;i++){
+						const int j=i%8;
+						if(!get_pkbit(byte, x+dx[j],y+dy[j])){//if the point is white, it is a new point of edge
+							left_edge[count+1][0]=x+dx[j];
+							left_edge[count+1][1]=y+dy[j];
+							flag=0;
+							left_from=j-4;
+							break;
 						}
 					}
 
-					//find right
-					if(find_right){
+					//x1 y1 are the last point of edge
+					const int x1=right_edge[count][0];
+					const int y1=right_edge[count][1];
 
-						//x1 y1 are the last point of edge
-						const int x1=right_edge[right_count][0];
-						const int y1=right_edge[right_count][1];
+					//paint it
+					lcd->SetRegion(Lcd::Rect(x1,HEIGHT-y1-1,1,1));
+					lcd->FillColor(Lcd::kPurple);
 
-						//paint it
-						lcd->SetRegion(Lcd::Rect(x1,HEIGHT-y1-1,1,1));
-						lcd->FillColor(Lcd::kPurple);
-
-						//search in directions, from last direction anti clockwise to last direction
-						for (int i=right_from+7; i>=right_from;i--){
-							const int j=i%8;
-							find_right=false;
-							if(!get_pkbit(byte, x1+dx[j],y1+dy[j])){//if the point is white, it is a new point of edge
-								right_edge[right_count+1][0]=x1+dx[j];
-								right_edge[right_count+1][1]=y1+dy[j];
-								find_right=true;
-								right_from=j-4;
-								right_count++;
-
-								error = max(error,HEIGHT-1-y1);
-
-								break;
-							}
+					//search in directions, from last direction anti clockwise to last direction
+					for (int i=right_from+7; i>=right_from;i--){
+						const int j=i%8;
+						if(!get_pkbit(byte, x1+dx[j],y1+dy[j])){//if the point is white, it is a new point of edge
+							right_edge[count+1][0]=x1+dx[j];
+							right_edge[count+1][1]=y1+dy[j];
+							flag=0;
+							right_from=j-4;
+							break;
 						}
 					}
 
@@ -367,23 +326,15 @@ int main(void){
 
 
 					//break condition: left edge right edge meet or fail to find new edge
-					if(left_edge[count][0]==right_edge[count][0]&&left_edge[count][1]==right_edge[count][1]) break;
-					if(!(find_left||find_right)){
-
-						char buff[10];
-						sprintf(buff," %d,%d",System::Time()-timeStart,error);
-						lcd->SetRegion(Lcd::Rect(0,HEIGHT,100,15));
-						writer.WriteBuffer(buff,10);
-						cam->UnlockBuffer();
-						cam->Stop();
-						cam->Start();
-
-						break;
-					}
+					if(left_edge[count][0]==x1&&left_edge[count][1]==y1) break;
+					if(flag)break;
 				}
 
 				//print variables
-
+				char buff[10];
+				sprintf(buff," %d,%d",System::Time()-timeStart,error);
+				lcd->SetRegion(Lcd::Rect(0,HEIGHT,100,15));
+				writer.WriteBuffer(buff,10);
 				cam->UnlockBuffer();
 				cam->Stop();
 				cam->Start();
