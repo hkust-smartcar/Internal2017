@@ -319,28 +319,7 @@ int main(void){
 								left_from=j-4;
 								left_count++;
 
-								//feature extraction: count going left or right
-								if(j!=0){
-									if(j<4){
-										if(--left_direction>0){
-											//contradiction
-											//call conclude feature
-											find_left=false;
-										}
-									}
-									else if(j>4){
-										if(++left_direction<0){
-											//contradiction
-											//call conclude feature
-											find_left=false;
-										}
-									}
-								}
-								else{
-									//go backward
-									//call conclude feature
-									find_left=false;
-								}
+								error = max(error,HEIGHT-1-y);
 
 								break;
 							}
@@ -369,28 +348,7 @@ int main(void){
 								right_from=j-4;
 								right_count++;
 
-								//feature extraction: count going left or right
-								if(j!=0){
-									if(j<4){
-										if(--right_direction>0){
-											//contradiction
-											//call conclude feature
-											find_right=false;
-										}
-									}
-									else if(j>4){
-										if(++right_direction<0){
-											//contradiction
-											//call conclude feature
-											find_right=false;
-										}
-									}
-								}
-								else{
-									//go backward
-									//call conclude feature
-									find_right=false;
-								}
+								error = max(error,HEIGHT-1-y1);
 
 								break;
 							}
@@ -411,72 +369,16 @@ int main(void){
 					//break condition: left edge right edge meet or fail to find new edge
 					if(left_edge[count][0]==right_edge[count][0]&&left_edge[count][1]==right_edge[count][1]) break;
 					if(!(find_left||find_right)){
-						char feature[10];
-						if(right_direction<0){
-							if(left_direction>=0){
-								strcpy(feature, "straight  ");
 
-								//second_feature=true;
-								//left_start=left_count;
-								//right_start=
-								//left_count=0
-
-								//continue;
-							}
-							else{
-								strcpy(feature, "left turn ");//feature="forward";
-							}
-						}
-						else{
-							if(left_direction>0){
-								strcpy(feature, "right turn");//feature="turn right";
-							}
-							else{
-								if(left_direction<0&&right_direction>0){
-									strcpy(feature, "+ or O    ");//feature="+ or O";
-								}
-								else{
-									strcpy(feature, "unknown   ");//feature="unknown";
-								}
-							}
-						}
-
-						char buff[15];
-						sprintf(buff," t:%d,e:%d",System::Time()-timeStart,error);
+						char buff[10];
+						sprintf(buff," %d,%d",System::Time()-timeStart,error);
 						lcd->SetRegion(Lcd::Rect(0,HEIGHT,100,15));
 						writer.WriteBuffer(buff,10);
-						lcd->SetRegion(Lcd::Rect(0,HEIGHT+15+15*second_feature,100,15));
-						writer.WriteBuffer(feature,10);
+						cam->UnlockBuffer();
+						cam->Stop();
+						cam->Start();
 
-						if(!second_feature){
-							if(left_count<=right_count){
-								for(int i=0;i<left_count;i++){
-									mid[i][0]=(left_edge[i][0]+right_edge[i*right_count/left_count][0])/2;
-									mid[i][1]=(left_edge[i][1]+right_edge[i*right_count/left_count][1])/2;
-
-									//paint it
-									lcd->SetRegion(Lcd::Rect(mid[i][0],HEIGHT-mid[i][1]-1,1,1));
-									lcd->FillColor(Lcd::kBlue);
-								}
-							}
-							else{
-								for(int i=0;i<right_count;i++){
-									mid[i][0]=(right_edge[i][0]+left_edge[i*left_count/right_count][0])/2;
-									mid[i][1]=(right_edge[i][1]+left_edge[i*left_count/right_count][1])/2;
-
-									//paint it
-									lcd->SetRegion(Lcd::Rect(mid[i][0],HEIGHT-mid[i][1]-1,1,1));
-									lcd->FillColor(Lcd::kBlue);
-								}
-							}
-							find_left=true;
-							find_right=true;
-							left_from=0;
-							right_from=0;
-							second_feature=true;
-						}
-						else
-							break;
+						break;
 					}
 				}
 
