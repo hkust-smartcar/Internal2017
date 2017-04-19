@@ -276,7 +276,12 @@ int main(void){
 
 				//loop for finding edge, maximum find 200 points for each edge
 				for (int count=0;count<200-1;count++){
-					if(left_edge[count][0]==right_edge[count][0]&&left_edge[count][1]==right_edge[count][1]) break;
+					if(left_edge[count][0]==right_edge[count][0]&&left_edge[count][1]==right_edge[count][1]) {
+						lcd->SetRegion(Lcd::Rect(left_edge[count][0],left_edge[count][1],5,5));
+						lcd->FillColor(Lcd::kYellow);
+						break;
+					}
+
 
 					bool flag=1;//to break
 
