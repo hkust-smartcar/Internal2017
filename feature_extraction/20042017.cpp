@@ -59,24 +59,34 @@ using namespace libsc;
 using namespace libbase::k60;
 
 
+
+int max(int a,int b){return (a>b?a:b);}
+int min(int a,int b){return (a<b?a:b);}
+
+
 //void analysis(const Byte* buff);
 bool get_bit(const Byte* buff, int x, int y){
 	if (x<0||x>=WIDTH||y<0||y>=HEIGHT) return true; //out of view is black
 	return buff[y*WIDTH/8+x/8] & 0x80>>x%8;
 }
-bool get_pkbit(const Byte* buff, int x, int y){
-	if (x<0||x>=WIDTH||y<0||y>=HEIGHT) return true; //out of view is black
-	y=HEIGHT-1-y;
-	return buff[y*WIDTH/8+x/8] & 0x80>>x%8;
-}
-/*bool median(const Byte* buff, int x, int y){
+bool median(const Byte* buff, int x, int y){
 
 	int count=0,total=0;
 
 	for(int i=max(0,x-1);i<min(WIDTH-1,x+1);i++){
-		for(int j=)
+		for(int j=max(0,y-1);j<min(HEIGHT-1,y+1);j++){
+			total++;
+			count+=get_bit(buff,i,j);
+		}
 	}
-}*/
+	return count>total/2;
+}
+
+bool get_pkbit(const Byte* buff, int x, int y){
+	if (x<0||x>=WIDTH||y<0||y>=HEIGHT) return true; //out of view is black
+	y=HEIGHT-1-y;
+	return median(buff,x,y);
+}
 
 /*
 class ImageManager{
@@ -102,10 +112,6 @@ public:
 //bool get_fixedbit(const Byte* buff, int, int);
 int16_t vanish_x=0,vanish_y=0;
 int yL=0,yR=0;
-
-
-int max(int a,int b){return (a>b?a:b);}
-int min(int a,int b){return (a<b?a:b);}
 
 k60::Ov7725* cam;
 St7735r* lcd;
@@ -138,7 +144,7 @@ int main(void){
 /*
 	//init MOTOR
 	AlternateMotor::Config motor_config;
-	motor_config.id=1;
+	motor_config.id=1;12003	qa
 	AlternateMotor motor1(motor_config);
 	motor = &motor1;
 	motor->SetPower(150);
@@ -315,18 +321,18 @@ int main(void){
 
 
 					//corner
-					if(x>3&&x<WIDTH-4&&y>3&&y<HEIGHT-4){
+					if(x>4&&x<WIDTH-5&&y>4&&y<HEIGHT-5){
 						int sum=0;
 						int ratio=1;
 						int total=0;
-						for(int r=y-3;r<y+4;r++){
-							for(int c=x-3;c<x+4;c++){
+						for(int r=y-4;r<y+5;r++){
+							for(int c=x-4;c<x+5;c++){
 								sum+=ratio*get_pkbit(byte,c,r);
 								total++;
 							}
-							ratio++;
+							ratio+=1;
 						}
-						if(sum>11&&sum<30){
+						if(sum>0&&sum<60){
 							lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,5,5));
 							lcd->FillColor(Lcd::kBlue);
 							while(!get_pkbit(byte,left_edge[count][0],++left_edge[count][1])){
@@ -381,13 +387,18 @@ int main(void){
 					lcd->FillColor(Lcd::kPurple);
 
 					//corner
-					if(x1>3&&x1<WIDTH-4&&y1>3&&y1<HEIGHT-4){
+					if(x1>4&&x1<WIDTH-5&&y1>4&&y1<HEIGHT-5){
 						int sum=0;
-						for(int r=y1-3;r<y1+4;r++)
-							for(int c=x1-3;c<x1+4;c++)
-								sum+=get_pkbit(byte,c,r);
-
-						if(sum>11&&sum<16){
+						int ratio=1;
+						int total=0;
+						for(int r=y1-4;r<y1+5;r++){
+							for(int c=x1-4;c<x1+5;c++){
+								sum+=ratio*get_pkbit(byte,c,r);
+								total++;
+							}
+							ratio++;
+						}
+						if(sum>11&&sum<60){
 							lcd->SetRegion(Lcd::Rect(x1,HEIGHT-y1-1,5,5));
 							lcd->FillColor(Lcd::kGreen);
 							while(!get_pkbit(byte,right_edge[count][0],++right_edge[count][1])){
