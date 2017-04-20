@@ -290,8 +290,8 @@ int main(void){
 
 					if(find_left){
 					//x y are the last point of edge
-					const int& x= left_edge[left_sum][0];
-					const int& y= left_edge[left_sum][1];
+					int& x= left_edge[left_sum][0];
+					int& y= left_edge[left_sum][1];
 
 					//if(y>HEIGHT*5/7||y<0||x<0||x>WIDTH-1)
 					//	find_left=false;
@@ -302,17 +302,25 @@ int main(void){
 
 
 					//corner
-					if(x>3&&x<WIDTH-4&&y>3&&y<HEIGHT-4){
+					//if(left_from[left_sum]%8>=4)
+					if(x>4&&x<WIDTH-5&&y>4&&y<HEIGHT-5){
 						int sum=0;
-						for(int r=y-3;r<y+4;r++)
-							for(int c=x-3;c<x+4;c++)
+						for(int r=y-4;r<y+5;r++)
+							for(int c=x-4;c<x+5;c++)
 								sum+=get_pkbit(byte,c,r);
-						if(sum>11&&sum<16){
+						if(sum>12&&sum<17){
 							lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,5,5));
 							lcd->FillColor(Lcd::kBlue);
-							while(!get_pkbit(byte,left_edge[left_sum][0],++left_edge[left_sum][1])){
-								lcd->SetRegion(Lcd::Rect(left_edge[left_sum][0],HEIGHT-left_edge[left_sum][1]-1,2,2));
-								lcd->FillColor(Lcd::kBlue);
+
+							while(!get_pkbit(byte,left_edge[left_sum][0],left_edge[left_sum][1]+1)){
+
+								left_edge[left_sum+1][0]=left_edge[left_sum][0];
+								left_edge[left_sum+1][1]=left_edge[left_sum][1]+1;
+
+								//lcd->SetRegion(Lcd::Rect(left_edge[left_sum][0],HEIGHT-left_edge[left_sum][1]-1,2,2));
+								//lcd->FillColor(Lcd::kBlue);
+
+								left_sum++;
 							}
 							left_from[left_sum]=2;
 						}
@@ -320,15 +328,17 @@ int main(void){
 
 					}
 
-
+					bool fail_find_flag=true;
 					//search in directions, from last direction clockwise to last direction
 					for (int i=left_from[left_sum]+1; i<left_from[left_sum]+9;i++){
 						const int j=i%8;
-						if(!get_pkbit(byte, x+dx[j],y+dy[j])){//if the point is white, it is a new point of edge
-							left_edge[left_sum+1][0]=x+dx[j];
-							left_edge[left_sum+1][1]=y+dy[j];
+						if(!get_pkbit(byte, left_edge[left_sum][0]+dx[j],left_edge[left_sum][1]+dy[j])){//if the point is white, it is a new point of edge
+							left_edge[left_sum+1][0]=left_edge[left_sum][0]+dx[j];
+							left_edge[left_sum+1][1]=left_edge[left_sum][1]+dy[j];
 							flag=0;
 							left_from[left_sum+1]=j-4;
+
+							fail_find_flag=false;
 
 							//if((left_from[count+1]-left_from[count])%8>4){
 							//	lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,3,3));
@@ -340,6 +350,19 @@ int main(void){
 							break;
 						}
 					}
+					/*if(fail_find_flag){
+						while(!get_pkbit(byte,left_edge[left_sum][0],left_edge[left_sum][1]+1)){
+
+							left_edge[left_sum+1][0]=left_edge[left_sum][0];
+							left_edge[left_sum+1][1]=left_edge[left_sum][1]+1;
+
+							//lcd->SetRegion(Lcd::Rect(left_edge[left_sum][0],HEIGHT-left_edge[left_sum][1]-1,2,2));
+							//lcd->FillColor(Lcd::kBlue);
+
+							left_sum++;
+						}
+						left_from[left_sum]=2;
+					}*/
 
 					if(found[x][y]){
 						find_left=false;
@@ -369,12 +392,17 @@ int main(void){
 							for(int c=x1-3;c<x1+4;c++)
 								sum+=get_pkbit(byte,c,r);
 
-						if(sum>11&&sum<16){
+						if(sum>11&&sum<15){
 							lcd->SetRegion(Lcd::Rect(x1,HEIGHT-y1-1,5,5));
 							lcd->FillColor(Lcd::kGreen);
-							while(!get_pkbit(byte,right_edge[right_sum][0],++right_edge[right_sum][1])){
-								lcd->SetRegion(Lcd::Rect(right_edge[right_sum][0],HEIGHT-right_edge[right_sum][1]-1,2,2));
-								lcd->FillColor(Lcd::kGreen);
+							while(!get_pkbit(byte,right_edge[right_sum][0],right_edge[right_sum][1]+1)){
+								right_edge[right_sum+1][0]=right_edge[right_sum][0];
+								right_edge[right_sum+1][1]=right_edge[right_sum][1]+1;
+
+								//lcd->SetRegion(Lcd::Rect(right_edge[right_sum][0],HEIGHT-right_edge[right_sum][1]-1,2,2));
+								//lcd->FillColor(Lcd::kGreen);
+
+								right_sum++;
 							}
 							right_from[right_sum]=6;
 						}
@@ -383,9 +411,9 @@ int main(void){
 					//search in directions, from last direction anti clockwise to last direction
 					for (int i=right_from[right_sum]+7; i>=right_from[count];i--){
 						const int j=i%8;
-						if(!get_pkbit(byte, x1+dx[j],y1+dy[j])){//if the point is white, it is a new point of edge
-							right_edge[right_sum+1][0]=x1+dx[j];
-							right_edge[right_sum+1][1]=y1+dy[j];
+						if(!get_pkbit(byte, right_edge[right_sum][0]+dx[j],right_edge[right_sum][1]+dy[j])){//if the point is white, it is a new point of edge
+							right_edge[right_sum+1][0]=right_edge[right_sum][0]+dx[j];
+							right_edge[right_sum+1][1]=right_edge[right_sum][1]+dy[j];
 							flag=0;
 							right_from[right_sum+1]=j-4;
 
@@ -433,9 +461,9 @@ int main(void){
 					lcd->FillColor(Lcd::kRed);
 				}
 				for(int i=0;i<right_sum;i++){
-					lcd->SetRegion(Lcd::Rect(right_edge[i][0],HEIGHT-1-right_edge[i][1],2,2));
-					lcd->FillColor(Lcd::kPurple);
-				}
+									lcd->SetRegion(Lcd::Rect(right_edge[i][0],HEIGHT-1-right_edge[i][1],2,2));
+									lcd->FillColor(Lcd::kPurple);
+								}
 
 				for(int i=0;i<WIDTH;i++){
 					for(int j=0; j<HEIGHT;j++){
