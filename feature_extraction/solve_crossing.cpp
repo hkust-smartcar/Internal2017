@@ -254,9 +254,6 @@ int main(void){
 				lcd->FillBits(0x0000,0xFFFF,byte,cam->GetBufferSize()*8);
 
 
-
-
-
 				int timeStart = System::Time();
 
 				//int left_edge[200][2], right_edge[200][2], mid[200][2];
@@ -282,28 +279,26 @@ int main(void){
 				bool find_left=true;
 				bool find_right=true;
 
+				int left_sum=0;
+				int right_sum=0;
+
 				//loop for finding edge, maximum find 200 points for each edge
 				for (int count=0;count<200-1;count++){
-					if(left_edge[count][0]==right_edge[count][0]&&left_edge[count][1]==right_edge[count][1]) {
-						lcd->SetRegion(Lcd::Rect(left_edge[count][0],left_edge[count][1],5,5));
-						lcd->FillColor(Lcd::kYellow);
-						break;
-					}
 
 
 					bool flag=1;//to break
 
 					if(find_left){
 					//x y are the last point of edge
-					const int& x= left_edge[count][0];
-					const int& y= left_edge[count][1];
+					const int& x= left_edge[left_sum][0];
+					const int& y= left_edge[left_sum][1];
 
 					//if(y>HEIGHT*5/7||y<0||x<0||x>WIDTH-1)
 					//	find_left=false;
 
 					//paint it
-					lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,2,2));
-					lcd->FillColor(Lcd::kRed);
+					//lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,2,2));
+					//lcd->FillColor(Lcd::kRed);
 
 
 					//corner
@@ -315,11 +310,11 @@ int main(void){
 						if(sum>11&&sum<16){
 							lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,5,5));
 							lcd->FillColor(Lcd::kBlue);
-							while(!get_pkbit(byte,left_edge[count][0],++left_edge[count][1])){
-								lcd->SetRegion(Lcd::Rect(left_edge[count][0],HEIGHT-left_edge[count][1]-1,2,2));
+							while(!get_pkbit(byte,left_edge[left_sum][0],++left_edge[left_sum][1])){
+								lcd->SetRegion(Lcd::Rect(left_edge[left_sum][0],HEIGHT-left_edge[left_sum][1]-1,2,2));
 								lcd->FillColor(Lcd::kBlue);
 							}
-							left_from[count]=2;
+							left_from[left_sum]=2;
 						}
 
 
@@ -327,13 +322,13 @@ int main(void){
 
 
 					//search in directions, from last direction clockwise to last direction
-					for (int i=left_from[count]+1; i<left_from[count]+9;i++){
+					for (int i=left_from[left_sum]+1; i<left_from[left_sum]+9;i++){
 						const int j=i%8;
 						if(!get_pkbit(byte, x+dx[j],y+dy[j])){//if the point is white, it is a new point of edge
-							left_edge[count+1][0]=x+dx[j];
-							left_edge[count+1][1]=y+dy[j];
+							left_edge[left_sum+1][0]=x+dx[j];
+							left_edge[left_sum+1][1]=y+dy[j];
 							flag=0;
-							left_from[count+1]=j-4;
+							left_from[left_sum+1]=j-4;
 
 							//if((left_from[count+1]-left_from[count])%8>4){
 							//	lcd->SetRegion(Lcd::Rect(x,HEIGHT-y-1,3,3));
@@ -348,23 +343,24 @@ int main(void){
 
 					if(found[x][y]){
 						find_left=false;
-						lcd->SetRegion(Lcd::Rect(left_edge[count][0],HEIGHT-1-left_edge[count][1],5,5));
+						lcd->SetRegion(Lcd::Rect(left_edge[left_sum][0],HEIGHT-1-left_edge[left_sum][1],5,5));
 						lcd->FillColor(Lcd::kYellow);
 					}
 					found[x][y]=true;
+					left_sum++;
 					}
 
 					if(find_right){
 					//x1 y1 are the last point of edge
-					int& x1=right_edge[count][0];
-					int& y1=right_edge[count][1];
+					int& x1=right_edge[right_sum][0];
+					int& y1=right_edge[right_sum][1];
 
 					//if(y1>HEIGHT*5/7||y1<0||x1<0||x1>WIDTH-1)
 						//					find_right=false;
 
 					//paint it
-					lcd->SetRegion(Lcd::Rect(x1,HEIGHT-y1-1,2,2));
-					lcd->FillColor(Lcd::kPurple);
+					//lcd->SetRegion(Lcd::Rect(x1,HEIGHT-y1-1,2,2));
+					//lcd->FillColor(Lcd::kPurple);
 
 					//corner
 					if(x1>3&&x1<WIDTH-4&&y1>3&&y1<HEIGHT-4){
@@ -376,22 +372,22 @@ int main(void){
 						if(sum>11&&sum<16){
 							lcd->SetRegion(Lcd::Rect(x1,HEIGHT-y1-1,5,5));
 							lcd->FillColor(Lcd::kGreen);
-							while(!get_pkbit(byte,right_edge[count][0],++right_edge[count][1])){
-								lcd->SetRegion(Lcd::Rect(right_edge[count][0],HEIGHT-right_edge[count][1]-1,2,2));
+							while(!get_pkbit(byte,right_edge[right_sum][0],++right_edge[right_sum][1])){
+								lcd->SetRegion(Lcd::Rect(right_edge[right_sum][0],HEIGHT-right_edge[right_sum][1]-1,2,2));
 								lcd->FillColor(Lcd::kGreen);
 							}
-							right_from[count]=6;
+							right_from[right_sum]=6;
 						}
 					}
 
 					//search in directions, from last direction anti clockwise to last direction
-					for (int i=right_from[count]+7; i>=right_from[count];i--){
+					for (int i=right_from[right_sum]+7; i>=right_from[count];i--){
 						const int j=i%8;
 						if(!get_pkbit(byte, x1+dx[j],y1+dy[j])){//if the point is white, it is a new point of edge
-							right_edge[count+1][0]=x1+dx[j];
-							right_edge[count+1][1]=y1+dy[j];
+							right_edge[right_sum+1][0]=x1+dx[j];
+							right_edge[right_sum+1][1]=y1+dy[j];
 							flag=0;
-							right_from[count+1]=j-4;
+							right_from[right_sum+1]=j-4;
 
 							if(j==0) find_right=false;
 
@@ -400,9 +396,10 @@ int main(void){
 					}
 					if(found[x1][y1]){
 						find_right=false;
-						lcd->SetRegion(Lcd::Rect(right_edge[count][0],HEIGHT-1-right_edge[count][1],5,5));
+						lcd->SetRegion(Lcd::Rect(right_edge[right_sum][0],HEIGHT-1-right_edge[right_sum][1],5,5));
 						lcd->FillColor(Lcd::kWhite);}
 					found[x1][y1]=true;
+					right_sum++;
 					}
 
 					//find the mid point
@@ -417,7 +414,7 @@ int main(void){
 
 
 					//break condition: left edge right edge meet or fail to find new edge
-					if(left_edge[count+1][0]==right_edge[count+1][0]&&left_edge[count+1][1]==right_edge[count+1][1]) break;
+					//if(left_edge[count+1][0]==right_edge[count+1][0]&&left_edge[count+1][1]==right_edge[count+1][1]) break;
 					if(flag)break;
 					if(!(find_left||find_right))break;
 				}
@@ -430,6 +427,15 @@ int main(void){
 				cam->UnlockBuffer();
 				cam->Stop();
 				cam->Start();
+
+				for(int i=0;i<left_sum;i++){
+					lcd->SetRegion(Lcd::Rect(left_edge[i][0],HEIGHT-1-left_edge[i][1],2,2));
+					lcd->FillColor(Lcd::kRed);
+				}
+				for(int i=0;i<right_sum;i++){
+					lcd->SetRegion(Lcd::Rect(right_edge[i][0],HEIGHT-1-right_edge[i][1],2,2));
+					lcd->FillColor(Lcd::kPurple);
+				}
 
 				for(int i=0;i<WIDTH;i++){
 					for(int j=0; j<HEIGHT;j++){
