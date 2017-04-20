@@ -70,12 +70,12 @@ void buttonSetUp() {
 
 void mode() {
   
-  if (millis() > 2000) {
+  if (millis() > 1000) {
   
     background(#D3D3D3);
-    overviewMode = ++overviewMode % 3;
+    viewMode = ++viewMode % 3;
   
-    if (overviewMode == 0) {
+    if (viewMode == 0) {
   
       graphWidth = 400;
       graphHeight = 250;
@@ -83,13 +83,20 @@ void mode() {
       graphOneY = 320;
       graphTwoX = 600;
       graphTwoY = 320;
-      plotGraph();
   
       fill(#898989);
       noStroke();
       rect(imageX, imageY, camWidth*pixelSide, camHeight*pixelSide);
       rect(boundaryX, boundaryY, camWidth*pixelSide, camHeight*pixelSide);
       rect(regionX, regionY, camWidth*pixelSide, camHeight*pixelSide);
+      fill(#404040);
+      stroke(0);
+      rect(graphOneX, graphOneY, graphWidth, graphHeight);
+      rect(graphTwoX, graphTwoY, graphWidth, graphHeight);
+      stroke(255);
+      strokeWeight(0);
+      line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
+      line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
   
       cp5.get(Button.class, btName[4]).show();
       cp5.get(Button.class, btName[1]).hide();
@@ -101,11 +108,18 @@ void mode() {
       
       selectedIndex = -1;
       
-    } else if (overviewMode == 1) {
+    } else if (viewMode == 1) {
       
       graphOneY = 50;
       graphTwoY = 50;
-      plotGraph();
+      fill(#404040);
+      stroke(0);
+      rect(graphOneX, graphOneY, graphWidth, graphHeight);
+      rect(graphTwoX, graphTwoY, graphWidth, graphHeight);
+      stroke(255);
+      strokeWeight(0);
+      line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
+      line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
   
       readConstant();
       displayConstant();
@@ -113,7 +127,7 @@ void mode() {
   
       cp5.get(Button.class, btName[6]).show();
       cp5.get(Button.class, btName[4]).hide();
-    } else if (overviewMode == 2) {
+    } else if (viewMode == 2) {
       
       readImage();
       list = new String[imageName.size()];
@@ -150,7 +164,7 @@ void saveImage() {
 }
 
 void tune() {
-  if (millis() > 1000 && overviewMode == 1) {
+  if (millis() > 1000 && viewMode == 1) {
     editConstant();
     displayConstant();
     String sendStr = "";

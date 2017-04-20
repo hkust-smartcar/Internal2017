@@ -4,7 +4,7 @@ import controlP5.*;
 import g4p_controls.*;
 
 //Frame rate
-int frate = 200; // Increase frame rate for real time graph plotting, depending on the rate of data
+int frate = 120; // Increase frame rate for real time graph plotting, depending on the rate of data
 //BT port
 Boolean btEnable = true;
 int portNum = 2;  //Choose the correct port here
@@ -12,15 +12,14 @@ int baudRate = 115200; //Baud rate of the bluetooth
 //Change constant
 int consSize = 16;  //Number of constant to change
 //Plot graph
-int valSize = 2;  //Number of variable to plot
-int range = 500;  //Upper limit of the graph
-color[] colorArray = {#031DFF, #03FF04, #FF0303};  //Add color here for more variable
+int range1 = 5000, range2 = 90;  //Upper limit of the graph
+color[] colorArray = {#031DFF, #03FF04, #FF0303, #031DFF, #03FF04, #FF0303};  //Add color here for more variable
 
 //Camera algorithm
 void trytry() {
 
   if (selectedIndex >= 0) {
-    
+
     background(#D3D3D3);
 
     Boolean imageTemp[][] = imageData.get(selectedIndex);
@@ -37,7 +36,7 @@ void trytry() {
         rect(zeroX + pixelSide*x, zeroY + pixelSide*y, pixelSide, pixelSide);
       }
     }
-    
+
     float xInc = 0.03, yInc = 0.01;
     pixelSide = 2;
     for (int y=0; y<camHeight; y++) {
@@ -51,18 +50,19 @@ void trytry() {
       }
     }
     pixelSide = 4;
-    
+
     if (mouseX>zeroX && mouseX<zeroX+pixelSide*camWidth
-        && mouseY>zeroY && mouseY<zeroY+pixelSide*camHeight) {
+      && mouseY>zeroY && mouseY<zeroY+pixelSide*camHeight) {
       int x = 0, y = 0;
       x = (mouseX-zeroX)/pixelSide;
       y = (mouseY-zeroY)/pixelSide;
       fill(100);
       rect(zeroX + pixelSide*x, zeroY + pixelSide*y, pixelSide, pixelSide);
-      
+
       int centreX = 920, centreY = 300;
       int sum = 0;
-      
+
+      strokeWeight(3);
       sum = getSum(imageTemp, x, y, -1, 0);
       stroke(#F20000);
       line(centreX, centreY, centreX-sum, centreY);
@@ -75,7 +75,7 @@ void trytry() {
       sum = getSum(imageTemp, x, y, 0, 1);
       stroke(#038901);
       line(centreX, centreY, centreX, centreY+sum);
-      
+
       stroke(100);
       sum = getSum(imageTemp, x, y, -1, -1);
       line(centreX, centreY, centreX-sum*cos(45), centreY-sum*cos(45));
@@ -85,10 +85,7 @@ void trytry() {
       line(centreX, centreY, centreX+sum*cos(45), centreY-sum*cos(45));
       sum = getSum(imageTemp, x, y, 1, 1);
       line(centreX, centreY, centreX+sum*cos(45), centreY+sum*cos(45));
-      
     }
-    
-    
   }
 }
 
@@ -151,7 +148,7 @@ ControlP5 cp5;
 Serial myPort;
 
 int startTime = 0, currentTime = 0;
-int overviewMode = 0;
+int viewMode = 0;
 String inputString = "";
 
 BufferedReader reader;
@@ -166,7 +163,7 @@ int getSum(Boolean[][] imageTemp, int x, int y, int xInc, int yInc) {
   int xTemp = x+xInc;
   int yTemp = y+yInc;
   while (xTemp>=0 && xTemp<camWidth
-        && yTemp>=0 && yTemp<camHeight) {
+    && yTemp>=0 && yTemp<camHeight) {
     if (imageTemp[yTemp][xTemp]) {
       sum += (float)50/getDistance(x, y, xTemp, yTemp);
       //sum+=2;
@@ -189,33 +186,27 @@ void displayText(String text, int x, int y, int w, int size) {
 
 void keyPressed() {
 
-  if (overviewMode == 0) {
-    if (key == 'w') {
-      myPort.write('w');
-    } else if (key == 's') {
-      myPort.write('s');
-    } else if (key == 'i') {
-      myPort.write('i');
-    } else if (key == 'a') {
-      myPort.write('a');
-    } else if (key == 'd') {
-      myPort.write('d');
-    }
+  if (key == UP) {
+    myPort.write('w');
+  } else if (key == DOWN) {
+    myPort.write('s');
+  } else if (key == LEFT) {
+    myPort.write('a');
+  } else if (key == RIGHT) {
+    myPort.write('d');
   }
 }
 
 void keyReleased() {
 
-  if (overviewMode == 0) {
-    if (key == 'w') {
-      myPort.write('W');
-    } else if (key == 's') {
-      myPort.write('S');
-    } else if (key == 'a') {
-      myPort.write('A');
-    } else if (key == 'd') {
-      myPort.write('D');
-    }
+  if (key == UP) {
+    myPort.write('W');
+  } else if (key == DOWN) {
+    myPort.write('S');
+  } else if (key == LEFT) {
+    myPort.write('A');
+  } else if (key == RIGHT) {
+    myPort.write('D');
   }
 }
 
@@ -240,6 +231,7 @@ void setup() {
 
   buttonSetUp();
   tfSetUp();
+  readConstant();
   listSetUp();
 
   for (int y=0; y<camHeight; y++) {
@@ -253,36 +245,28 @@ void setup() {
   rect(imageX, imageY, camWidth*pixelSide, camHeight*pixelSide);
   rect(boundaryX, boundaryY, camWidth*pixelSide, camHeight*pixelSide);
   rect(regionX, regionY, camWidth*pixelSide, camHeight*pixelSide);
-
-  value = new double[valSize][graphLength];
-  newValue = new double[valSize];
-  graphColor = new color[valSize];
-
-  for (int i = 0; i < valSize; i++) {
-    newValue[i] = 0;
-    for (int j = 0; j < graphLength; j++) {
-      value[i][j] = 0;
-    }
-  }
-  for (int i = 0; i < valSize; i++) {
-    graphColor[i] = colorArray[i];
-  }
-  readConstant();
-  plotGraph();
+  fill(#404040);
+  stroke(0);
+  rect(graphOneX, graphOneY, graphWidth, graphHeight);
+  rect(graphTwoX, graphTwoY, graphWidth, graphHeight);
+  stroke(255);
+  strokeWeight(0);
+  line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
+  line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
 }
 
 void draw() {
 
-  if (overviewMode == 2) {
+  if (viewMode == 2) {
     trytry();
   }
-  
+
   if (btEnable && myPort.available() > 0) {
 
     int inputInt = myPort.read();
 
     //encoder
-    if (inputInt == 85 && overviewMode <= 1) {
+    if (inputInt == 85 && viewMode <= 1) {
 
       while (true) {
         print(',');
@@ -293,7 +277,7 @@ void draw() {
       }
       if (inputString != null) {
         inputString = inputString.trim();
-        displayText(inputString, 600, 620, 500, 32);
+        displayText(inputString, 150, 620, 600, 32);
         stringToDouble(inputString);
       }
       getData();
@@ -315,7 +299,7 @@ void draw() {
           i++;
         }
       }
-      if (overviewMode == 0) {
+      if (viewMode == 0) {
         outputImage();
         getBoundary();
         outputBoundary();
@@ -340,8 +324,6 @@ void draw() {
         println(inputString);
       }
       delay(1);
-
     }
   }
-  
 }

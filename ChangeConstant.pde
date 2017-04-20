@@ -9,11 +9,17 @@ void tfSetUp() {
   for (int i=0; i<textFieldSize; i++) {
     tfName[i] = "Constant" + Integer.toString(i+1);
   }
-  tfName[0] = "Angle";
-  tfName[1] = "PowAngP";
-  tfName[2] = "PowAngI";
-  tfName[3] = "PowAngD";
-  tfName[4] = "NormalDiff";
+  tfName[0] = "angle";
+  tfName[1] = "powAngP";
+  tfName[2] = "powAngI";
+  tfName[3] = "powAngD";
+  tfName[4] = "normalDiff";
+  tfName[5] = "targetSpeed";
+  tfName[6] = "speedAngFactor";
+  tfName[7] = "preSpeedProp";
+  tfName[8] = "errorRange";
+  
+  
 
   for (int i=0; i<textFieldSize; i++) {
     cp5.addTextfield(tfName[i])
