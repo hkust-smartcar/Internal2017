@@ -69,14 +69,14 @@ string var_string;
 int data_string_len;
 Byte in_turn=0;
 string s = "";
-int k = 0, flag = 0, in_round;
+int k = 0, flag = 0, in_round, servoDegree = 0;
 size_t len = 0;
 ssize_t read;
 Uint camSize;
 char c[20];
 bool image[100][100], first_time = 1, maybe_black_img_in_track=0, find_sideL = 0;
 
-double data[9] = {227, 0, 227, 10000, 4500, -4500, 45000, 0, 10000};
+double data[9] = {227, 0, 227, 0, 4500, -4500, 45000, 0, 10000};
 
 double toDouble(char* s){
 
@@ -110,6 +110,7 @@ void setMotorDir(int dir){ //forward when dir = 0
 }
 void setServoDegree(double deg){ // 0: middle, >0: right, <0: left
 	servo->SetDegree((int)(deg*-10+900));
+	servoDegree = deg;
 }
 void adjustSpeed(int speed){
 	motorPower+=speed;
@@ -353,9 +354,9 @@ void tft(const Byte* camPtr, Uint size){
 	}
 }
 void send_data_to_bt(int32_t Lencoder, int32_t Rencoder){
-	Byte test[13] = {Kp*100, Ki/intervalMs*100, Kd*intervalMs*100, motorPower/2, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, Lencoder, Rencoder, in_turn, inAuto};
+	Byte test[15] = {Kp*100, Ki/intervalMs*100, Kd*intervalMs*100, motorPower/2, max_servoDeg, min_servoDeg, max_speed, min_speed, intervalMs, Lencoder, Rencoder, in_turn, inAuto, servoDegree, 0};
 	bluetooth->SendBuffer(temp2,1);
-	bluetooth->SendBuffer(test, 13);
+	bluetooth->SendBuffer(test, 15);
 	bluetooth->SendBuffer(center, 60);
 }
 void send_sys_time_to_BT(Byte time){
@@ -417,10 +418,6 @@ int main(void)
 	DirEncoder LdirEncoder(Ldir_encoder_config);
 	DirEncoder RdirEncoder(Rdir_encoder_config);
 
-	Flash::Config flash_config;
-	Flash m_flash(flash_config);
-	flash = &m_flash;
-
 	pidInit();
 	//m_flash.Read(data, 9);
 
@@ -450,7 +447,7 @@ int main(void)
 
 				cam.UnlockBuffer();
 			}
-			send_sys_time_to_BT(System::Time()-t);
+			//send_sys_time_to_BT(System::Time()-t);
 		}
 	}
 
