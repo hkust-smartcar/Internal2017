@@ -33,6 +33,8 @@ int total_var = 0;
 boolean updateMenu, in_pid_graph = false;
 long now;
 int []center = new int[100];
+int []sideL = new int[100];
+int []sideR = new int[100];
 float []error = new float[400]; 
 float []last_error = new float[400];
 
@@ -40,7 +42,7 @@ PrintWriter output;
 
 void setup() {
   
-  frameRate(250);
+  frameRate(550);
   printArray(Serial.list());
   myPort = new Serial(this, Serial.list()[1], 115200);
   myPort.buffer(1);
@@ -176,11 +178,16 @@ void outputImage() {
       if (pixelArray[y][x]) {
         fill(black);
       } else {
-        if(x == center[y] && center[y]!=100) fill(red);
-        else fill(255);
+        if(x == center[y] && center[y]!=100) {
+          fill(red);
+        } else fill(255);
       }
       noStroke();
       rect(pixelSide*x, pixelSide*y, pixelSide, pixelSide);
+    }
+    if(y%5==0) {
+      fill(color(#dddd00));
+      text(y, 0, y*5);
     }
   }
   
@@ -244,17 +251,18 @@ void draw() {
   translate(300, 330);
   noStroke();
   fill(220);
-  rect(-5, -9, 400, 60);
+  rect(-5, -9, 450, 60);
   fill(0);
   text("key pressed: "+keyPress, 0, 0); 
   text("received: "+Character.toString(data_received), 0, 15);
-  text("center_line_x: "+center[50], 0, 30);
+  text("center_line_x: "+(center[45]+center[46]+center[47]+center[48]+center[49]+center[50])/6, 0, 30);
   pushMatrix();
   translate(60, 0);
   text("Lencoder_count: "+String.valueOf(data_from_car[9]), 80, 0);
   text("Rencoder_count: "+String.valueOf(data_from_car[10]), 80, 15);
   text("algo_execute_time: "+String.valueOf(sys_time_dif)+"ms", 80, 30);
-  text("in_turn: "+String.valueOf(data_from_car[11]), 230, 0);
+  text("in_turn: "+String.valueOf(data_from_car[11]), 250, 0);
+  text("servo_deg: "+String.valueOf(data_from_car[13]), 250, 15);
   popMatrix();
   popMatrix();
 
@@ -304,18 +312,18 @@ void draw() {
         break;
       case 171:
         cnt = 0;
-        while(cnt<13){
+        while(cnt<15){
           if(myPort.available()>0) {
             data_from_car[cnt] = myPort.read();
             switch(cnt){
               case 0:
-                data_from_car[cnt]/=100; // since Byte can only pass integers, we multiply 100 for sending data and divide 100 once received
+                data_from_car[cnt]/=50; // since Byte can only pass integers, we multiply 100 for sending data and divide 100 once received
                 break;
               case 1:
-                data_from_car[cnt]/=100;
+                data_from_car[cnt]/=50;
                 break;
               case 2:
-                data_from_car[cnt]/=100;
+                data_from_car[cnt]/=50;
                 break;
               case 3:
                 data_from_car[cnt]*=2;
@@ -325,6 +333,10 @@ void draw() {
                 break;
               case 6:
                 data_from_car[cnt]+=256; // because max speed > 256(the limit of Byte) 
+                break;
+              case 13:
+                data_from_car[cnt]-=90;
+                break;
             }
             cnt++;
             now = System.currentTimeMillis();
@@ -345,7 +357,19 @@ void draw() {
             break;
           }
         }
-        
+        /*
+        cnt=0;
+        while(cnt<60){
+          if(myPort.available()>0){
+            sideL[cnt] = myPort.read();
+            cnt++;
+            now = System.currentTimeMillis();
+          }
+          if(System.currentTimeMillis()-now>2000){
+            break;
+          }
+        }
+        */
         // draw mode on the top
         fill(220);
           rect(400, 0, 300, 12);
@@ -363,14 +387,14 @@ void draw() {
             //println("************************");
          }
          break;
-         case 168:
-           if(myPort.available()>0){
-              if(sys_time_dif==0) sys_time_dif = myPort.read();
-              else myPort.read();
+       case 168:
+         if(myPort.available()>0){
+            if(sys_time_dif==0) sys_time_dif = myPort.read();
+            else myPort.read();
               //println(sys_time_dif);
               //println("************************");
-           }
-           break;
+         }
+         break;
       }
     }
 }
