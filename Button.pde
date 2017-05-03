@@ -1,15 +1,6 @@
 String[] btName;
 int btSize = 8;
 
-int buttonDiameter = 50;
-int leftX = 100, leftY = 600;
-int middleX = 200, middleY = 600;
-int rightX = 300, rightY = 600;
-int modeButtonX = 1100, modeButtonY = 30;
-boolean leftOver = false, middleOver = false, rightOver = false;
-boolean modeButtonOver = false;
-boolean tuneButtonOver = false;
-
 void buttonSetUp() {
 
   btName[0] = "mode";
@@ -111,7 +102,8 @@ void mode() {
     } else if (viewMode == 1) {
       
       graphOneY = 50;
-      graphTwoY = 50;
+      graphTwoX = 100;
+      graphTwoY = 350;
       fill(#404040);
       stroke(0);
       rect(graphOneX, graphOneY, graphWidth, graphHeight);
@@ -120,10 +112,8 @@ void mode() {
       strokeWeight(0);
       line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
       line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
-  
-      readConstant();
-      displayConstant();
-      tfShow();
+      
+      textArea.setVisible(true);
   
       cp5.get(Button.class, btName[6]).show();
       cp5.get(Button.class, btName[4]).hide();
@@ -144,7 +134,7 @@ void mode() {
       cp5.get(Textfield.class, "newName").show();
       cp5.get(ScrollableList.class, "ImageList").show();
       cp5.get(Button.class, btName[6]).hide();
-      tfHide();
+      textArea.setVisible(false);
       
     }
   
@@ -166,14 +156,16 @@ void saveImage() {
 void tune() {
   if (millis() > 1000 && viewMode == 1) {
     editConstant();
-    displayConstant();
     String sendStr = "";
-    sendStr += constantArr[0];
-    for (int i=1; i<consSize; i++) {
+    sendStr += constantList.get(0);
+    for (int i=1; i<constantList.size(); i++) {
       sendStr += ",";
-      sendStr += constantArr[i];
+      sendStr += constantList.get(i);
     }
-    myPort.write('t' + sendStr + '\n');
+    println('t' + sendStr + '\n');
+    if (btEnable) {
+      myPort.write('t' + sendStr + '\n');
+    }
   }
 }
 

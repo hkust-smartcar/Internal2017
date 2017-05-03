@@ -4,90 +4,14 @@ import controlP5.*;
 import g4p_controls.*;
 
 //Frame rate
-int frate = 120; // Increase frame rate for real time graph plotting, depending on the rate of data
+int frate = 60; // Increase frame rate for real time graph plotting, depending on the rate of data
 //BT port
 Boolean btEnable = true;
 int portNum = 2;  //Choose the correct port here
 int baudRate = 115200; //Baud rate of the bluetooth
-//Change constant
-int consSize = 16;  //Number of constant to change
 //Plot graph
-int range1 = 5000, range2 = 90;  //Upper limit of the graph
+int range1 = 20000, range2 = 90;  //Upper limit of the graph
 color[] colorArray = {#031DFF, #03FF04, #FF0303, #031DFF, #03FF04, #FF0303};  //Add color here for more variable
-
-//Camera algorithm
-void trytry() {
-
-  if (selectedIndex >= 0) {
-
-    background(#D3D3D3);
-
-    Boolean imageTemp[][] = imageData.get(selectedIndex);
-    int zeroX = 280, zeroY = 200;
-
-    noStroke();
-    for (int y=0; y<camHeight; y++) {
-      for (int x=0; x<camWidth; x++) {
-        if (imageTemp[y][x]) {
-          fill(0);
-        } else {
-          fill(255);
-        }
-        rect(zeroX + pixelSide*x, zeroY + pixelSide*y, pixelSide, pixelSide);
-      }
-    }
-
-    float xInc = 0.03, yInc = 0.01;
-    pixelSide = 2;
-    for (int y=0; y<camHeight; y++) {
-      for (int x=0; x<camWidth; x++) {
-        if (imageTemp[y][x]) {
-          fill(0);
-        } else {
-          fill(255);
-        }
-        rect(900 + pixelSide*(x-camWidth/2)*(1+((camHeight-y)-1)*xInc), 600 - pixelSide*(camHeight-y)*(1+((camHeight-y)-1)*yInc), pixelSide, pixelSide);
-      }
-    }
-    pixelSide = 4;
-
-    if (mouseX>zeroX && mouseX<zeroX+pixelSide*camWidth
-      && mouseY>zeroY && mouseY<zeroY+pixelSide*camHeight) {
-      int x = 0, y = 0;
-      x = (mouseX-zeroX)/pixelSide;
-      y = (mouseY-zeroY)/pixelSide;
-      fill(100);
-      rect(zeroX + pixelSide*x, zeroY + pixelSide*y, pixelSide, pixelSide);
-
-      int centreX = 920, centreY = 300;
-      int sum = 0;
-
-      strokeWeight(3);
-      sum = getSum(imageTemp, x, y, -1, 0);
-      stroke(#F20000);
-      line(centreX, centreY, centreX-sum, centreY);
-      sum = getSum(imageTemp, x, y, 1, 0);
-      stroke(#E800ED);
-      line(centreX, centreY, centreX+sum, centreY);
-      sum = getSum(imageTemp, x, y, 0, -1);
-      stroke(#3403FF);
-      line(centreX, centreY, centreX, centreY-sum);
-      sum = getSum(imageTemp, x, y, 0, 1);
-      stroke(#038901);
-      line(centreX, centreY, centreX, centreY+sum);
-
-      stroke(100);
-      sum = getSum(imageTemp, x, y, -1, -1);
-      line(centreX, centreY, centreX-sum*cos(45), centreY-sum*cos(45));
-      sum = getSum(imageTemp, x, y, -1, 1);
-      line(centreX, centreY, centreX-sum*cos(45), centreY+sum*cos(45));
-      sum = getSum(imageTemp, x, y, 1, -1);
-      line(centreX, centreY, centreX+sum*cos(45), centreY-sum*cos(45));
-      sum = getSum(imageTemp, x, y, 1, 1);
-      line(centreX, centreY, centreX+sum*cos(45), centreY+sum*cos(45));
-    }
-  }
-}
 
 /*
 //Example of receiving constants in smartcar.
@@ -135,14 +59,74 @@ void trytry() {
  */
 
 /*
-//Example of sending 2 variables from smartcar.
+//Example of sending 4 variables from smartcar.
  char speedChar[15] = {};
- sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, leftSpeed, rightSpeed); //first one must be positive, seperated by commas, end by '\n'
+ sprintf(speedChar, "%.1f,%.2f,%.2f=%.2f,%.2f\n", 1.0, curSpeed, targetSpeed, curAng, targetAng); //first one must be 1.0, seperated by '=' for two graphs, seperated by ',' for values, end by '\n'
  string speedStr = speedChar;
  const Byte speedByte = 85;
  bluetooth1.SendBuffer(&speedByte, 1);
  bluetooth1.SendStr(speedStr);
  */
+
+//Camera algorithm
+void trytry() {
+
+  if (selectedIndex >= 0) {
+
+    background(#D3D3D3);
+
+    Boolean imageTemp[][] = imageData.get(selectedIndex);
+    int zeroX = 280, zeroY = 200;
+
+    noStroke();
+    for (int y=0; y<camHeight; y++) {
+      for (int x=0; x<camWidth; x++) {
+        if (imageTemp[y][x]) {
+          fill(0);
+        } else {
+          fill(255);
+        }
+        rect(zeroX + pixelSide*x, zeroY + pixelSide*y, pixelSide, pixelSide);
+      }
+    }
+
+    if (mouseX>zeroX && mouseX<zeroX+pixelSide*camWidth
+      && mouseY>zeroY && mouseY<zeroY+pixelSide*camHeight) {
+      int x = 0, y = 0;
+      x = (mouseX-zeroX)/pixelSide;
+      y = (mouseY-zeroY)/pixelSide;
+      fill(100);
+      rect(zeroX + pixelSide*x, zeroY + pixelSide*y, pixelSide, pixelSide);
+
+      int centreX = 920, centreY = 300;
+      int sum = 0;
+
+      strokeWeight(3);
+      sum = getSum(imageTemp, x, y, -1, 0);
+      stroke(#F20000);
+      line(centreX, centreY, centreX-sum, centreY);
+      sum = getSum(imageTemp, x, y, 1, 0);
+      stroke(#E800ED);
+      line(centreX, centreY, centreX+sum, centreY);
+      sum = getSum(imageTemp, x, y, 0, -1);
+      stroke(#3403FF);
+      line(centreX, centreY, centreX, centreY-sum);
+      sum = getSum(imageTemp, x, y, 0, 1);
+      stroke(#038901);
+      line(centreX, centreY, centreX, centreY+sum);
+
+      stroke(100);
+      sum = getSum(imageTemp, x, y, -1, -1);
+      line(centreX, centreY, centreX-sum*cos(45), centreY-sum*cos(45));
+      sum = getSum(imageTemp, x, y, -1, 1);
+      line(centreX, centreY, centreX-sum*cos(45), centreY+sum*cos(45));
+      sum = getSum(imageTemp, x, y, 1, -1);
+      line(centreX, centreY, centreX+sum*cos(45), centreY-sum*cos(45));
+      sum = getSum(imageTemp, x, y, 1, 1);
+      line(centreX, centreY, centreX+sum*cos(45), centreY+sum*cos(45));
+    }
+  }
+}
 
 ControlP5 cp5;
 Serial myPort;
@@ -150,6 +134,7 @@ Serial myPort;
 int startTime = 0, currentTime = 0;
 int viewMode = 0;
 String inputString = "";
+Boolean pressed = false;
 
 BufferedReader reader;
 PrintWriter writer;
@@ -186,27 +171,43 @@ void displayText(String text, int x, int y, int w, int size) {
 
 void keyPressed() {
 
-  if (key == UP) {
-    myPort.write('w');
-  } else if (key == DOWN) {
-    myPort.write('s');
-  } else if (key == LEFT) {
-    myPort.write('a');
-  } else if (key == RIGHT) {
-    myPort.write('d');
+  if (key == '\n' && viewMode == 1) {
+    tune();
+  }
+  if (key == ' ' && btEnable) {
+    myPort.write('P');
+  }
+  if (!pressed && btEnable) {
+    if (keyCode == UP) {
+      myPort.write('w');
+      pressed = true;
+    } else if (keyCode == DOWN) {
+      myPort.write('s');
+      pressed = true;
+    } else if (keyCode == LEFT) {
+      myPort.write('a');
+      pressed = true;
+    } else if (keyCode == RIGHT) {
+      myPort.write('d');
+      pressed = true;
+    }
   }
 }
 
 void keyReleased() {
 
-  if (key == UP) {
+  if (keyCode == UP) {
     myPort.write('W');
-  } else if (key == DOWN) {
+    pressed = false;
+  } else if (keyCode == DOWN) {
     myPort.write('S');
-  } else if (key == LEFT) {
+    pressed = false;
+  } else if (keyCode == LEFT) {
     myPort.write('A');
-  } else if (key == RIGHT) {
+    pressed = false;
+  } else if (keyCode == RIGHT) {
     myPort.write('D');
+    pressed = false;
   }
 }
 
@@ -224,14 +225,13 @@ void setup() {
   cp5 = new ControlP5(this);
 
   btName = new String[btSize];
-  tfName = new String[textFieldSize];
-  constantArr = new String[textFieldSize];
+  constantList = new ArrayList();
   imageData = new ArrayList();
   imageName = new ArrayList();
 
   buttonSetUp();
-  tfSetUp();
-  readConstant();
+  taSetUp();
+  textArea.setVisible(false);
   listSetUp();
 
   for (int y=0; y<camHeight; y++) {
@@ -270,18 +270,18 @@ void draw() {
 
       while (true) {
         print(',');
-        if (myPort.available() > 0) {
-          inputString = myPort.readStringUntil('\n');
+        inputString = myPort.readStringUntil('\n');
+        if (inputString != null) {
           break;
         }
       }
       if (inputString != null) {
         inputString = inputString.trim();
-        displayText(inputString, 150, 620, 600, 32);
+        displayText(inputString, 150, 620, 700, 32);
         stringToDouble(inputString);
       }
-      getData();
-      plotGraph();
+      //getData();
+      //plotGraph();
     }
 
     //image
