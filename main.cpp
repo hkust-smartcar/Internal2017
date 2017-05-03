@@ -83,8 +83,6 @@ DirEncoder * encoderRightPtr;
 JyMcuBt106 * btPtr;
 FutabaS3010 * servoPtr;
 
-int state = 0;
-
 //BT listener
 string inputStr;
 bool tune = false;
@@ -101,6 +99,7 @@ double targetAngSpeedP = 0, targetAngSpeedI = 0, targetAngSpeedD = 0;
 
 double sumAngErr = 0, sumSpeedErr = 0, sumLeftSpeedErr = 0, sumRightSpeedErr = 0;
 double targetSpeed = 0, differential = 0;
+bool programRun = true;
 
 void getImage(const Byte * data) {
 
@@ -230,8 +229,12 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 		differential = 0;
 	}
 
+	if (data[0] == 'P') {
+		programRun = 0;
+	}
 
 	if (data[0] == 't') {
+		programRun = 1;
 		tune = 1;
 		inputStr = "";
 	}
@@ -443,6 +446,12 @@ int main(void) {
 //			targetAngSpeedP = -0.00002;
 //			targetAngSpeedI = -0.000001;
 //			targetAngSpeedD = -0.0000012;
+
+			if (programRun == false) {
+				motorLeft.SetPower(0);
+				motorRight.SetPower(0);
+				break;
+			}
 
 			startTime = currentTime;
 			loopCounter++;
