@@ -19,6 +19,8 @@
 #include <cstring>
 #include <stdio.h>
 
+#include <camera.h>
+
 //LED
 #include <libsc/led.h>
 
@@ -96,10 +98,12 @@ double leftPowSpeedP = 0, leftPowSpeedI = 0, leftPowSpeedD = 0;
 double rightPowSpeedP = 0, rightPowSpeedI = 0, rightPowSpeedD = 0;
 double speedAngP = 0, speedAngI = 0, speedAngD = 0;
 double targetAngSpeedP = 0, targetAngSpeedI = 0, targetAngSpeedD = 0;
+double diffP = 0;
+double sumAngErrLim = 0, sumSpeedErrLim = 0;
 
 double sumAngErr = 0, sumSpeedErr = 0, sumLeftSpeedErr = 0, sumRightSpeedErr = 0;
 double targetSpeed = 0, differential = 0;
-bool programRun = true;
+bool programRun = true, camEnable = true;
 
 void getImage(const Byte * data) {
 
@@ -205,9 +209,9 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 	if (data[0] == 'a') {
 		if (targetSpeed == 0) {
 			targetSpeed = inputTargetSpeed/2;
-			differential = -1;
+			differential = 1;
 		} else {
-			differential = -0.5;
+			differential = 0.5;
 		}
 	} else if (data[0] == 'A') {
 		if (targetSpeed == inputTargetSpeed/2) {
@@ -218,9 +222,9 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 	if (data[0] == 'd') {
 		if (targetSpeed == 0) {
 			targetSpeed = inputTargetSpeed/2;
-			differential = 1;
+			differential = -1;
 		} else {
-			differential = 0.5;
+			differential = -0.5;
 		}
 	} else if (data[0] == 'D') {
 		if (targetSpeed == inputTargetSpeed/2) {
@@ -276,6 +280,10 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 			targetAngSpeedP = constVector[13];
 			targetAngSpeedI = constVector[14];
 			targetAngSpeedD = constVector[15];
+			diffP = constVector[16];
+			sumAngErrLim = constVector[17];
+			sumSpeedErrLim = constVector[18];
+			camEnable = constVector[19];
 			sumSpeedErr = 0;
 			sumLeftSpeedErr = 0;
 			sumRightSpeedErr = 0;
@@ -292,6 +300,12 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 //	}
 
 }
+
+Point LeftEdge[100], RightEdge[100];
+uint8_t LeftEdgeNum;
+uint8_t RightEdgeNum;
+uint8_t LeftCornerOrder, RightCornerOrder;
+
 
 int main(void) {
 
@@ -378,12 +392,12 @@ int main(void) {
 //	FutabaS3010 servo1(ServoConfig);
 //	servoPtr = &servo1;
 
-//	Ov7725::Config CamConfig;
-//	CamConfig.id = 0;
-//	CamConfig.w = width;
-//	CamConfig.h = height;
-//	CamConfig.fps = Ov7725Configurator::Config::Fps(0);
-//	Ov7725 Cam1(CamConfig);
+	Ov7725::Config CamConfig;
+	CamConfig.id = 0;
+	CamConfig.w = width;
+	CamConfig.h = height;
+	CamConfig.fps = Ov7725Configurator::Config::Fps(0);
+	Ov7725 Cam1(CamConfig);
 
 	JyMcuBt106::Config BluetoothConfig;
 	BluetoothConfig.id = 0;
@@ -391,6 +405,7 @@ int main(void) {
 	BluetoothConfig.rx_isr = &bluetoothListener;
 	JyMcuBt106 bluetooth1(BluetoothConfig);
 	btPtr = &bluetooth1;
+//	b = btPtr;
 
 	Mpu6050::Config mpuConfig;
 	mpuConfig.gyro_range=Mpu6050::Config::Range::kSmall;
@@ -398,20 +413,20 @@ int main(void) {
 	Mpu6050 mpu(mpuConfig);
 
 	AlternateMotor::Config LeftMotorConfig;
-	LeftMotorConfig.id = 0;
+	LeftMotorConfig.id = 1;
 	AlternateMotor motorLeft(LeftMotorConfig);
 	leftMotorPtr = &motorLeft;
 	AlternateMotor::Config RightMotorConfig;
-	RightMotorConfig.id = 1;
+	RightMotorConfig.id = 0;
 	AlternateMotor motorRight(RightMotorConfig);
 	rightMotorPtr = &motorRight;
 
 	DirEncoder::Config LeftEncoderConfig;
-	LeftEncoderConfig.id = 1;
+	LeftEncoderConfig.id = 0;
 	DirEncoder encoderLeft(LeftEncoderConfig);
 	encoderLeftPtr = &encoderLeft;
 	DirEncoder::Config RightEncoderConfig;
-	RightEncoderConfig.id = 0;
+	RightEncoderConfig.id = 1;
 	DirEncoder encoderRight(RightEncoderConfig);
 	encoderRightPtr = &encoderRight;
 
@@ -421,7 +436,29 @@ int main(void) {
 	motorLeft.SetPower(0);
 	motorRight.SetPower(0);
 
-	double temp = 0;
+	Cam1.Start();
+//	double temp = 0;
+
+	balAngle = 44;
+	forRange = 2;
+	backRange = 1;
+	inputTargetSpeed = 6000;
+	leftPowSpeedP = 0.001;
+	leftPowSpeedI = 0.001;
+	leftPowSpeedD = 0.0001;
+	rightPowSpeedP = 0.001;
+	rightPowSpeedI = 0.001;
+	rightPowSpeedD = 0.0002;
+	speedAngP = 20000;
+	speedAngI = 1200;
+	speedAngD = 400;
+	targetAngSpeedP = -0.000015;
+	targetAngSpeedI = 0;
+	targetAngSpeedD = 0;
+	diffP = 1;
+	sumAngErrLim = 6;
+	sumSpeedErrLim = 500000;
+	camEnable = 1;
 	System::DelayMs(3000);
 
 	while(1) {
@@ -430,27 +467,18 @@ int main(void) {
 
 		if (currentTime-startTime >= 5) {
 
-//			balAngle = 45;
-//			forRange = 3;
-//			backRange = 2;
-//			inputTargetSpeed = 6000;
-//			leftPowSpeedP = -0.002;
-//			leftPowSpeedI = -0.0001;
-//			leftPowSpeedD = -0.0001;
-//			rightPowSpeedP = -0.002;
-//			rightPowSpeedI = -0.0001;
-//			rightPowSpeedD = -0.0001;
-//			speedAngP = 12000;
-//			speedAngI = 1000;
-//			speedAngD = 400;
-//			targetAngSpeedP = -0.00002;
-//			targetAngSpeedI = -0.000001;
-//			targetAngSpeedD = -0.0000012;
+			const Byte* image = Cam1.LockBuffer();
+			Cam1.UnlockBuffer();
+			if (camEnable) {
+				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
+				differential = FindPath(LeftEdge, RightEdge,ModifyEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum,LeftCornerOrder,RightCornerOrder),LeftCornerOrder,RightCornerOrder);
+				differential = diffP*(differential-0.5);
+			}
 
 			if (programRun == false) {
 				motorLeft.SetPower(0);
 				motorRight.SetPower(0);
-				break;
+				continue;
 			}
 
 			startTime = currentTime;
@@ -461,7 +489,7 @@ int main(void) {
 
 			//Speed
 			encoderLeft.Update();
-			leftSpeed = arrAvg(leftSpeedArr, speedArrSize, leftSpeedArrCounter, leftSpeedTotal, encoderLeft.GetCount()/dt);
+			leftSpeed = arrAvg(leftSpeedArr, speedArrSize, leftSpeedArrCounter, leftSpeedTotal, 1*encoderLeft.GetCount()/dt);
 			encoderRight.Update();
 			rightSpeed = arrAvg(rightSpeedArr, speedArrSize, rightSpeedArrCounter, rightSpeedTotal, -1*encoderRight.GetCount()/dt);
 			curSpeed = (leftSpeed+rightSpeed)/2;
@@ -482,6 +510,11 @@ int main(void) {
 			//TargetAng-speed PID
 			speedErr = curSpeed - targetSpeed;
 			sumSpeedErr += speedErr * dt;
+			if (sumSpeedErr > 2) {
+				sumSpeedErr = 2;
+			} else if (sumSpeedErr < -1*2) {
+				sumSpeedErr = -1*2;
+			}
 			speedErrRate = arrAvg(speedErrRateArr, speedErrRateArrSize, speedErrRateCounter, speedErrRateTotal, (speedErr-prevSpeedErr) / dt);
 			prevSpeedErr = speedErr;
 			targetAng += targetAngSpeedP * speedErr + targetAngSpeedI * sumSpeedErr + targetAngSpeedD * speedErrRate;
@@ -496,6 +529,11 @@ int main(void) {
 			//tempSpeed-angle PID
 			curAngErr = curAng - targetAng;
 			sumAngErr += curAngErr * dt;
+			if (sumAngErr > sumAngErrLim) {
+				sumAngErr = sumAngErrLim;
+			} else if (sumAngErr < -1*sumAngErrLim) {
+				sumAngErr = -1*sumAngErrLim;
+			}
 			angErrRate = arrAvg(angErrRateArr, angErrRateArrSize, angErrRateCounter, angErrRateTotal, (curAngErr-prevAngErr) / dt);
 			prevAngErr = curAngErr;
 			tempTargetSpeed = speedAngP * curAngErr + speedAngI * sumAngErr + speedAngD * angErrRate;
@@ -504,16 +542,27 @@ int main(void) {
 
 //			leftTempTargetSpeed = rightTempTargetSpeed = 5000*sin(temp);
 //			temp += 0.02;
+//			leftTempTargetSpeed = rightTempTargetSpeed = inputTargetSpeed;
 
 			//Power-speed PID
 			leftSpeedErr = leftSpeed - leftTempTargetSpeed;
 			sumLeftSpeedErr += leftSpeedErr * dt;
+			if (sumLeftSpeedErr > sumSpeedErrLim) {
+				sumLeftSpeedErr = sumSpeedErrLim;
+			} else if (sumLeftSpeedErr < -1*sumSpeedErrLim) {
+				sumLeftSpeedErr = -1*sumSpeedErrLim;
+			}
 			leftSpeedErrRate = arrAvg(leftSpeedErrRateArr, speedErrRateArrSize, leftSpeedErrRateCounter, leftSpeedErrRateTotal, (leftSpeedErr-prevLeftSpeedErr) / dt);
 			prevLeftSpeedErr = leftSpeedErr;
 			leftPow += leftPowSpeedP * leftSpeedErr + leftPowSpeedI * sumLeftSpeedErr + leftPowSpeedD * leftSpeedErrRate;
 
 			rightSpeedErr = rightSpeed - rightTempTargetSpeed;
 			sumRightSpeedErr += rightSpeedErr * dt;
+			if (sumRightSpeedErr > sumSpeedErrLim) {
+				sumRightSpeedErr = sumSpeedErrLim;
+			} else if (sumRightSpeedErr < -1*sumSpeedErrLim) {
+				sumRightSpeedErr = -1*sumSpeedErrLim;
+			}
 			rightSpeedErrRate = arrAvg(rightSpeedErrRateArr, speedErrRateArrSize, rightSpeedErrRateCounter, rightSpeedErrRateTotal, (rightSpeedErr-prevRightSpeedErr) / dt);
 			prevRightSpeedErr = rightSpeedErr;
 			rightPow += rightPowSpeedP * rightSpeedErr + rightPowSpeedI * sumRightSpeedErr + rightPowSpeedD * rightSpeedErrRate;
@@ -547,6 +596,11 @@ int main(void) {
 				motorRight.SetPower(-1*rightPow);
 			}
 
+//			motorLeft.SetClockwise(leftForward);
+//			motorLeft.SetPower(300);
+//			motorRight.SetClockwise(rightForward);
+//			motorRight.SetPower(300);
+
 			if (loopCounter%3 == 0) {
 				char speedChar[15] = {};
 				sprintf(speedChar, "%.1f,%.2f,%.2f,%.2f=%.2f,%.2f\n", 1.0, leftSpeed, rightSpeed, leftTempTargetSpeed, curAng, targetAng);
@@ -579,6 +633,6 @@ int main(void) {
 		}
 
 	}
-
+	Cam1.Stop();
 	return 0;
 }
