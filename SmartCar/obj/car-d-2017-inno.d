@@ -1,4 +1,4 @@
-obj/camera-d-2017-inno.o: src/camera.cpp src/../inc/camera.h \
+obj/car-d-2017-inno.o: src/car.cpp src/../inc/car.h \
  src/../inc/../inc/global.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/mcg.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/mcg_c.h \

@@ -1,4 +1,4 @@
-obj/smart_car-d-2017-inno.o: src/smart_car.cpp src/../inc/smart_car.h \
+obj/global-d-2017-inno.o: src/global.cpp src/../inc/global.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/mcg.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/mcg_c.h \
  C:\Data\School\git\libsccc\libsccc\inc/libsc/system.h \
@@ -18,8 +18,8 @@ obj/smart_car-d-2017-inno.o: src/smart_car.cpp src/../inc/smart_car.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/pinout_macros.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/pinout/mk60f15_lqfp144_macros.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/pin.h \
- C:\Data\School\git\libsccc\libsccc\inc/libsc/led.h \
  C:\Data\School\git\libsccc\libsccc\inc/libsc/joystick.h \
+ C:\Data\School\git\libsccc\libsccc\inc/libsc/led.h \
  C:\Data\School\git\libsccc\libsccc\inc/libsc/st7735r.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/soft_spi_master.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/spi_master_interface.h \
@@ -50,7 +50,16 @@ obj/smart_car-d-2017-inno.o: src/smart_car.cpp src/../inc/smart_car.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/soft_quad_decoder.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/quad_decoder_interface.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/ftm_quad_decoder.h \
- src/../inc/../inc/camera.h \
+ C:\Data\School\git\libsccc\libsccc\inc/libsc/battery_meter.h \
+ C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/adc.h \
  C:\Data\School\git\libsccc\libsccc\inc/libsc/k60/jy_mcu_bt_106.h \
  C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/uart.h \
- C:\Data\School\git\libsccc\libsccc\inc/libsc/k60/uart_device.h
+ C:\Data\School\git\libsccc\libsccc\inc/libsc/k60/uart_device.h \
+ src/../inc/../inc/bluetooth.h src/../inc/../inc/car_manager.h \
+ C:\Data\School\git\libsccc\libsccc\inc/libsc/mpu6050.h \
+ C:\Data\School\git\libsccc\libsccc\inc/libbase/k60/i2c_master.h \
+ src/../inc/../inc/util/mpc.h inc/util/util.h inc/util/util.tcc \
+ src/../inc/../inc/util/mpc_dual.h inc/util/mpc.h \
+ src/../inc/../inc/util/util.h src/../inc/../inc/util.h \
+ src/../inc/../inc/../inc/global.h src/../inc/../inc/camera.h \
+ src/../inc/../inc/car.h

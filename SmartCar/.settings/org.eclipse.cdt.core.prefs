@@ -1,6 +1,6 @@
 eclipse.preferences.version=1
 environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.613470201/ARM_TOOLCHAIN/delimiter=;
-environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.613470201/ARM_TOOLCHAIN/operation=append
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.613470201/ARM_TOOLCHAIN/operation=replace
 environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.613470201/ARM_TOOLCHAIN/value=C\:\\Program Files (x86)\\GNU Tools ARM Embedded\\5.4 2016q3
 environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.613470201/LIBSCCC_BIN_PATH/delimiter=;
 environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.613470201/LIBSCCC_BIN_PATH/operation=replace

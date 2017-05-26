@@ -31,16 +31,28 @@ namespace libbase
 
 }
 
+void distanceUpdate(Gpi *gpi){
+	if(gpi->Get()){
+
+	}else{
+
+	}
+}
+
 //Main Program--------------------------------------------------------------------------------------------------------------
 int main(void)
 {
 	System::Init();
 
+//ir_ultrasound_modules Configuration---------------------------------------------------------------------------------------------------
+	IRUltrasoundSensor distanceSensor(Pin::Name::kPtb0);
+
 //JoyStick Configuration-------------------------------------------------------------------------------------------
 	Joystick::Config ConfigJoystick1;
 	ConfigJoystick1.id=0;
 	ConfigJoystick1.is_active_low=true;
-	Joystick FiveWaySwitch(ConfigJoystick1);
+	Joystick joystickA(ConfigJoystick1);
+	joystick=&joystickA;
 
 //LCD Configuration---------------------------------------------------------------------------------------------------------
 	St7735r::Config ConfigLCD;
@@ -48,55 +60,82 @@ int main(void)
 	ConfigLCD.is_bgr=false;
 	ConfigLCD.fps=60;
 	St7735r LCD(ConfigLCD);
+	lcd=&LCD;
+
+//LCD Console Configuration---------------------------------------------------------------------------------------------------------
+	LcdConsole::Config ConfigConsole;
+	ConfigConsole.lcd=&LCD;
+	ConfigConsole.region=Lcd::Rect(4,4,124,124);
+	LcdConsole Console(ConfigConsole);
+	console=&Console;
 
 //Camera Configuration------------------------------------------------------------------------------------------------------
 	Ov7725::Config ConfigCam;
 	ConfigCam.id=0;
-	ConfigCam.h=CamHeight;
-	ConfigCam.w=CamWidth;
+	ConfigCam.h=camHeight;
+	ConfigCam.w=camWidth;
 	Ov7725 Cam(ConfigCam);
+	cam=&Cam;
 
 //Servo Configuration-------------------------------------------------------------------------------------------------------
-	FutabaS3010::Config ConfigServo;
-	ConfigServo.id=0;
-	FutabaS3010 Servo(ConfigServo);
+//	FutabaS3010::Config ConfigServo;
+//	ConfigServo.id=0;
+//	FutabaS3010 Servo(ConfigServo);
+//	servo=&Servo;
 
-//Motor A (Right Motor) Configuration---------------------------------------------------------------------------------------
-	AlternateMotor::Config ConfigMotorA;
-	ConfigMotorA.id=0;
-	AlternateMotor  MotorA(ConfigMotorA);
+//Motor 1 (Right Motor) Configuration---------------------------------------------------------------------------------------
+	AlternateMotor::Config ConfigMotor1;
+	ConfigMotor1.id=0;
+	AlternateMotor Motor1(ConfigMotor1);
+	motor1=&Motor1;
 
-//Encoder A (Right Motor) Configuration-------------------------------------------------------------------------------
+//Encoder 1 (Right Motor) Configuration-------------------------------------------------------------------------------
 	DirEncoder::Config ConfigEncoderA;
 	ConfigEncoderA.id=0;
-	DirEncoder EncoderA(ConfigEncoderA);
+	DirEncoder Encoder1(ConfigEncoderA);
+	encoder1=&Encoder1;
 
-//Motor B (Left Motor) Configuration----------------------------------------------------------------------------------------
-	AlternateMotor::Config ConfigMotorB;
-	ConfigMotorB.id=1;
-	AlternateMotor  MotorB(ConfigMotorB);
+//Motor 2 (Left Motor) Configuration----------------------------------------------------------------------------------------
+	AlternateMotor::Config ConfigMotor2;
+	ConfigMotor2.id=1;
+	AlternateMotor  Motor2(ConfigMotor2);
+	motor2=&Motor2;
 
-//Encoder B (Left Motor) Configuration-------------------------------------------------------------------------------
+//Encoder 2 (Left Motor) Configuration-------------------------------------------------------------------------------
 	DirEncoder::Config ConfigEncoderB;
 	ConfigEncoderB.id=1;
-	DirEncoder EncoderB(ConfigEncoderB);
+	DirEncoder Encoder2(ConfigEncoderB);
+	encoder2=&Encoder2;
 
-	LcdConsole::Config ConfigConsole;
-	ConfigConsole.lcd=&LCD;
-	ConfigConsole.region=Lcd::Rect(10,128,128,30);
-	LcdConsole Console(ConfigConsole);
+//Bluetooth Configuration----------------------------------------------------------------------------------------------------------------------------
+	k60::JyMcuBt106::Config bt_config;
+	bt_config.id = 0;
+	bt_config.baud_rate = Uart::Config::BaudRate::k115200;
+	BTComm bt(bt_config);
+	bluetooth=&bt;
 
-//	DirMotor::Config test;
-//	test.id=0;
-//	DirMotor motor(test);
-//	motor.SetClockwise(true);
-//	motor.SetPower(200);
-//
-//	DirMotor::Config test1;
-//	test1.id=1;
-//	DirMotor motor1(test1);
-//	motor1.SetClockwise(true);
-//	motor1.SetPower(200);
+//Battery Meter Configuration---------------------------------------------------------------------------------------------------------------
+	BatteryMeter::Config ConfigBM;
+	ConfigBM.voltage_ratio=0.4;
+	BatteryMeter BM(ConfigBM);
+	batteryMeter=&BM;
 
-	gui(&FiveWaySwitch,&LCD,&Console,&Cam,&Servo,&MotorA,&MotorB,&EncoderA,&EncoderB);
+//Cars Configuration---------------------------------------------------------------------------------------------------------------------------------
+	car2.leftAngle=1050;
+	car2.midAngle=800;
+	car2.rightAngle=450;
+
+	car1.leftAngle=980;
+	car1.midAngle=720;
+	car1.rightAngle=390;
+
+	util::batteryTest();
+
+//	util::servoTuning();
+
+	while(true){
+		util::consoleWriteValue(distanceSensor.getDistance());
+	}
+
+	car1Main();
 }

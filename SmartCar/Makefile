@@ -1,6 +1,6 @@
 INC_PATH=inc
 SRC_PATH=src
-BUILD_PATH=build
+BUILD_PATH=$(PWD)/build
 LIBSCCC_INC_PATH?=lib/sccc/inc
 LIBSCCC_BIN_PATH?=lib/sccc/lib
 LIBSCCC_BIN?=sccc
@@ -86,7 +86,7 @@ $(info Build = DEBUG)
 
 endif
 
-include MakeConfig.inc
+include $(PWD)/MakeConfig.inc
 
 ifeq ($(SCCC_MCU),MK60DZ10)
 CPPFLAGS+=-DMK60DZ10=1

@@ -1,36 +1,36 @@
-//Vector Header File-----------------------------------------------------------------------------------------------
-#include <vector>
+/*
+ * camera.h
+ *
+ *  Created on: 2017Äê4ÔÂ24ÈÕ
+ *      Author: Lee Chun Hei
+ */
 
-//Looper Header File-----------------------------------------------------------------------------------------------
-#include <libutil/looper.h>
+#ifndef INC_CAMERA_H_
+#define INC_CAMERA_H_
 
-//led Header File-----------------------------------------------------------------------------------------------------------
-#include <libsc/led.h>
+#include "../inc/global.h"
 
-//5 way switch Header File-----------------------------------------------------------------------------------------
-#include <libsc/joystick.h>
+namespace camera{
 
-//LCD Header File-----------------------------------------------------------------------------------------------------------
-#include<libsc/st7735r.h>
-#include<libsc/lcd_console.h>
+enum feature{
+	roundabout,
+	inRoundabout,
+	exitRoundabout,
+	crossRoad,
+	turnLeft,
+	turnRight,
+	straightRoad,
+	straightRoadSlowDown,
+	notDetermine
+};
 
-//Servo Header File---------------------------------------------------------------------------------------------------------
-#include<libsc/futaba_s3010.h>
+bool roundaboutDoubleCheck(int x,int y);
+feature pathFinding(bool roundaboutTurnLeft);
+feature featureExtraction();
+bool cornerDetection(int col,int row);
+void cameraPrint(int xCoor,int yCoor);
+int camPointCheck(int x,int y);
 
-//Camera Header File-----------------------------------------------------------------------------------------------
-#include<libsc/k60/ov7725.h>
+}
 
-using namespace libsc;
-using namespace libsc::k60;
-void Camera2DConverter(const Byte* CameraBuffer);
-void CameraFilter();
-void PathWidthFinder(Joystick *FiveWaySwitch,LcdConsole *console);
-void EdgeFinder(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo);
-void moveAlgo(const Byte *camBuffer,St7735r *lcd,FutabaS3010 *servo);
-void PathFinder();
-void CenterLine();
-void camera();
-void CameraPrint(St7735r *lcd,Ov7725 *Cam);
-void Camera2DArrayPrint(St7735r *lcd);
-void Camera2DArrayPrintTest(St7735r *lcd,Ov7725 *Cam);
-int featureIdentify(const Byte *camBuffer);
+#endif /* INC_CAMERA_H_ */
