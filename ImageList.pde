@@ -66,7 +66,7 @@ void readImage() {
   imageName.clear();
   Boolean[][] imageTemp;
 
-  reader = createReader("imageData.txt");
+  reader = createReader(imageFileName);
 
   do {
 
@@ -141,7 +141,7 @@ void saveTo(String filename) {
 }
 
 void saveData() {
-  writer = createWriter("imageData.txt");
+  writer = createWriter(imageFileName);
 
   for (int i=0; i<imageName.size(); i++) {
     writer.println(imageName.get(i));

@@ -55,7 +55,6 @@ void buttonSetUp() {
   cp5.get(Button.class, btName[1]).hide();
   cp5.get(Button.class, btName[2]).hide();
   cp5.get(Button.class, btName[3]).hide();
-  cp5.get(Button.class, btName[6]).hide();
   cp5.get(Button.class, btName[7]).hide();
 }
 
@@ -64,60 +63,37 @@ void mode() {
   if (millis() > 1000) {
   
     background(#D3D3D3);
-    viewMode = ++viewMode % 3;
+    viewMode = ++viewMode % 2;
   
     if (viewMode == 0) {
-  
-      graphWidth = 400;
-      graphHeight = 250;
-      graphOneX = 100;
-      graphOneY = 320;
-      graphTwoX = 600;
-      graphTwoY = 320;
   
       fill(#898989);
       noStroke();
       rect(imageX, imageY, camWidth*pixelSide, camHeight*pixelSide);
-      rect(boundaryX, boundaryY, camWidth*pixelSide, camHeight*pixelSide);
-      rect(regionX, regionY, camWidth*pixelSide, camHeight*pixelSide);
       fill(#404040);
       stroke(0);
       rect(graphOneX, graphOneY, graphWidth, graphHeight);
-      rect(graphTwoX, graphTwoY, graphWidth, graphHeight);
       stroke(255);
       strokeWeight(0);
       line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
-      line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
+      
+      textArea.setVisible(true);
   
       cp5.get(Button.class, btName[4]).show();
+      cp5.get(Button.class, btName[6]).show();
       cp5.get(Button.class, btName[1]).hide();
       cp5.get(Button.class, btName[2]).hide();
       cp5.get(Button.class, btName[3]).hide();
       cp5.get(Button.class, btName[7]).hide();
       cp5.get(Textfield.class, "newName").hide();
       cp5.get(ScrollableList.class, "ImageList").hide();
+      cp5.get(Slider.class, "constant1").hide();
+      cp5.get(Slider.class, "constant2").hide();
+      cp5.get(Slider.class, "constant3").hide();
       
       selectedIndex = -1;
       
     } else if (viewMode == 1) {
-      
-      graphOneY = 50;
-      graphTwoX = 100;
-      graphTwoY = 350;
-      fill(#404040);
-      stroke(0);
-      rect(graphOneX, graphOneY, graphWidth, graphHeight);
-      rect(graphTwoX, graphTwoY, graphWidth, graphHeight);
-      stroke(255);
-      strokeWeight(0);
-      line(graphOneX+1, graphOneY+graphHeight/2, graphOneX+graphWidth-1, graphOneY+graphHeight/2);
-      line(graphTwoX+1, graphTwoY+graphHeight/2, graphTwoX+graphWidth-1, graphTwoY+graphHeight/2);
-      
-      textArea.setVisible(true);
-  
-      cp5.get(Button.class, btName[6]).show();
-      cp5.get(Button.class, btName[4]).hide();
-    } else if (viewMode == 2) {
       
       readImage();
       list = new String[imageName.size()];
@@ -133,6 +109,9 @@ void mode() {
       cp5.get(Button.class, btName[7]).show();
       cp5.get(Textfield.class, "newName").show();
       cp5.get(ScrollableList.class, "ImageList").show();
+      //cp5.get(Slider.class, "constant1").show();
+      //cp5.get(Slider.class, "constant2").show();
+      //cp5.get(Slider.class, "constant3").show();
       cp5.get(Button.class, btName[6]).hide();
       textArea.setVisible(false);
       
@@ -149,12 +128,12 @@ void refresh() {
 
 void saveImage() {
   if (millis() > 1000) {
-    saveTo("imageData.txt");
+    saveTo(imageFileName);
   }
 }
 
 void tune() {
-  if (millis() > 1000 && viewMode == 1) {
+  if (millis() > 1000 && viewMode == 0) {
     editConstant();
     String sendStr = "";
     sendStr += constantList.get(0);
