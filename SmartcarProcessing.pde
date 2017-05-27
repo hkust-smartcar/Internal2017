@@ -76,7 +76,9 @@ int pixelSide = 1;
 /*
 //Sending image
   const Byte imageByte = 170;
+  System::DelayMs(500);
   bluetooth1.SendBuffer(&imageByte, 1);
+  System::DelayMs(500);
   bluetooth1.SendBuffer(camInput, Cam1.GetBufferSize());
 */
 
