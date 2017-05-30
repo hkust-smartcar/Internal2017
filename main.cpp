@@ -363,7 +363,8 @@ int main(void) {
 	double temp = 0;
 	System::DelayMs(3000);
 
-	targetAng = 36;	//Angle to run
+	//Constant
+	targetAng = 40;	//Angle to run
 	balAngle = 34.6;
 	inputTargetSpeed = 8000;
 	leftPowSpeedP = 0.002;
@@ -376,11 +377,11 @@ int main(void) {
 	speedAngI = 8000;
 	speedAngD = 300;
 	rangeFactor = 0;
-	diffP = 0.003;
+	diffP = 0.0003;
 	diffD = -0.0015;
 	sumAngErrLim = 100000;
 	sumSpeedErrLim = 10000;
-	camEnable = 0;
+	camEnable = 1;
 	tuneBal = 0;
 	tuneSpeed = 0;
 
@@ -393,9 +394,10 @@ int main(void) {
 			startTime = currentTime;
 			loopCounter++;
 
+			//Camera algorithm, change differential
 			const Byte* image = Cam1.LockBuffer();
 			Cam1.UnlockBuffer();
-			if (camEnable) {
+			if (camEnable && loopCounter%2==0) {
 				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
 				prevDiff = curDiff;
 				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
@@ -404,8 +406,8 @@ int main(void) {
 //				curDiff = FindPath(LeftEdge, RightEdge,ModifyEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum,LeftCornerOrder,RightCornerOrder),LeftCornerOrder,RightCornerOrder);
 
 				differential = diffP*(curDiff) ;
-				if(differential > 1)  differential = 1;
-				else if(differential < -1)  differential = -1;
+				if(differential > 0.25)  differential = 0.25;
+				else if(differential < -0.25)  differential = -0.25;
 			}
 
 			//Time interval
@@ -522,7 +524,8 @@ int main(void) {
 			if (loopCounter%10 == 0) {
 				char speedChar[15] = {};
 //				sprintf(speedChar, "%.1f,%.3f,%.4f,%.4f,%.3f,%.4f,%.4f\n", 1.0, leftPowSpeedP, leftPowSpeedI, leftPowSpeedD, rightPowSpeedP, rightPowSpeedI, rightPowSpeedD);
-				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, curAng, targetAng);
+//				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, curAng, targetAng);
+				sprintf(speedChar, "%.1f,%.2f\n", 1.0, differential);
 				string speedStr = speedChar;
 
 				const Byte speedByte = 85;
