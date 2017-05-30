@@ -88,16 +88,17 @@ bool tune = false;
 vector<double> constVector;
 
 //Constants
-double balAngle = 45;
-double forRange = 3, backRange = 2;
+double balAngle = 34.6;
 double inputTargetSpeed = 0;
 double leftPowSpeedP = 0, leftPowSpeedI = 0, leftPowSpeedD = 0;
 double rightPowSpeedP = 0, rightPowSpeedI = 0, rightPowSpeedD = 0;
 double speedAngP = 0, speedAngI = 0, speedAngD = 0;
 double targetAngSpeedP = 0, targetAngSpeedI = 0, targetAngSpeedD = 0;
+double rangeFactor = 0;
 double diffP = 0, diffD = 0;
 double sumAngErrLim = 100000, sumSpeedErrLim = 50000;
 
+double targetAng = balAngle;
 double sumAngErr = 0, sumSpeedErr = 0, sumLeftSpeedErr = 0, sumRightSpeedErr = 0;
 double targetSpeed = 0, differential = 0, curDiff = 0, prevDiff = 0;
 bool programRun = true, camEnable = true, tuneBal = false, tuneSpeed = false;
@@ -122,39 +123,19 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 //	btPtr->SendStr(str);
 
 	if (data[0] == 'w') {
-		targetSpeed = inputTargetSpeed;
-	} else if (data[0] == 'W') {
-		targetSpeed = 0;
+		targetAng += 0.2;
 	}
 	if (data[0] == 's') {
-		targetSpeed = -inputTargetSpeed;
-	} else if (data[0] == 'S') {
-		targetSpeed = 0;
+		targetAng -= 0.2;
 	}
 	if (data[0] == 'a') {
-		if (targetSpeed == 0) {
-			targetSpeed = inputTargetSpeed/2;
-			differential = 1;
-		} else {
-			differential = 0.5;
-		}
+		differential = -0.25;
 	} else if (data[0] == 'A') {
-		if (targetSpeed == inputTargetSpeed/2) {
-			targetSpeed = 0;
-		}
 		differential = 0;
 	}
 	if (data[0] == 'd') {
-		if (targetSpeed == 0) {
-			targetSpeed = inputTargetSpeed/2;
-			differential = -1;
-		} else {
-			differential = -0.5;
-		}
+		differential = 0.25;
 	} else if (data[0] == 'D') {
-		if (targetSpeed == inputTargetSpeed/2) {
-			targetSpeed = 0;
-		}
 		differential = 0;
 	}
 
@@ -174,6 +155,7 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 				inputStr += (char)data[i];
 			} else if (data[i] == '\n') {
 				tune = 0;
+				break;
 			}
 			i++;
 		}
@@ -189,29 +171,24 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 			}
 
 			balAngle = constVector[0];
-			forRange = constVector[1];
-			backRange = constVector[2];
-			inputTargetSpeed = constVector[3];
-			leftPowSpeedP = constVector[4];
-			leftPowSpeedI = constVector[5];
-			leftPowSpeedD = constVector[6];
-			rightPowSpeedP = constVector[7];
-			rightPowSpeedI = constVector[8];
-			rightPowSpeedD = constVector[9];
-			speedAngP = constVector[10];
-			speedAngI = constVector[11];
-			speedAngD = constVector[12];
-			targetAngSpeedP = constVector[13];
-			targetAngSpeedI = constVector[14];
-			targetAngSpeedD = constVector[15];
-			diffP = constVector[16];
-			diffD = constVector[17];
-			sumAngErrLim = constVector[18];
-			sumSpeedErrLim = constVector[19];
-			camEnable = constVector[20];
-			tuneBal = constVector[21];
-			tuneSpeed = constVector[22];
-			sumSpeedErr = 0;
+			inputTargetSpeed = constVector[1];
+			leftPowSpeedP = constVector[2];
+			leftPowSpeedI = constVector[3];
+			leftPowSpeedD = constVector[4];
+			rightPowSpeedP = constVector[5];
+			rightPowSpeedI = constVector[6];
+			rightPowSpeedD = constVector[7];
+			speedAngP = constVector[8];
+			speedAngI = constVector[9];
+			speedAngD = constVector[10];
+			rangeFactor = constVector[11];
+			diffP = constVector[12];
+			diffD = constVector[13];
+			sumAngErrLim = constVector[14];
+			sumSpeedErrLim = constVector[15];
+			camEnable = constVector[16];
+			tuneBal = constVector[17];
+			tuneSpeed = constVector[18];
 			sumLeftSpeedErr = 0;
 			sumRightSpeedErr = 0;
 			sumAngErr = 0;
@@ -230,11 +207,23 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 }
 
 //Forrest variable
-Point LeftEdge[100], RightEdge[100];
+//Point LeftEdge[100], RightEdge[100];
+//uint8_t LeftEdgeNum;
+//uint8_t RightEdgeNum;
+//uint8_t LeftCornerOrder, RightCornerOrder;
+
+Point LeftEdge[150];
 uint8_t LeftEdgeNum;
 uint8_t RightEdgeNum;
-uint8_t LeftCornerOrder, RightCornerOrder;
 
+uint8_t LeftCornerOrder;
+uint8_t RightCornerOrder;
+Point RightEdge[150];
+
+Point* LeftCorner[2] = {NULL};
+Point* RightCorner[2] = {NULL};
+Point ModLeftEdge[150];
+Point ModRightEdge[150];
 
 int main(void) {
 
@@ -257,13 +246,6 @@ int main(void) {
 	bool leftForward = 1, rightForward = 0;
 
 	double curSpeed = 0;
-	double speedErr = 0, prevSpeedErr = 0;
-	double speedErrRate = 0;
-	int speedErrRateCounter = 0;
-	const int speedErrRateArrSize = 5;
-	double speedErrRateTotal = 0;
-	double speedErrRateArr[speedErrRateArrSize];
-
 	double leftSpeed = 0, rightSpeed = 0;
 	double leftTempTargetSpeed = 0, rightTempTargetSpeed = 0, tempTargetSpeed = 0;
 	int leftSpeedArrCounter = 0, rightSpeedArrCounter = 0;
@@ -277,6 +259,7 @@ int main(void) {
 		rightSpeedArr[i] = 0;
 	}
 
+	const int speedErrRateArrSize = 5;
 	double leftSpeedErr = 0, prevLeftSpeedErr = 0;
 	double rightSpeedErr = 0, prevRightSpeedErr = 0;
 	double leftSpeedErrRate = 0, rightSpeedErrRate = 0;
@@ -287,7 +270,14 @@ int main(void) {
 	for (int i = 0; i < speedErrRateArrSize; i++){
 		leftSpeedErrRateArr[i] = 0;
 		rightSpeedErrRateArr[i] = 0;
-		speedErrRateArr[i] = 0;
+	}
+
+	const int diffArrSize = 5;
+	int diffArrCounter = 0;
+	double diffTotal = 0;
+	double diffArr[diffArrSize];
+	for (int i = 0; i < diffArrSize; i++){
+		diffArr[i] = 0;
 	}
 
 //Angle
@@ -296,7 +286,6 @@ int main(void) {
 	double accAng = 0, gyroAng = 0;
 
 	double curAng = 0;
-	double targetAng = balAngle;
 	int angCounter = 0;
 	const int angArrSize = 10;
 	double angTotal = balAngle*angArrSize;
@@ -372,30 +361,28 @@ int main(void) {
 
 	Cam1.Start();
 	double temp = 0;
-
-//	balAngle = 43.5;
-//	forRange = 2;
-//	backRange = 1.5;
-//	inputTargetSpeed = -6000;
-//	leftPowSpeedP = 0.002;
-//	leftPowSpeedI = 0.0001;
-//	leftPowSpeedD = 0.0001;
-//	rightPowSpeedP = 0.002;
-//	rightPowSpeedI = 0.0001;
-//	rightPowSpeedD = 0.0001;
-//	speedAngP = 20000;
-//	speedAngI = 400;
-//	speedAngD = 400;
-//	targetAngSpeedP = 0.00001;
-//	targetAngSpeedI = 0;
-//	targetAngSpeedD = 0.0000009;
-//	diffP = -0.003;
-//	diffD = 0.001;
-//	sumAngErrLim = 100000;
-//	sumSpeedErrLim = 50000;
-//	camEnable = 1;
-//	tuneBal = 0;
 	System::DelayMs(3000);
+
+	targetAng = 36;	//Angle to run
+	balAngle = 34.6;
+	inputTargetSpeed = 8000;
+	leftPowSpeedP = 0.002;
+	leftPowSpeedI = 0.0001;
+	leftPowSpeedD = 0.0001;
+	rightPowSpeedP = 0.002;
+	rightPowSpeedI = 0.0001;
+	rightPowSpeedD = 0.0001;
+	speedAngP = 15000;
+	speedAngI = 8000;
+	speedAngD = 300;
+	rangeFactor = 0;
+	diffP = 0.003;
+	diffD = -0.0015;
+	sumAngErrLim = 100000;
+	sumSpeedErrLim = 10000;
+	camEnable = 0;
+	tuneBal = 0;
+	tuneSpeed = 0;
 
 	while(1) {
 
@@ -406,35 +393,27 @@ int main(void) {
 			startTime = currentTime;
 			loopCounter++;
 
-			if (programRun == false) {
-				motorLeft.SetPower(0);
-				motorRight.SetPower(0);
-				continue;
-			}
-
 			const Byte* image = Cam1.LockBuffer();
 			Cam1.UnlockBuffer();
 			if (camEnable) {
 				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
 				prevDiff = curDiff;
-				curDiff = FindPath(LeftEdge, RightEdge,ModifyEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum,LeftCornerOrder,RightCornerOrder),LeftCornerOrder,RightCornerOrder);
-				differential = diffP*(curDiff) + diffD*(curDiff-prevDiff);
+				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
+	//			ModifyEdge(image,LeftEdge, RightEdge,LeftEdgeNum, RightEdgeNum,LeftCornerOrder,RightCornerOrder,LeftCorner, RightCorner);
+				curDiff = FindPath(LeftEdge,RightEdge,ModifyEdge(image,LeftEdge, RightEdge,LeftEdgeNum, RightEdgeNum,LeftCornerOrder,RightCornerOrder,LeftCorner,RightCorner),LeftCorner,RightCorner,LeftEdgeNum, RightEdgeNum);
+//				curDiff = FindPath(LeftEdge, RightEdge,ModifyEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum,LeftCornerOrder,RightCornerOrder),LeftCornerOrder,RightCornerOrder);
+
+				differential = diffP*(curDiff) ;
+				if(differential > 1)  differential = 1;
+				else if(differential < -1)  differential = -1;
 			}
 
+			//Time interval
 			dt = (double)(System::Time()-prevSampleTime)/1000;
 			prevSampleTime = System::Time();
 
 			//Speed
 			encoderLeft.Update();
-//			int bb = encoderLeft.GetCount();
-//			if(bb > 65000)
-//			{
-//				int a =encoderLeft.GetCount();
-//				bb = pow(2,16)-1 - a;
-//				bb= -bb;
-//
-//			}
-//			temp = -1.0*bb/dt;
 			temp = encoderLeft.GetCount()/dt;
 			if (temp>50000 || temp<-50000) {
 				temp = leftTempTargetSpeed;
@@ -442,21 +421,12 @@ int main(void) {
 			leftSpeed = arrAvg(leftSpeedArr, leftSpeedArrSize, leftSpeedArrCounter, leftSpeedTotal, temp);
 
 			encoderRight.Update();
-//			bb = encoderRight.GetCount();
-//			if(bb > 65000)
-//			{
-//				int a =encoderRight.GetCount();
-//				bb = pow(2,16)-1 - a;
-//				bb= -bb;
-//
-//			}
-//			temp = -1.0*bb/dt;
 			temp = -encoderRight.GetCount()/dt;
 			if (temp>50000 || temp<-50000) {
 				temp = rightTempTargetSpeed;
 			}
 			rightSpeed = arrAvg(rightSpeedArr, rightSpeedArrSize, rightSpeedArrCounter, rightSpeedTotal, temp);
-			curSpeed = (leftSpeed-rightSpeed)/2;
+			curSpeed = (leftSpeed+rightSpeed)/2;
 
 			//Angle
 			mpu.Update(1);
@@ -470,23 +440,6 @@ int main(void) {
 //			if (System::Time() >= 5000 && (curAng >= balAngle+20 || curAng <= balAngle-10)) {
 //				break;
 //			}
-
-			//TargetAng-speed PID
-			speedErr = curSpeed - targetSpeed;
-			sumSpeedErr += speedErr * dt;
-			if (sumSpeedErr > 2.0) {
-				sumSpeedErr = 2.0;
-			} else if (sumSpeedErr < -2.0) {
-				sumSpeedErr = -2.0;
-			}
-			speedErrRate = arrAvg(speedErrRateArr, speedErrRateArrSize, speedErrRateCounter, speedErrRateTotal, (speedErr-prevSpeedErr) / dt);
-			prevSpeedErr = speedErr;
-			targetAng += targetAngSpeedP * speedErr + targetAngSpeedI * sumSpeedErr + targetAngSpeedD * speedErrRate;
-			if (targetAng-balAngle > forRange) {
-				targetAng = balAngle + forRange;
-			} else if (targetAng-balAngle < -backRange) {
-				targetAng = balAngle - backRange;
-			}
 
 			if (tuneBal) {
 				targetAng = balAngle;
@@ -506,14 +459,12 @@ int main(void) {
 			leftTempTargetSpeed = tempTargetSpeed * (1+differential);
 			rightTempTargetSpeed = tempTargetSpeed * (1-differential);
 
-//			leftTempTargetSpeed = rightTempTargetSpeed = 5000*sin(temp);
-//			temp += 0.02;
 			if (tuneSpeed) {
 				leftTempTargetSpeed = inputTargetSpeed;
 				rightTempTargetSpeed = inputTargetSpeed;
 			}
 
-			//Power-speed PID
+			//power-speed PID
 			leftSpeedErr = leftSpeed - leftTempTargetSpeed;
 			sumLeftSpeedErr += leftSpeedErr * dt;
 			if (sumLeftSpeedErr > sumSpeedErrLim) {
@@ -536,11 +487,6 @@ int main(void) {
 			prevRightSpeedErr = rightSpeedErr;
 			rightPow += (int)(rightPowSpeedP * rightSpeedErr + rightPowSpeedI * sumRightSpeedErr + rightPowSpeedD * rightSpeedErrRate);
 
-//			leftPow = 0;
-//			rightPow = 0;
-//			leftPow = 150;
-//			rightPow = 150;
-
 			if (leftPow > 500) {
 				leftPow = 500;
 			} else if (leftPow < -500) {
@@ -550,6 +496,12 @@ int main(void) {
 				rightPow = 500;
 			} else if (rightPow < -500) {
 				rightPow = -500;
+			}
+
+			if (programRun == false && System::Time()<5000) {
+				motorLeft.SetPower(0);
+				motorRight.SetPower(0);
+				continue;
 			}
 
 			if (leftPow > 0) {
@@ -567,17 +519,10 @@ int main(void) {
 				motorRight.SetPower(-1*rightPow);
 			}
 
-			if (loopCounter%3 == 0) {
+			if (loopCounter%10 == 0) {
 				char speedChar[15] = {};
-//				sprintf(speedChar, "%.1f,%.4f\n", 1.0, dt);
-//				sprintf(speedChar, "%.1f,%d,%d\n", 1.0, leftPow, rightPow);
-				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, leftSpeed, rightSpeed);
-//				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, leftTempTargetSpeed, rightTempTargetSpeed);
-//				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, leftSpeedErr, rightSpeedErr);
-//				sprintf(speedChar, "%.1f,%.2f,%.2f,%.2f,%.2f\n", 1.0, sumLeftSpeedErr, leftSpeed, sumRightSpeedErr, rightSpeed);
-//				sprintf(speedChar, "%.1f,%.2f,%.2f,%.2f\n", 1.0, sumLeftSpeedErr, leftSpeed, leftTempTargetSpeed);
-//				sprintf(speedChar, "%.1f,%.2f,%.2f,%.2f\n", 1.0, sumRightSpeedErr, rightSpeed, rightTempTargetSpeed);
 //				sprintf(speedChar, "%.1f,%.3f,%.4f,%.4f,%.3f,%.4f,%.4f\n", 1.0, leftPowSpeedP, leftPowSpeedI, leftPowSpeedD, rightPowSpeedP, rightPowSpeedI, rightPowSpeedD);
+				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, curAng, targetAng);
 				string speedStr = speedChar;
 
 				const Byte speedByte = 85;
@@ -596,11 +541,11 @@ int main(void) {
 //
 //			}
 //
-//			if (loopCounter%40 == 0) {
+//			if (loopCounter%60 == 0) {
 //				loopCounter = 0;
 //
 //				const Byte imageByte = 170;
-//				bluetooth1.SendBuffer(&imageByte, 1);
+//				bluetooth1.SendBuffer(image, 1);
 //				bluetooth1.SendBuffer(camInput, Cam1.GetBufferSize());
 //			}
 
