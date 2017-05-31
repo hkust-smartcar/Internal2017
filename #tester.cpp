@@ -67,18 +67,20 @@ void blink(Led* led0,Led* led1,Led* led2,Led* led3){
 }
 
 //test camera
-void capture(Ov7725* cam, St7735r* lcd){
+void capture(Ov7725* cam, St7735r* lcd,Led* led1){
 	while(1){
 		if(System::Time()%50==0 && cam->IsAvailable()){
 			lcd->SetRegion(Lcd::Rect(0,0,80,60));
 			lcd->FillBits(Lcd::kBlack,Lcd::kWhite,cam->LockBuffer(),8*cam->GetBufferSize());
 			cam->UnlockBuffer();
+			led1->Switch();
 		}
 	}
 }
 
 //test joystick
-void testjoystick(Joystick* joystick, Lcd* lcd){
+void testjoystick(Joystick* joystick, Lcd* lcd,Led* led1){
+	led1->Switch();
 	switch(joystick->GetState()){
 	case Joystick::State::kDown:
 		lcd->FillColor(Lcd::kBlack);break;
@@ -132,7 +134,7 @@ int main(void){
 	//blink(&led0,&led1,&led2,&led3);
 
 	St7735r::Config lcdConfig;
-	lcdConfig.is_revert = false;
+	lcdConfig.is_revert = true;
 	St7735r lcd(lcdConfig);
 
 	LcdTypewriter::Config writerconfig;
@@ -142,16 +144,6 @@ int main(void){
 	//test lcd by color fill
 	lcd.FillColor(Lcd::kYellow);
 
-	/*k60::Ov7725::Config cameraConfig;
-	cameraConfig.id = 0;
-	cameraConfig.w = 80;
-	cameraConfig.h = 60;
-	cameraConfig.fps = k60::Ov7725Configurator::Config::Fps::kHigh;
-	k60::Ov7725 camera(cameraConfig);
-	camera.Start();
-*/
-	//test camera by capture image then display on lcd
-	//capture(&camera , &lcd);
 
 	Joystick::Config joystick_config;
 	joystick_config.id = 0;
@@ -159,7 +151,20 @@ int main(void){
 	Joystick joystick(joystick_config);
 
 	//test joystick
-	//testjoystick();
+	while(1) testjoystick(&joystick,&lcd,&led1);
+
+
+	k60::Ov7725::Config cameraConfig;
+	cameraConfig.id = 0;
+	cameraConfig.w = 80;
+	cameraConfig.h = 60;
+	cameraConfig.fps = k60::Ov7725Configurator::Config::Fps::kHigh;
+	k60::Ov7725 camera(cameraConfig);
+	camera.Start();
+
+	//test camera by capture image then display on lcd
+	capture(&camera , &lcd, &led1);
+
 
 	FutabaS3010::Config ConfigServo;
 	ConfigServo.id = 0;
