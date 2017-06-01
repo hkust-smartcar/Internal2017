@@ -162,12 +162,12 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 		if (!tune) {
 			constVector.clear();
 			char * pch;
-			pch = strtok(&inputStr[0], " ,");
+			pch = strtok(&inputStr[0], ",");
 			while (pch != NULL){
 				double constant;
 				stringstream(pch) >> constant;
 				constVector.push_back(constant);
-				pch = strtok (NULL, " ,");
+				pch = strtok (NULL, ",");
 			}
 
 			balAngle = constVector[0];
