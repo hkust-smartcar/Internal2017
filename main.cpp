@@ -443,6 +443,12 @@ int main(void) {
 //				break;
 //			}
 
+			if (programRun == false && System::Time()<5000) {
+				motorLeft.SetPower(0);
+				motorRight.SetPower(0);
+				continue;
+			}
+
 			if (tuneBal) {
 				targetAng = balAngle;
 			}
@@ -498,12 +504,6 @@ int main(void) {
 				rightPow = 500;
 			} else if (rightPow < -500) {
 				rightPow = -500;
-			}
-
-			if (programRun == false && System::Time()<5000) {
-				motorLeft.SetPower(0);
-				motorRight.SetPower(0);
-				continue;
 			}
 
 			if (leftPow > 0) {
