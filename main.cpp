@@ -364,8 +364,8 @@ int main(void) {
 	System::DelayMs(3000);
 
 	//Constant
-	targetAng = 40;	//Angle to run
-	balAngle = 34.6;
+	targetAng = 35.8;	//Angle to run
+	balAngle = 33;
 	inputTargetSpeed = 8000;
 	leftPowSpeedP = 0.002;
 	leftPowSpeedI = 0.0001;
@@ -373,12 +373,12 @@ int main(void) {
 	rightPowSpeedP = 0.002;
 	rightPowSpeedI = 0.0001;
 	rightPowSpeedD = 0.0001;
-	speedAngP = 15000;
-	speedAngI = 8000;
-	speedAngD = 300;
-	rangeFactor = 0;
-	diffP = 0.0003;
-	diffD = -0.0015;
+	speedAngP = 10000;
+	speedAngI = 500;
+	speedAngD = 400;
+	rangeFactor = 5000;
+	diffP = 0.0005;
+	diffD = -0.00004;
 	sumAngErrLim = 100000;
 	sumSpeedErrLim = 10000;
 	camEnable = 1;
@@ -405,9 +405,11 @@ int main(void) {
 				curDiff = FindPath(LeftEdge,RightEdge,ModifyEdge(image,LeftEdge, RightEdge,LeftEdgeNum, RightEdgeNum,LeftCornerOrder,RightCornerOrder,LeftCorner,RightCorner),LeftCorner,RightCorner,LeftEdgeNum, RightEdgeNum);
 //				curDiff = FindPath(LeftEdge, RightEdge,ModifyEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum,LeftCornerOrder,RightCornerOrder),LeftCornerOrder,RightCornerOrder);
 
-				differential = diffP*(curDiff) ;
-				if(differential > 0.25)  differential = 0.25;
-				else if(differential < -0.25)  differential = -0.25;
+				differential = diffP*(curDiff) + diffD*(curDiff-prevDiff);
+//				differential = diffP*(curDiff);
+
+				if(differential > 0.2)  differential = 0.2;
+				else if(differential < -0.2)  differential = -0.2;
 			}
 
 			//Time interval
@@ -418,14 +420,14 @@ int main(void) {
 			encoderLeft.Update();
 			temp = encoderLeft.GetCount()/dt;
 			if (temp>50000 || temp<-50000) {
-				temp = leftTempTargetSpeed;
+				temp = leftSpeed;
 			}
 			leftSpeed = arrAvg(leftSpeedArr, leftSpeedArrSize, leftSpeedArrCounter, leftSpeedTotal, temp);
 
 			encoderRight.Update();
 			temp = -encoderRight.GetCount()/dt;
 			if (temp>50000 || temp<-50000) {
-				temp = rightTempTargetSpeed;
+				temp = rightSpeed;
 			}
 			rightSpeed = arrAvg(rightSpeedArr, rightSpeedArrSize, rightSpeedArrCounter, rightSpeedTotal, temp);
 			curSpeed = (leftSpeed+rightSpeed)/2;
@@ -443,7 +445,7 @@ int main(void) {
 //				break;
 //			}
 
-			if (programRun == false && System::Time()<5000) {
+			if (programRun == false || System::Time()<4000) {
 				motorLeft.SetPower(0);
 				motorRight.SetPower(0);
 				continue;
@@ -463,7 +465,7 @@ int main(void) {
 			}
 			angErrRate = arrAvg(angErrRateArr, angErrRateArrSize, angErrRateCounter, angErrRateTotal, (curAngErr-prevAngErr) / dt);
 			prevAngErr = curAngErr;
-			tempTargetSpeed = speedAngP * curAngErr + speedAngI * sumAngErr + speedAngD * angErrRate;
+			tempTargetSpeed = curSpeed + speedAngP * curAngErr + speedAngI * sumAngErr + speedAngD * angErrRate;
 			leftTempTargetSpeed = tempTargetSpeed * (1+differential);
 			rightTempTargetSpeed = tempTargetSpeed * (1-differential);
 
@@ -524,8 +526,8 @@ int main(void) {
 			if (loopCounter%10 == 0) {
 				char speedChar[15] = {};
 //				sprintf(speedChar, "%.1f,%.3f,%.4f,%.4f,%.3f,%.4f,%.4f\n", 1.0, leftPowSpeedP, leftPowSpeedI, leftPowSpeedD, rightPowSpeedP, rightPowSpeedI, rightPowSpeedD);
-//				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, curAng, targetAng);
-				sprintf(speedChar, "%.1f,%.2f\n", 1.0, differential);
+				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, curAng, targetAng);
+//				sprintf(speedChar, "%.1f,%.2f\n", 1.0, differential);
 				string speedStr = speedChar;
 
 				const Byte speedByte = 85;

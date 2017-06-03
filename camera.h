@@ -594,11 +594,11 @@ float FindPath(const Point* LeftEdge, const Point* RightEdge, const TrackState t
 		while(Order < row){
 			float k = 0;
 			if(Order < 3)
-				k = 0.25;
+				k = 0.5;
 			else if(Order < 6)
-				k=0.5;
+				k=0.4;
 			else
-				k=0.25;
+				k=0.3;
 
 			if(LeftEdge[Order].x != 0 && RightEdge[Order].x != 79)
 				pos+= k*((LeftEdge[Order].x + RightEdge[Order].x)/2-39.5);
@@ -644,11 +644,11 @@ float FindPath(const Point* LeftEdge, const Point* RightEdge, const TrackState t
 		while( Order < row ){
 			float k=0;
 			if(Order < 3)
-				k = 0.25;
+				k = 0.5;
 			else if(Order < 6)
-				k=0.5;
+				k=0.4;
 			else
-				k=0.25;
+				k=0.3;
 
 			pos += k*(LeftEdge[Order].x - 39.5 +30 ) ;
 
@@ -667,11 +667,11 @@ float FindPath(const Point* LeftEdge, const Point* RightEdge, const TrackState t
 	else if( LeftCor!=NULL){
 		float pos = LeftCor->x - 39 + OFFSET - 20;
 		if(Order < 3)
-			pos*=0.25;
-		else if(Order < 6)
 			pos*=0.5;
+		else if(Order < 6)
+			pos*=0.4;
 		else
-			pos*=0.25;
+			pos*=0.3;
 		Diff = pos_p * pos;
 //		sprintf(buffer,"\n%d\n", LeftCor->y);
 //		bluetooth->SendStr(buffer);
@@ -685,11 +685,11 @@ float FindPath(const Point* LeftEdge, const Point* RightEdge, const TrackState t
 		while(Order < row){
 			float k = 0;
 			if(Order < 3)
-				k = 0.25;
+				k = 0.5;
 			else if(Order < 6)
-				k=0.5;
+				k=0.4;
 			else
-				k=0.25;
+				k=0.3;
 
 //			if(LeftEdge[Order].x != 0 && RightEdge[Order].x != 79)
 //				pos+= k*((LeftEdge[Order].x + RightEdge[Order].x)/2-39);
