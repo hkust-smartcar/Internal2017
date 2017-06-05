@@ -251,6 +251,8 @@ int main(void){
 	Timer::TimerInt printTime=0;
 	const Byte startByte = 170;
 	const Byte* camBuf;
+	Joystick::State jState = Joystick::State::kIdle;
+	bool view = true;
 
 	while (true){
 		while(time!=System::Time()){
@@ -269,7 +271,11 @@ int main(void){
 			}
 			else if(time%50==0&&camera.IsAvailable()){
 				CameraBuf = camera.LockBuffer();
-				if(joystick.GetState()!=Joystick::State::kIdle) PrintWorldImage();
+				if(jState!=joystick.GetState()){
+					jState = joystick.GetState();
+					if(jState!=Joystick::State::kIdle) view = !view;
+				}
+				if(view)PrintWorldImage();
 				else PrintRawImage();
 				camera.UnlockBuffer();
 				led2.Switch();
