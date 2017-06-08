@@ -236,6 +236,7 @@ int main(void) {
 //Loop
 	long startTime = System::Time();
 	long prevSampleTime = System::Time();
+	long camTime = System::Time();
 	double dt = 0;
 	long currentTime = 0;
 	long loopCounter = 0;
@@ -376,12 +377,12 @@ int main(void) {
 	rightPowSpeedD = 0.0001;
 	speedAngP = 6000;
 	speedAngI = 0;
-	speedAngD = 80;
+	speedAngD = 40;
 	targetAngSpeedP = -0.0003;
 	targetAngSpeedI = 0;
-	targetAngSpeedD = 0.00002;
-	targetAngLim = 0;
-	targetSpeedAngK = 0;
+	targetAngSpeedD = 0.000012;
+	targetAngLim = 8;
+	targetSpeedAngK = 1500;
 	diffP = 0.004;
 	diffD = 0.005;
 	sumAngErrLim = 100000;
@@ -398,21 +399,6 @@ int main(void) {
 
 			startTime = currentTime;
 			loopCounter++;
-
-			//camera algorithm, change differential
-			const Byte* image = Cam1.LockBuffer();
-			Cam1.UnlockBuffer();
-			if (camEnable && loopCounter%2==0) {
-				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
-				prevDiff = curDiff;
-				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
-				curDiff = FindPath(LeftEdge,RightEdge,ModifyEdge(image,LeftEdge, RightEdge,LeftEdgeNum, RightEdgeNum,LeftCornerOrder,RightCornerOrder,LeftCorner,RightCorner),LeftCorner,RightCorner,LeftEdgeNum, RightEdgeNum);
-
-				differential = diffP*(curDiff) + diffD*(curDiff-prevDiff);
-
-				if(differential > 0.2)  differential = 0.2;
-				else if(differential < -0.2)  differential = -0.2;
-			}
 
 			//time interval
 			dt = (double)(System::Time()-prevSampleTime)/1000;
@@ -561,8 +547,8 @@ int main(void) {
 //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, targetAng, tempTargetAng);
 //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, leftSpeed, leftTempTargetSpeed);
 //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, rightSpeed, rightTempTargetSpeed);
-				sprintf(speedChar, "%.1f,%.2f,%.2f,%.2f,%.2f\n", 1.0, targetAng, tempTargetAng, curSpeed, targetSpeed);
-//				sprintf(speedChar, "%.1f,%.2f\n", 1.0, differential);
+//				sprintf(speedChar, "%.1f,%.2f,%.2f,%.2f,%.2f\n", 1.0, targetAng, tempTargetAng, curSpeed, targetSpeed);
+				sprintf(speedChar, "%.1f,%.3f\n", 1.0, dt);
 				string speedStr = speedChar;
 
 				const Byte speedByte = 85;
@@ -588,6 +574,29 @@ int main(void) {
 //				bluetooth1.SendBuffer(image, 1);
 //				bluetooth1.SendBuffer(camInput, Cam1.GetBufferSize());
 //			}
+
+		}
+
+		currentTime = System::Time();
+
+		if (currentTime-camTime >= 10) {
+
+			camTime = System::Time();
+
+			//camera algorithm, change differential
+			const Byte* image = Cam1.LockBuffer();
+			Cam1.UnlockBuffer();
+			if (camEnable) {
+				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
+				prevDiff = curDiff;
+				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
+				curDiff = FindPath(LeftEdge,RightEdge,ModifyEdge(image,LeftEdge, RightEdge,LeftEdgeNum, RightEdgeNum,LeftCornerOrder,RightCornerOrder,LeftCorner,RightCorner),LeftCorner,RightCorner,LeftEdgeNum, RightEdgeNum);
+
+				differential = diffP*(curDiff) + diffD*(curDiff-prevDiff);
+
+				if(differential > 0.2)  differential = 0.2;
+				else if(differential < -0.2)  differential = -0.2;
+			}
 
 		}
 
