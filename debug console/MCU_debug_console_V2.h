@@ -46,11 +46,10 @@ class Item{
 	Item* setReadOnly(bool isReadOnly){readOnly=isReadOnly;return this;}
 
 	private:
-		Fptr listener;
 		char* text;
 		int* value=NULL;
 		bool readOnly;
-		bool upLongExclusive;
+		Fptr listener;
 		void init(){
 		}
 };
@@ -64,14 +63,14 @@ class DebugConsole{
 		 * joystick, lcd, writer pointer and the display length, which limit the display size of debug console
 		 */
 		DebugConsole(Joystick* joystick,St7735r* lcd, LcdTypewriter* writer, int displayLength):
-			displayLength(displayLength),focus(0),topIndex(0),joystick(joystick),lcd(lcd),writer(writer),threshold(1000){
+			focus(0),topIndex(0),joystick(joystick),lcd(lcd),writer(writer),displayLength(displayLength),threshold(1000){
 		}
 
 		/*
 		 * pause and start debugging
 		 */
 		void EnterDebug(){
-			int flag=1,time_next,time_img=0;
+			int flag=1;
 			Item item(">>exit<<",&flag);
 			PushItem(item);
 			int index=items.size();
@@ -124,6 +123,18 @@ class DebugConsole{
 		}
 
 		/*
+		 * print item start from topIndex, total amount displayLength
+		 */
+		void ListItemValues(){
+			clear();
+			for(int i = topIndex; i < (items.size() < topIndex+displayLength ? items.size() : topIndex+displayLength);i++){
+
+				printItemValue(i,i==focus);
+			}
+			//showFocus(0);
+		}
+
+		/*
 		 * print a single item's text and value
 		 */
 		void printItem(int index, bool isInverted=false){
@@ -142,6 +153,37 @@ class DebugConsole{
 			}
 		}
 
+		//parameters setters
+		DebugConsole* SetDisplayLength(int length){
+			displayLength=length;
+			return this;
+		}
+		DebugConsole* SetLongClickThershold(int thershold){
+			this->threshold = thershold;
+			return this;
+		}
+		DebugConsole* SetLongClickCd(int cd){
+			this->cd = cd;
+			return this;
+		}
+		DebugConsole* SetOffset(int offset){
+			this->offset = offset;
+			return this;
+		}
+
+		//parameters getters
+		int GetDisplayLength(){
+			return displayLength;
+		}
+		int GetLongClickThershold(){
+			return threshold;
+		}
+		int GetLongClickCd(){
+			return cd;
+		}
+		int GetOffset(){
+			return offset;
+		}
 	private:
 
 
@@ -156,6 +198,7 @@ class DebugConsole{
 		int threshold;		//long click thershold
 		int displayLength;	//limit the region to display
 		int cd=0;	//time needed to trigger next long click listener
+		int offset=0; //distance away from top of lcd
 
 
 
@@ -164,7 +207,7 @@ class DebugConsole{
 				writer->SetTextColor(0x0000);
 				writer->SetBgColor(0xFFFF);
 			}
-			lcd->SetRegion(Lcd::Rect(5+x*10,y*15,128-5-x*10,15));
+			lcd->SetRegion(Lcd::Rect(5+x*10,offset+y*15,128-5-x*10,15));
 			writer->WriteString(c);
 			if(inverted){
 				writer->SetTextColor(0xFFFF);
@@ -180,8 +223,8 @@ class DebugConsole{
 		}*/
 
 		void clear(){
-			//lcd->SetRegion(Lcd::Rect(0,0,128,120));
-			lcd->Clear();
+			lcd->SetRegion(Lcd::Rect(0,offset,128,displayLength*15));
+			lcd->FillColor(0x0000);
 		}
 
 		int listenerDo(Joystick::State key){
@@ -233,14 +276,14 @@ class DebugConsole{
 						item.setValue(item.getValue()-1);
 						printItemValue(focus,true);
 					}
-
+					//ListItemValues();
 					break;
 				case Joystick::State::kRight:
 					if(item.getValuePtr()!=NULL && !item.isReadOnly()){
 						item.setValue(item.getValue()+1);
 						printItemValue(focus,true);
 					}
-
+					//ListItemValues();
 					break;
 				default:
 					return 1;
