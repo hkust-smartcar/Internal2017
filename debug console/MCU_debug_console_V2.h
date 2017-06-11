@@ -26,7 +26,7 @@ class Item{
 
 	//Item(char* n):text(n){init();}
 	//Item(char* text=NULL,float* value=NULL,bool readOnly=false):text(text),value(value),readOnly(readOnly),listener(NULL){}
-	Item(char* text=NULL,int* value=NULL,bool readOnly=false):text(text),value(value),readOnly(readOnly),listener(NULL){}
+	Item(char* text=NULL,float* value=NULL,bool readOnly=false):text(text),value(value),readOnly(readOnly),listener(NULL){}
 
 	//Item(){init();}
 
@@ -40,12 +40,14 @@ class Item{
 	Item* setListener(Fptr fptr){listener=fptr;return this;}
 
 	//value methods
-	Item* setValuePtr(int* v){value=v;return this;}
-	Item* setValue(int v){if(value==NULL)return this;*value=v;return this;}
-	int* getValuePtr(){return value;}
-	int getValue(){if(value==NULL)return 0;return *value;}
-	Item* setInterval(int v){interval=v;return this;}
-	int getInterval(){return interval;}
+	Item* setValuePtr(float* v){value=v;return this;}
+	Item* setValue(float v){if(value==NULL)return this;*value=v;return this;}
+	float valueIncre(){return *value+=interval;}
+	float valueDecre(){return *value-=interval;}
+	float* getValuePtr(){return value;}
+	float getValue(){if(value==NULL)return 0;return *value;}
+	Item* setInterval(float v){interval=v;return this;}
+	float getInterval(){return interval;}
 
 	bool isReadOnly(){return readOnly;}
 	Item* setReadOnly(bool isReadOnly){readOnly=isReadOnly;return this;}
@@ -53,10 +55,10 @@ class Item{
 	private:
 		char* text;
 		//float* value=NULL;
-		int*value=NULL;
+		float*value=NULL;
 		bool readOnly;
 		Fptr listener;
-		int interval=1;
+		float interval=1;
 		void init(){
 		}
 };
@@ -78,7 +80,7 @@ class DebugConsole{
 		 */
 		void EnterDebug(){
 			int flag=1;
-			Item item(">>exit<<",&flag);
+			Item item(">>exit<<");
 			PushItem(item);
 			int index=items.size();
 			ListItems();
@@ -155,7 +157,7 @@ class DebugConsole{
 		void printItemValue(int index, bool isInverted=false){
 			if(items[index].getValuePtr()!=NULL){
 				char buff[20];
-				sprintf(buff,"%d      ",items[index].getValue());
+				sprintf(buff,"%.5lf",items[index].getValue());
 				printxy(7,index-topIndex,buff,isInverted);
 			}
 		}
