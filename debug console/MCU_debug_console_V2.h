@@ -20,11 +20,14 @@ namespace DebugConsole{
 
 typedef void(*Fptr)();
 
+//template <class Number>
 class Item{
 	public:
 
 	//Item(char* n):text(n){init();}
+	//Item(char* text=NULL,float* value=NULL,bool readOnly=false):text(text),value(value),readOnly(readOnly),listener(NULL){}
 	Item(char* text=NULL,int* value=NULL,bool readOnly=false):text(text),value(value),readOnly(readOnly),listener(NULL){}
+
 	//Item(){init();}
 
 	//display text methods
@@ -41,15 +44,19 @@ class Item{
 	Item* setValue(int v){if(value==NULL)return this;*value=v;return this;}
 	int* getValuePtr(){return value;}
 	int getValue(){if(value==NULL)return 0;return *value;}
+	Item* setInterval(int v){interval=v;return this;}
+	int getInterval(){return interval;}
 
 	bool isReadOnly(){return readOnly;}
 	Item* setReadOnly(bool isReadOnly){readOnly=isReadOnly;return this;}
 
 	private:
 		char* text;
-		int* value=NULL;
+		//float* value=NULL;
+		int*value=NULL;
 		bool readOnly;
 		Fptr listener;
+		int interval=1;
 		void init(){
 		}
 };
@@ -273,14 +280,14 @@ class DebugConsole{
 					break;
 				case Joystick::State::kLeft:
 					if(item.getValuePtr()!=NULL && !item.isReadOnly()){
-						item.setValue(item.getValue()-1);
+						item.setValue(item.getValue()-item.getInterval());
 						printItemValue(focus,true);
 					}
 					//ListItemValues();
 					break;
 				case Joystick::State::kRight:
 					if(item.getValuePtr()!=NULL && !item.isReadOnly()){
-						item.setValue(item.getValue()+1);
+						item.setValue(item.getValue()+item.getInterval());
 						printItemValue(focus,true);
 					}
 					//ListItemValues();
