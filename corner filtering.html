@@ -1,0 +1,224 @@
+<html>
+<title>Filter Corner</title>
+<script>
+    window.onload = function() {
+        header = document.getElementById("header")
+        image = document.getElementById("image")
+        loadheader();
+        loadimage();
+        
+        document.getElementById("solvedImage").addEventListener("click",function(e){
+            filter(e)
+        });
+        
+        document.getElementById("solvedImage").addEventListener('dblclick', function(){ 
+
+          newpolygon = true;
+
+        });
+    }
+
+    flag = 0;
+
+    /*
+     *load the header file generated
+     */
+    function loadheader() {
+        var client = new XMLHttpRequest();
+        client.open('GET', 'img.h');
+        client.onreadystatechange = function() {
+            //alert(client.responseText);
+            //console.log(client.responseText)
+            header.value = client.responseText
+            //out();
+            if (++flag >= 2) out()
+        }
+        client.send();
+    }
+
+    function getBit(value, x, y) {
+        return value[x + y * 128]
+    }
+
+    /*
+     *load the image data.txt
+     */
+    function loadimage() {
+        var client = new XMLHttpRequest();
+        client.open('GET', 'data.txt');
+        client.onreadystatechange = function() {
+            //alert(client.responseText);
+            //console.log(client.responseText)
+            image.value = client.responseText
+            //out();
+            if (++flag >= 2) out()
+        }
+        client.send();
+    }
+
+
+    //parse the header
+    function parseHeader() {
+        matrix = [];
+        matrix_raw = header.value.replace(/ /g, '').replace(/\n/g, '').replace(/\t/g, '');
+        matrix_raw = matrix_raw.split("]={")
+        matrix_raw = matrix_raw[1].split("};")[0];
+        rows = matrix_raw.split("{{").splice(1);
+        for (i = 0; i < rows.length; i++) {
+            cols = rows[i].split("}");
+            points = []
+            for (j = 0; j < cols.length; j++) {
+                pt = cols[j].replace(/,{/g, '').split(",")
+                points.push(pt)
+            }
+            matrix.push(points);
+        }
+    }
+
+    //print raw image
+    function printRaw() {
+        var value = image.value;
+        var c = document.getElementById("rawImage");
+        c.width = 128, c.height = 480;
+        document.getElementById("out").appendChild(c)
+        var ctx = c.getContext("2d");
+        for (i = 0; i < value.length; i++) {
+            //window.alert(value[i]);
+            if (value[i] != 0) ctx.fillRect(i % 128, Math.floor(i / 128), 1, 1);
+        }
+    }
+
+    //print solved image
+    function printSolved() {
+        c = document.getElementById("solvedImage");
+        c.width = 128, c.height = 160;
+        document.getElementById("out").appendChild(c)
+        var ctx = c.getContext("2d");
+        for (i = 0; i < 128; i++) {
+            for (j = 0; j < 160; j++) {
+                if (image.value[Math.min(matrix[i][j][0], 128) + Math.max(128 * matrix[i][j][1], 480)] == 0 && matrix[i][j][0] >= 0 && matrix[i][j][1] >= 0 && matrix[i][j][0] < 128 && matrix[i][j][1] < 480) {
+                    ctx.fillStyle = "#000000";
+                    ctx.fillRect(i, j, 1, 1);
+                } else if (matrix[i][j][0] >= 0 && matrix[i][j][1] >= 0 && matrix[i][j][0] < 128 && matrix[i][j][1] < 480) {
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.fillRect(i, j, 1, 1);
+                } else {
+                    //out of bound
+                    ctx.fillStyle = "#FF0000";
+                    ctx.fillRect(i, j, 1, 1);
+                }
+
+            }
+        }
+    }
+
+    var mouseDown = 0;
+
+    /*
+     *print out all the images
+     */
+    function out() {
+        //remove all existing canvas
+
+        parseHeader();
+        printRaw();
+        printSolved();
+
+        
+
+        solved = c;
+
+    }
+    
+    
+    newpolygon = true;
+    vertex = [];
+    function filter(e){
+        console.log("filter")
+        ctx = c.getContext("2d");
+        var x = e.clientX - c.offsetLeft
+        var y = e.clientY - c.offsetTop
+        if(newpolygon){
+            vertex = []
+            vertex.push([x,y]);
+            ctx.moveTo(x,y);
+            newpolygon=false;
+        }
+        else{
+            ctx.fillStyle="#FF0000"
+            ctx.lineTo(x,y);
+            ctx.fill()
+        }
+    }
+
+    function rgbToHex(r, g, b) {
+    if (r > 255 || g > 255 || b > 255)
+        throw "Invalid color component";
+    return ((r << 16) | (g << 8) | b).toString(16);
+}
+    function getCanvasBit(i,j){
+        ctx = c.getContext("2d");
+        var p = ctx.getImageData(i, j, 1, 1).data;
+        var hex = "#" + ("000000" + rgbToHex(p[0], p[1], p[2])).slice(-6);
+        return hex;
+    }
+    
+    //generate new header file
+    function generate() {
+        prefix = "#ifndef SRC_IMG_H_\n#define SRC_IMG_H_\n#include <cstdint>\n	 const int numOfRows = 19;\n	 const int tarW =128;\n	 const int tarH =160;\n	 const int w =128;\n	 const int h =480;\n	 const int transformMatrix[128][160][2]=\n{";
+        suffix = "};#endif /* SRC_FUNCTION_H_ */";
+        detail = "";
+        for (i = 0; i < 128; i++) {
+            if (i != 0) detail = detail + ",";
+            detail = detail + "{";
+            for (j = 0; j < 160; j++) {
+                if (j != 0) detail = detail + ",";
+                if(getCanvasBit(i,j)=="#ff0000")matrix[i][j]=[-1,-1];
+                detail = detail + "{" + matrix[i][j][0] + "," + matrix[i][j][1] + "}";
+            }
+            detail = detail + "}";
+
+
+            
+        }
+        var copyTextarea = document.querySelector('.js-copytextarea');
+            copyTextarea.value = prefix + detail + suffix;
+
+            copyTextarea.select();
+
+            try {
+                var successful = document.execCommand('copy');
+                var msg = successful ? 'successful' : 'unsuccessful';
+                console.log('Copying text command was ' + msg + "id = " + this.id);
+            } catch (err) {
+                console.log('Oops, unable to copy');
+            }
+    }
+
+    //search corner
+    function bfs(x, y) {
+
+    }
+
+</script>
+
+<body>
+
+    <div id="out">
+        <canvas width="128px" height="480px" id="rawImage"></canvas>
+        <canvas width="128px" height="160px" id="solvedImage"></canvas>
+    </div>
+    <div>
+        <button onclick="loadheader()">load header</button>
+        <button onclick="loadimage()">load data</button>
+        <button onclick="out()">do it</button>
+        <button onclick="generate()">generate</button>
+    </div>
+    <textarea rows="5" cols="10" id="header"></textarea>
+    <textarea rows="5" cols="10" id="image"></textarea>
+    <p>
+        <textarea class="js-copytextarea">output header</textarea>
+    </p>
+</body>
+
+</html>
