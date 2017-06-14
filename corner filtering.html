@@ -166,7 +166,7 @@
     //generate new header file
     function generate() {
         prefix = "#ifndef SRC_IMG_H_\n#define SRC_IMG_H_\n#include <cstdint>\n	 const int numOfRows = 19;\n	 const int tarW =128;\n	 const int tarH =160;\n	 const int w =128;\n	 const int h =480;\n	 const int transformMatrix[128][160][2]=\n{";
-        suffix = "};#endif /* SRC_FUNCTION_H_ */";
+        suffix = "};\n#endif /* SRC_FUNCTION_H_ */";
         detail = "";
         for (i = 0; i < 128; i++) {
             if (i != 0) detail = detail + ",";
@@ -176,7 +176,7 @@
                 if(getCanvasBit(i,j)=="#ff0000")matrix[i][j]=[-1,-1];
                 detail = detail + "{" + matrix[i][j][0] + "," + matrix[i][j][1] + "}";
             }
-            detail = detail + "}";
+            detail = detail + "}\n";
 
 
             
