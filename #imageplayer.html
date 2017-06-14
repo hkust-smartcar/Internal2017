@@ -1,0 +1,168 @@
+<html>
+<title>Filter Corner</title>
+<script>
+    window.onload = function() {
+        header = document.getElementById("header")
+        image = document.getElementById("image")
+        imagelist = document.getElementById("imagelist")
+        
+        loadimage();
+        
+    }
+
+    flag = 0;
+
+    /*
+     *load the image data.txt
+     */
+    function loadimage() {
+        var client = new XMLHttpRequest();
+        client.open('GET', 'imageData128x480.txt');
+        client.onreadystatechange = function() {
+            //alert(client.responseText);
+            //console.log(client.responseText)
+            imagelist.value = client.responseText
+        }
+        client.send();
+    }
+
+
+    //parse the header
+    function parseHeader() {
+        matrix = [];
+        matrix_raw = header.value.replace(/ /g, '').replace(/\n/g, '').replace(/\t/g, '');
+        matrix_raw = matrix_raw.split("]={")
+        matrix_raw = matrix_raw[1].split("};")[0];
+        rows = matrix_raw.split("{{").splice(1);
+        for (i = 0; i < rows.length; i++) {
+            cols = rows[i].split("}");
+            points = []
+            for (j = 0; j < cols.length; j++) {
+                pt = cols[j].replace(/,{/g, '').split(",")
+                points.push(pt)
+            }
+            matrix.push(points);
+        }
+    }
+
+    //print raw image
+    function printRaw() {
+        var value = image.value;
+        var c = document.getElementById("rawImage");
+        c.width = 128, c.height = 480;
+        document.getElementById("out").appendChild(c)
+        var ctx = c.getContext("2d");
+        for (i = 0; i < value.length; i++) {
+            //window.alert(value[i]);
+            if (value[i] != 0) ctx.fillRect(i % 128, Math.floor(i / 128), 1, 1);
+        }
+    }
+
+    //print solved image
+    function printSolved() {
+        c = document.getElementById("solvedImage");
+        c.width = 128, c.height = 160;
+        document.getElementById("out").appendChild(c)
+        var ctx = c.getContext("2d");
+        for (i = 0; i < 128; i++) {
+            for (j = 0; j < 160; j++) {
+                if (image.value[Math.min(matrix[i][j][0], 128) + Math.max(128 * matrix[i][j][1], 480)] == 0 && matrix[i][j][0] >= 0 && matrix[i][j][1] >= 0 && matrix[i][j][0] < 128 && matrix[i][j][1] < 480) {
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.fillRect(i, j, 1, 1);
+                } else if (matrix[i][j][0] >= 0 && matrix[i][j][1] >= 0 && matrix[i][j][0] < 128 && matrix[i][j][1] < 480) {
+                    ctx.fillStyle = "#000000";
+                    ctx.fillRect(i, j, 1, 1);
+                } else {
+                    //out of bound
+                    ctx.fillStyle = "#000000";
+                    ctx.fillRect(i, j, 1, 1);
+                }
+
+            }
+        }
+    }
+
+    var mouseDown = 0;
+
+    /*
+     *print out all the images
+     */
+    function out() {
+        
+        parseHeader();
+        printRaw();
+        printSolved();
+
+        
+
+        solved = c;
+
+    }
+    
+    
+    
+    function parseImageList(){
+        values = imagelist.value.split("#Image").splice(1)
+    }
+    
+    function playraw(){
+        parseImageList()
+        id = 0;
+        var interval = window.setInterval(function(){
+            image.value = values[id++]
+            printRaw()
+            if(id == values.length) window.clearInterval(interval);
+        },100)
+        
+    }
+    
+    function playsolved(){
+        parseHeader()
+        parseImageList()
+        id = 0;
+        var interval = window.setInterval(function(){
+            image.value = values[id++]
+            printSolved()
+            if(id == values.length) window.clearInterval(interval);
+        },100)
+        
+    }
+    
+    function playsync(){
+        parseHeader()
+        parseImageList()
+        id = 0;
+        var interval = window.setInterval(function(){
+            image.value = values[id++]
+            
+            printRaw()
+            printSolved()
+            if(id == values.length) window.clearInterval(interval);
+        },100)
+    }
+
+</script>
+
+<body>
+
+    <div padding="10px" margin="10px" id="out">
+        <canvas width="128px" height="480px" id="rawImage"></canvas>
+        <canvas width="128px" height="160px" id="solvedImage"></canvas>
+    </div>
+    <div padding="10px" margin="10px">
+        <button onclick="loadheader()">load header</button>
+        <button onclick="loadimage()">load data</button>
+        <button onclick="out()">do it</button>
+        <button onclick="playraw()">play raw</button>
+        <button onclick="playsolved()">play solved</button>
+        <button onclick="playsync()">play sync</button>
+    </div>
+    <textarea rows="5" cols="10" id="header"></textarea>
+    <textarea rows="5" cols="10" id="image"></textarea>
+    <textarea rows="5" cols="10" id="imagelist"></textarea>
+    <p>
+        <textarea class="js-copytextarea">output header</textarea>
+    </p>
+</body>
+
+</html>
