@@ -24,9 +24,9 @@
 #define CAM_H 60
 #define cam_w 80
 #define cam_h 120
-#define KP   4.6
+#define KP   4.3
 #define KD   3.4
-#define KP_curve 5.3
+#define KP_curve 6.2
 #define KD_curve 2.3
 #define KP_R  6
 #define KD_R  2.8
@@ -41,8 +41,8 @@
 #define pathwidth 45
 #define initial_servo 740
 #define expected_count 300
-#define speed 2.5
-#define speed_ratio 0.6
+#define speed 2.8
+#define speed_ratio 0.5
 #define ratio_ratio 1
 #define increase_ratio 1.2
 #define L(y) y
@@ -379,16 +379,33 @@ int main(void)
 //			printCameraImage(cameraBuffer);
 			camera.UnlockBuffer();
 			//Sending image
-			if(sent == 10){
+			if(sent == 5){
 			  sent = 0;
 			  const Byte imageByte = 170;
 			  bluetooth1.SendBuffer(&imageByte, 1);
 			  bluetooth1.SendBuffer(cameraBuffer, camera.GetBufferSize());
+
+			  /*Send Data*/
+			  char speedChar[15] = {};
+			  //				sprintf(speedChar, "%.1f,%.3f,%.4f,%.4f,%.3f,%.4f,%.4f\n", 1.0, leftPowSpeedP, leftPowSpeedI, leftPowSpeedD, rightPowSpeedP, rightPowSpeedI, rightPowSpeedD);
+			  //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, targetAng, tempTargetAng);
+			  //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, leftSpeed, leftTempTargetSpeed);
+			  //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, rightSpeed, rightTempTargetSpeed);
+			  //				sprintf(speedChar, "%.1f,%.2f,%.2f,%.2f,%.2f\n", 1.0, targetAng, tempTargetAng, curSpeed, targetSpeed);
+			  //			  	sprintf(speedChar, "%.1f,%.3f\n", 1.0, dt);
+			  sprintf(speedChar, "%.1f",idealdegree);
+			  string speedStr = speedChar;
+			  const Byte speedByte = 171;
+			  bluetooth1.SendBuffer(&speedByte, 1);
+			  bluetooth1.SendStr(speedStr);
+
+
+
 			}
 //
 			extract_cam(cameraBuffer);
 //			Filter2D();
-	//		Print2D();
+			//Print2D();
 
 			find_edge();
 
@@ -585,22 +602,22 @@ int main(void)
 			R_encoder = R_Encoder.GetCount();
 			R_encoder_count = R_encoder_count-R_encoder;
 			if(motor_run && L_slow && R_slow){
-				motorPID(0.2*speed*117,servoP->GetDegree());
+				motorPID(0.1*speed*117,servoP->GetDegree());
 			}
 			else if(motor_run && roundabout){
 				motorPID(0.7*speed*117,servoP->GetDegree());
 			}
 			else if(motor_run && crossroad){
-				motorPID(speed*117,servoP->GetDegree());
+				motorPID(0.8*speed*117,servoP->GetDegree());
 			}
 			else if(motor_run && !crossroad && entercross){
-				motorPID(speed*117,servoP->GetDegree());
+				motorPID(0.9*speed*117,servoP->GetDegree());
 
 			}
 			else if(motor_run && (Lcurve||Rcurve)){
 				L_slow = false;
 				R_slow = false;
-				motorPID(speed*117,servoP->GetDegree());
+				motorPID(0.8*speed*117,servoP->GetDegree());
 			}
 			else if(motor_run && !L_slow && !R_slow){
 				motorPID(speed*117,servoP->GetDegree());
@@ -737,7 +754,7 @@ void motorPID(int ideal_count,int servoangle){
 	L_motor_errorsum += L_motor_error;
 
 	L_motor_ideal += KP_LM*(L_motor_error)+KI_LM*(L_motor_errorsum)+KD_LM*(L_motor_error-L_premotor_error);
-	if(L_motor_ideal > 500){
+	if(L_motor_ideal > 600){
 		L_motorP->SetClockwise(true);
 		L_motor_ideal = 500;
 	}
@@ -749,7 +766,7 @@ void motorPID(int ideal_count,int servoangle){
 	R_motor_error = R_ideal_count + R_encoder;
 	R_motor_errorsum += R_motor_error;
 	R_motor_ideal += KP_RM*(R_motor_error)+KI_RM*(R_motor_errorsum)+KD_RM*(R_motor_error-R_premotor_error);
-	if(R_motor_ideal >500){
+	if(R_motor_ideal >600){
 		R_motorP->SetClockwise(false);
 		R_motor_ideal = 500;
 	}
@@ -785,6 +802,15 @@ void turningPID(){
 	}
 //	ServoErr = (0.6 * error1) + (0.4 * error2);
 	ServoErr = (0.5 * error1) + (0.5 * error2) + 0.1*error3;
+	int out = 0;
+	for(int row = 10; row < 40; row++){
+		if(edge[L(row)].edgeposition<3){
+			out ++;
+		}
+		if(edge[R(row)].edgeposition > 77){
+			out ++;
+		}
+	}
 
 	//change the ServoErr to fit the turning angle
 
@@ -808,9 +834,7 @@ void turningPID(){
 
 	else if(roundabout && !Round_step){
 		idealdegree = initial_servo + int(KP_R*ServoErr +KD_R*(ServoErr-ServoPreErr));
-		if(idealdegree <900){
-			idealdegree = 900;
-		}
+
 	}
 	else if(roundabout && Round_step && !Round_step2){
 		idealdegree = initial_servo + int(KP_R*ServoErr +KD_R*(ServoErr-ServoPreErr));
@@ -818,9 +842,7 @@ void turningPID(){
 	}
 	else if(roundabout && Round_step2){
 		idealdegree = initial_servo + int(KP_R*ServoErr +KD_R*(ServoErr-ServoPreErr));
-		if(idealdegree <900){
-			idealdegree = 900;
-		}
+
 	}
 	else if(Lcurve || Rcurve){
 		idealdegree = initial_servo + int(KP_curve*ServoErr +KD_curve*(ServoErr-ServoPreErr));
@@ -839,9 +861,20 @@ void turningPID(){
 //	lcdP->SetRegion(Lcd::Rect(0,80,128,40));
 //	writerP->WriteString(buffer);
 
-
+if(out < 45){
 	servoP->SetDegree(idealdegree);
 	ServoPreErr = ServoErr;
+}
+else{
+	idealdegree = initial_servo + int(KP_curve*ServoPreErr);
+	if(idealdegree > 1100){
+		idealdegree = 1100;
+	}
+	if(idealdegree < 500){
+		idealdegree = 500;
+	}
+	servoP->SetDegree(idealdegree);
+}
 }
 
 void find_edge(){
@@ -1064,7 +1097,7 @@ void find_edge(){
     	   	}
 
 
-        	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 45){
+        	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 40){
 
 				corner_Lexist = true;
 				L_slow = false;
@@ -1097,7 +1130,7 @@ void find_edge(){
 //    	   		sprintf(buf,"No R ");
 //    	   		writerP->WriteString(buf);
 			}
-			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=45 ){
+			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=40){
 				corner_Rexist = true;
 				R_slow = false;
 				R_corner.x = edge[R(row-6)].edgeposition;
@@ -1292,8 +1325,8 @@ void find_edge(){
 
 				    	   	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition)&&edge[L(row-6)].row < 35 && !L_slow){
 				    	   		L_slow = true;
-				    	   		lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
-				    	   		lcdP->FillColor(0xF800);//Red
+//				    	   		lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
+//				    	   		lcdP->FillColor(0xF800);//Red
 				//    	   		lcdP->SetRegion(Lcd::Rect(0,100,100,40));
 				//    	   		sprintf(buf,"L corner");
 				//    	   		writerP->WriteString(buf);
@@ -1310,8 +1343,8 @@ void find_edge(){
 								L_slow = false;
 								L_corner.x = edge[L(row-6)].edgeposition;
 								L_corner.y = edge[L(row-6)].row;
-								lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 4,edge[L(row-6)].row -4, 9,9));
-								lcdP->FillColor(0x0000);//Black
+//								lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 4,edge[L(row-6)].row -4, 9,9));
+//								lcdP->FillColor(0x0000);//Black
 							}
 				        	if(!corner_Lexist){
 				//    			lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
@@ -1716,7 +1749,7 @@ void checkround(){
 
 	bool first = false;
 	bool second = false;
-	for(int row=0;row<detectline.size() -4;row++){
+	for(int row=0;row<detectline.size()-3;row++){
 //		lcdP->SetRegion(Lcd::Rect(detectline[row].x,detectline[row].y, 2, 2));
 //		lcdP->FillColor(0xF800);//red
 		if(!first && !camptr[detectline[row].x][detectline[row].y] &&!camptr[detectline[row+1].x][detectline[row+1].y] &&camptr[detectline[row+2].x][detectline[row+2].y]){
