@@ -88,7 +88,7 @@ bool tune = false;
 vector<double> constVector;
 
 //Constants
-double balAngle = 34.6;
+double balAngle = 75.6;
 double inputTargetSpeed = 0;
 double leftPowSpeedP = 0, leftPowSpeedI = 0, leftPowSpeedD = 0;
 double rightPowSpeedP = 0, rightPowSpeedI = 0, rightPowSpeedD = 0;
@@ -96,7 +96,7 @@ double speedAngP = 0, speedAngI = 0, speedAngD = 0;
 double targetAngSpeedP = 0, targetAngSpeedI = 0, targetAngSpeedD = 0;
 double targetAngLim = 0, targetSpeedAngK = 0;
 double diffP = 0, diffD = 0;
-double sumSpeedErrLim = 10000, sumAngErrLim = 100000;
+double sumSpeedErrLim = 6000, sumAngErrLim = 100000;
 
 double targetAng = balAngle;
 double sumSpeedErr = 0, sumAngErr = 0, sumLeftSpeedErr = 0, sumRightSpeedErr = 0;
@@ -231,7 +231,7 @@ Point ModRightEdge[150];
 
 int main(void) {
 
-	System::Init();
+ 	System::Init();
 
 //Loop
 	long startTime = System::Time();
@@ -356,38 +356,35 @@ int main(void) {
 	motorRight.SetPower(0);
 
 	Cam1.Start();
-	double temp = 0;
+	double temp = 0, temp1 = 0;
 	System::DelayMs(2000);
 
 	//Constant
-	targetAng = 36;	//Angle to run
-	balAngle = 36;
+	targetAng = 73.6;	//Angle to run
 	inputTargetSpeed = 8000;
-//	leftPowSpeedP = 0.002;
-//	leftPowSpeedI = 0.0001;
-//	leftPowSpeedD = 0.0001;
-//	rightPowSpeedP = 0.002;
-//	rightPowSpeedI = 0.0001;
-//	rightPowSpeedD = 0.0001;
-	leftPowSpeedP = 0.11;
-	leftPowSpeedI = 0.1;
+	leftPowSpeedP = 0.002;
+	leftPowSpeedI = 0.0001;
 	leftPowSpeedD = 0.0001;
-	rightPowSpeedP = 0.08;
-	rightPowSpeedI = 0.08;
+	rightPowSpeedP = 0.002;
+	rightPowSpeedI = 0.0001;
 	rightPowSpeedD = 0.0001;
-	speedAngP = 6000;
-	speedAngI = 0;
-	speedAngD = 40;
-	targetAngSpeedP = -0.0003;
-	targetAngSpeedI = 0;
+//	leftPowSpeedP = 0.08;
+//	leftPowSpeedI = 0.08;
+//	leftPowSpeedD = 0.0001;
+//	rightPowSpeedP = 0.08;
+//	rightPowSpeedI = 0.08;
+//	rightPowSpeedD = 0.0001;
+	speedAngP = 20000;
+	speedAngI = 10;
+	speedAngD = 80;
+	targetAngSpeedP = -0.0002;
+	targetAngSpeedI = -0.00003;
 	targetAngSpeedD = 0.000012;
-	targetAngLim = 8;
-	targetSpeedAngK = 1500;
+	targetAngLim = 4;
+	targetSpeedAngK = 3000;
 	diffP = 0.004;
 	diffD = 0.005;
-	sumAngErrLim = 100000;
-	sumSpeedErrLim = 10000;
-	camEnable = 1;
+	camEnable = 0;
 	tuneBal = 0;
 	tuneSpeed = 0;
 
@@ -439,6 +436,11 @@ int main(void) {
 				motorRight.SetPower(0);
 				continue;
 			}
+			if (System::Time()<5000) {
+				targetAngLim = 0;
+			} else {
+				targetAngLim = 8;
+			}
 
 			targetSpeed = targetSpeedAngK * (targetAng-balAngle);
 
@@ -446,17 +448,17 @@ int main(void) {
 			prevSpeedErr = curSpeedErr;
 			curSpeedErr = curSpeed - targetSpeed;
 			sumSpeedErr += curSpeedErr * dt;
-			if (sumSpeedErr > sumSpeedErrLim) {
-				sumSpeedErr = sumSpeedErrLim;
+			if (sumSpeedErr > 0) {
+				sumSpeedErr = 0;
 			} else if (sumSpeedErr < -1*sumSpeedErrLim) {
 				sumSpeedErr = -1*sumSpeedErrLim;
 			}
 			speedErrRate = arrAvg(speedErrRateArr, speedErrRateArrSize, speedErrRateCounter, speedErrRateTotal, (curSpeedErr - prevSpeedErr) / dt);
 			tempTargetAng = targetAng + targetAngSpeedP * curSpeedErr + targetAngSpeedI * sumSpeedErr + targetAngSpeedD * speedErrRate;
-			if (tempTargetAng > targetAng+targetAngLim) {
+			if (tempTargetAng > targetAng+targetAngLim) {	//backward
 				tempTargetAng = targetAng+targetAngLim;
-			} else if (tempTargetAng < targetAng-targetAngLim) {
-				tempTargetAng = targetAng-targetAngLim;
+			} else if (tempTargetAng < targetAng) {			//forward
+				tempTargetAng = targetAng;
 			}
 
 			//tune balance
@@ -483,8 +485,9 @@ int main(void) {
 
 			//tune speed
 			if (tuneSpeed) {
-				leftTempTargetSpeed = inputTargetSpeed;
-				rightTempTargetSpeed = inputTargetSpeed;
+				leftTempTargetSpeed = inputTargetSpeed + inputTargetSpeed*0.5*sin(temp1);
+				rightTempTargetSpeed = inputTargetSpeed + inputTargetSpeed*0.5*sin(temp1);
+				temp1 += 0.02;
 			}
 
 			//power-speed PID
@@ -498,7 +501,7 @@ int main(void) {
 			}
 			leftSpeedErrRate = arrAvg(leftSpeedErrRateArr, speedErrRateArrSize, leftSpeedErrRateCounter, leftSpeedErrRateTotal, (leftSpeedErr-prevLeftSpeedErr) / dt);
 //			leftSpeedErrRate = (leftSpeedErr-prevLeftSpeedErr) / dt;
-			leftPow = (int)(leftPowSpeedP * leftSpeedErr + leftPowSpeedI * sumLeftSpeedErr + leftPowSpeedD * leftSpeedErrRate);
+			leftPow += (int)(leftPowSpeedP * leftSpeedErr + leftPowSpeedI * sumLeftSpeedErr + leftPowSpeedD * leftSpeedErrRate);
 
 			prevRightSpeedErr = rightSpeedErr;
 			rightSpeedErr = rightSpeed - rightTempTargetSpeed;
@@ -510,7 +513,7 @@ int main(void) {
 			}
 			rightSpeedErrRate = arrAvg(rightSpeedErrRateArr, speedErrRateArrSize, rightSpeedErrRateCounter, rightSpeedErrRateTotal, (rightSpeedErr-prevRightSpeedErr) / dt);
 //			rightSpeedErrRate = (rightSpeedErr-prevRightSpeedErr) / dt;
-			rightPow = (int)(rightPowSpeedP * rightSpeedErr + rightPowSpeedI * sumRightSpeedErr + rightPowSpeedD * rightSpeedErrRate);
+			rightPow += (int)(rightPowSpeedP * rightSpeedErr + rightPowSpeedI * sumRightSpeedErr + rightPowSpeedD * rightSpeedErrRate);
 
 			//power limit
 			if (leftPow > 500) {
@@ -547,8 +550,9 @@ int main(void) {
 //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, targetAng, tempTargetAng);
 //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, leftSpeed, leftTempTargetSpeed);
 //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, rightSpeed, rightTempTargetSpeed);
-//				sprintf(speedChar, "%.1f,%.2f,%.2f,%.2f,%.2f\n", 1.0, targetAng, tempTargetAng, curSpeed, targetSpeed);
-				sprintf(speedChar, "%.1f,%.3f\n", 1.0, dt);
+				sprintf(speedChar, "%.1f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", 1.0, curAng, tempTargetAng, targetAng, curSpeed, targetSpeed, sumSpeedErr);
+//				sprintf(speedChar, "%.1f,%.3f\n", 1.0, dt);
+//				sprintf(speedChar, "%.1f,%.3f,%.3f\n", 1.0, leftSpeed, rightSpeed);
 				string speedStr = speedChar;
 
 				const Byte speedByte = 85;
@@ -590,7 +594,7 @@ int main(void) {
 				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
 				prevDiff = curDiff;
 				FindEdge(image,LeftEdge,RightEdge,LeftEdgeNum,RightEdgeNum);
-				curDiff = FindPath(LeftEdge,RightEdge,ModifyEdge(image,LeftEdge, RightEdge,LeftEdgeNum, RightEdgeNum,LeftCornerOrder,RightCornerOrder,LeftCorner,RightCorner),LeftCorner,RightCorner,LeftEdgeNum, RightEdgeNum);
+				curDiff = -1*FindPath(LeftEdge,RightEdge,ModifyEdge(image,LeftEdge, RightEdge,LeftEdgeNum, RightEdgeNum,LeftCornerOrder,RightCornerOrder,LeftCorner,RightCorner),LeftCorner,RightCorner,LeftEdgeNum, RightEdgeNum);
 
 				differential = diffP*(curDiff) + diffD*(curDiff-prevDiff);
 
