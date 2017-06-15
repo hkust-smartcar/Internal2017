@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cstring>
 #include <string>
+#include <sstream>
 #include <libbase/k60/mcg.h>
 #include <libsc/system.h>
 #include <libsc/led.h>
@@ -69,6 +70,64 @@ using namespace libsc;
 using namespace libbase::k60;
 using namespace std;
 using namespace libsc::k60;
+
+//BT listener
+string inputStr;
+bool tune = false;
+vector<double> constVector;
+bool programRun = true;
+
+bool bluetoothListener(const Byte *data, const size_t size) {
+
+	if (data[0] == 'P') {
+		if (programRun == 0){
+		programRun = 1;
+		}
+		else{
+			programRun = 0;
+		}
+	}
+
+	if (data[0] == 't') {
+		programRun = 1;
+		tune = 1;
+		inputStr = "";
+	}
+	if (tune) {
+		unsigned int i = 0;
+		while (i<size) {
+			if (data[i] != 't' && data[i] != '\n') {
+				inputStr += (char)data[i];
+			} else if (data[i] == '\n') {
+				tune = 0;
+				break;
+			}
+			i++;
+		}
+		if (!tune) {
+			constVector.clear();
+			char * pch;
+			pch = strtok(&inputStr[0], ",");
+			while (pch != NULL){
+				double constant;
+				stringstream(pch) >> constant;
+				constVector.push_back(constant);
+				pch = strtok (NULL, ",");
+			}
+
+		}
+	}
+
+//	else if (data[0] == 'a') {
+//		servoPtr->SetDegree(900);
+//	} else if (data[0] == 'd') {
+//		servoPtr->SetDegree(430);
+//	} else if (data[0] == 'A' || data[0] == 'D') {
+//		servoPtr->SetDegree(700);
+//	}
+
+	return 1;
+}
 
 
 bool camptr[CAM_W][CAM_H];
@@ -349,6 +408,7 @@ int main(void)
 	JyMcuBt106::Config BluetoothConfig;
 	BluetoothConfig.id = 0;
 	BluetoothConfig.baud_rate = libbase::k60::Uart::Config::BaudRate::k115200;
+	BluetoothConfig.rx_isr = &bluetoothListener;
 	JyMcuBt106 bluetooth1(BluetoothConfig);
 
 
@@ -375,6 +435,11 @@ int main(void)
 			lastTime = System::Time();
 			sent++;
 
+			if (!programRun) {
+				motorPID(0,740);
+				continue;
+			}
+
 			const Byte* cameraBuffer = camera.LockBuffer();
 //			printCameraImage(cameraBuffer);
 			camera.UnlockBuffer();
@@ -383,9 +448,9 @@ int main(void)
 			  sent = 0;
 			  const Byte imageByte = 170;
 			  bluetooth1.SendBuffer(&imageByte, 1);
-			  bluetooth1.SendBuffer(cameraBuffer, camera.GetBufferSize());
+			  bluetooth1.SendBuffer(cameraBuffer,1200);
 
-			  /*Send Data*/
+			  /Send Data/
 			  char speedChar[15] = {};
 			  //				sprintf(speedChar, "%.1f,%.3f,%.4f,%.4f,%.3f,%.4f,%.4f\n", 1.0, leftPowSpeedP, leftPowSpeedI, leftPowSpeedD, rightPowSpeedP, rightPowSpeedI, rightPowSpeedD);
 			  //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, targetAng, tempTargetAng);
@@ -681,7 +746,7 @@ void motorPID(int ideal_count,int servoangle){
 //	}
 
 
-	if(servoangle >850){
+	if(servoangle >800){
 		if(servoangle>=1100){
 			L_ideal_count = 0.58* ideal_count*increase_ratio;
 			R_ideal_count =  ideal_count * increase_ratio;
@@ -713,7 +778,7 @@ void motorPID(int ideal_count,int servoangle){
 			//R_ideal_count = ideal_count / 0.715;
 		}
 	}
-	else if(servoangle < 750){
+	else if(servoangle < 700){
 		if(servoangle <500){
 			L_ideal_count = increase_ratio*ideal_count;
 			R_ideal_count = increase_ratio*ideal_count/1.72;
@@ -741,11 +806,6 @@ void motorPID(int ideal_count,int servoangle){
 			L_ideal_count = increase_ratio*ideal_count;
 			R_ideal_count = increase_ratio*ideal_count/1.32;
 			//L_ideal_count = ideal_count * 1.23;
-		}
-		else if(servoangle >=700){
-			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.22;
-			//L_ideal_count = ideal_count * 1.06;
 		}
 	}
 
