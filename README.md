@@ -61,3 +61,29 @@ void PrintRawImage(){
 	return;
 }
 ```
+
+### Code that can deal with libbase/k60/flash.h
+```C++
+float z=0;
+void Save(){
+	Byte buff[4];
+	memcpy(buff, (unsigned char*) (&z), 4);
+	Flash::FlashStatus fStatus = pFlash->Write(buff,4);
+	char text[10];
+	sprintf(text,"save %d",fStatus);
+	pLcd->SetRegion(Lcd::Rect(0,15,128,15));
+	pWriter->WriteBuffer(text,10);
+}
+
+void Load(){
+
+	Byte buff[4];
+	Flash::FlashStatus fStatus = pFlash->Read(buff,4);
+	memcpy((unsigned char*) &z, buff, 4);
+	if(z!=z)z=0;
+	char text[10];
+	sprintf(text,"load %d",fStatus);
+	pLcd->SetRegion(Lcd::Rect(0,0,128,15));
+	pWriter->WriteBuffer(text,10);
+}
+```
