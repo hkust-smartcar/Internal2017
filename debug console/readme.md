@@ -1,7 +1,7 @@
-# Debug Console V2
+# Debug Console V3
 for fun debugging
 
-To get started, include the header file [MCU_debug_console_V2.h](https://github.com/hkust-smartcar/Internal2017/blob/dipsy/debug%20console/MCU_debug_console_V2.h) as `debug_console.h` in `inc` folder.
+To get started, add the header file [debug_console.h](https://github.com/hkust-smartcar/Internal2017/blob/dipsy/debug%20console/V3/debug_console.h) and the source file [debug_console.cpp](https://github.com/hkust-smartcar/Internal2017/blob/dipsy/debug%20console/V3/debug_console.cpp) in `inc` and `src` folder respectively.
 
 # Overview
 Use joystick to navigate and adjust the value of destinated variables
@@ -11,6 +11,9 @@ In console version, use WASD spacebar instead
 Use up and down to choose between rows, left right to adjust value, select to choose
 
 You can also change to use your own function by setting listener function (v1)
+
+# What is new in V3
+- support flash, which allow the value to stay in the program when restart the smartcar. The data still have some chances to lose when restart, but very low.
 
 # What is new in V2
 - Changed item array to vector, allowing infinite items in a single console
@@ -105,4 +108,24 @@ int main(){
     console1.EnterDebug();
 }
 void nextPage(){page2->EnterDebug();}
+```
+
+## How to store permanant value (flash)
+```C++
+DebugConsole console(pJoystick,pLcd,pWriter,2); //joystick, lcd and typewriter pointer
+Item item();
+item.SetValuePtr(&z)->SetText("z")->SetFlashable(true);	//item set value pointer (must be float), printed text, and flashable(important, or will not store)
+console.PushItem(item);
+item.SetValuePtr(&q)->SetText("q")->SetFlashable(true);
+console.PushItem(item);
+console.SetFlash(pFlash);	//flash pointer
+console.Load();			//load old value from mcu
+console.ListItems();		//print console items to the lcd
+while(1){
+	console.Listen();	//console response to key press of joystick
+	if(System::Time()%50==0){
+		led->Switch();
+		console.Save();	//store all value of all items in console which have marked flashable
+	}
+}
 ```
