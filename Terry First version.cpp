@@ -27,9 +27,9 @@
 #define cam_h 120
 #define KP   4.3
 #define KD   3.4
-#define KP_curve 6.2
+#define KP_curve 6.5
 #define KD_curve 2.3
-#define KP_R  6
+#define KP_R  5.7
 #define KD_R  2.8
 #define KP_LM 0.06
 #define KD_LM 0.07
@@ -41,8 +41,7 @@
 #define focalL 40
 #define pathwidth 45
 #define initial_servo 740
-#define expected_count 300
-#define speed 2.8
+#define speed 2.6
 #define speed_ratio 0.5
 #define ratio_ratio 1
 #define increase_ratio 1.2
@@ -165,7 +164,20 @@ for(Uint i =30;i<60;i++){
 					}
 					camptr[j][i] = GET_BIT(camBuffer[pos], bit_pos);
 	}
-}}
+}
+}
+Byte imgBuffer[600];
+void compress_cam(){
+	Uint pos = 0;
+	int byt = 0;
+for (Uint i=0; i< CAM_H;i++){
+	for (Uint j=0; j<CAM_W;j += 8){
+		byt = (128*camptr[j][i]+64*camptr[j+1][i]+32*camptr[j+2][i]+16*camptr[j+3][i]+8*camptr[j+4][i]+4*camptr[j+5][i]+2*camptr[j+6][i]+camptr[j+7][i]);
+		imgBuffer[pos] = byt;
+		pos++;
+	}
+}
+}
 
 
 
@@ -318,6 +330,8 @@ bool crossroad = false;
 bool entercross =false;
 bool Rcross = false;
 bool roundabout = false;
+bool L_roundabout = false;
+bool R_roundabout = false;
 bool Round_step = false;
 bool Round_step2 = false;
 bool Cross_step = false;
@@ -445,12 +459,13 @@ int main(void)
 			camera.UnlockBuffer();
 			//Sending image
 			if(sent == 5){
+			  compress_cam();
 			  sent = 0;
 			  const Byte imageByte = 170;
 			  bluetooth1.SendBuffer(&imageByte, 1);
-			  bluetooth1.SendBuffer(cameraBuffer,1200);
+			  bluetooth1.SendBuffer(imgBuffer,600);
 
-			  /Send Data/
+			  /*Send Data*/
 			  char speedChar[15] = {};
 			  //				sprintf(speedChar, "%.1f,%.3f,%.4f,%.4f,%.3f,%.4f,%.4f\n", 1.0, leftPowSpeedP, leftPowSpeedI, leftPowSpeedD, rightPowSpeedP, rightPowSpeedI, rightPowSpeedD);
 			  //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, targetAng, tempTargetAng);
@@ -493,14 +508,12 @@ int main(void)
 
 			}
 			else if(roundabout){
-//				sprintf(buf, "Roundabout！");
-//				lcdP->SetRegion(Lcd::Rect(0,60,80,80));
-//				writer.WriteString(buf);
+				if(L_roundabout){
+
+
 				int R = 0;
 				if(!Round_step){
-//					sprintf(buf, "R ready");
-//					lcdP->SetRegion(Lcd::Rect(0,80,80,80));
-//					writer.WriteString(buf);
+
 					if(!sum_of_encoder){
 						L_encoder_count = 0;
 						sum_of_encoder = true;
@@ -508,41 +521,88 @@ int main(void)
 					if(L_encoder_count > 2500){
 						sum_of_encoder = false;
 						Round_step = true;
-	//					sprintf(buf, "R PASS 1");
-	//					lcdP->SetRegion(Lcd::Rect(0,80,80,80));
-	//					writer.WriteString(buf);
 					}
 				}
 
 
 
 
-				if(Round_step && ! Round_step2 &&corner_Lexist && L_corner.y>45){
+				if(Round_step && ! Round_step2 && corner_Lexist && L_corner.y > 48){
 					Round_step2 = true;
-//					sprintf(buf, "R PASS 2");
-//					lcdP->SetRegion(Lcd::Rect(0,80,80,80));
-//					writer.WriteString(buf);
-
-
 				}
+
+
 				if(Round_step2){
 					if(!sum_of_encoder){
-											L_encoder_count = 0;
-											sum_of_encoder = true;
-															}
-										if(L_encoder_count > 2000){
-												sum_of_encoder = false;
+						L_encoder_count = 0;
+						sum_of_encoder = true;
+					}
+					if(L_encoder_count > 2000){
+						sum_of_encoder = false;
 
-												roundabout = false;
-												Round_step = false;
-												Round_step2 = false;
-												L_slow = false;
-												R_slow = false;
-												//						sprintf(buf, "R Done");
-												//						lcdP->SetRegion(Lcd::Rect(0,80,80,80));
-												//						writer.WriteString(buf);
-											}
+
+						L_roundabout =false;
+						roundabout = false;
+						Round_step = false;
+						Round_step2 = false;
+						L_slow = false;
+						R_slow = false;
+
+					}
 				}
+
+
+
+
+			}
+				else if(R_roundabout){
+
+
+
+
+					int R = 0;
+					if(!Round_step){
+
+						if(!sum_of_encoder){
+							R_encoder_count = 0;
+							sum_of_encoder = true;
+						}
+						if(R_encoder_count > 2500){
+							sum_of_encoder = false;
+							Round_step = true;
+						}
+					}
+
+
+
+
+					if(Round_step && ! Round_step2 && corner_Rexist && R_corner.y > 48){
+						Round_step2 = true;
+					}
+
+
+					if(Round_step2){
+						if(!sum_of_encoder){
+							R_encoder_count = 0;
+							sum_of_encoder = true;
+						}
+						if(R_encoder_count > 2000){
+							sum_of_encoder = false;
+
+
+							R_roundabout =false;
+							roundabout = false;
+							Round_step = false;
+							Round_step2 = false;
+							L_slow = false;
+							R_slow = false;
+
+						}
+					}
+
+
+				}
+
 
 
 
@@ -667,7 +727,7 @@ int main(void)
 			R_encoder = R_Encoder.GetCount();
 			R_encoder_count = R_encoder_count-R_encoder;
 			if(motor_run && L_slow && R_slow){
-				motorPID(0.1*speed*117,servoP->GetDegree());
+				motorPID(0.4*speed*117,servoP->GetDegree());
 			}
 			else if(motor_run && roundabout){
 				motorPID(0.7*speed*117,servoP->GetDegree());
@@ -696,7 +756,7 @@ int main(void)
 			}
 
 
-			if( (L_encoder < 10 || R_encoder > -10 ) && System::Time() > 1000){
+			if( (abs(L_encoder) < 10 || abs(R_encoder)< 10 ) && System::Time() > 1000){
 				motor_run = false;
 			}
 			else{
@@ -711,7 +771,7 @@ int main(void)
 //						sprintf(buffer, "%d , %d ",L_encoder_count,R_encoder_count);
 //						lcdP->SetRegion(Lcd::Rect(0,130,120,40));
 //						writerP->WriteString(buffer);
-
+//
 //						sprintf(buffer, "%.3f , %.3f ",L_speed,R_speed);
 //						lcdP->SetRegion(Lcd::Rect(0,110,120,40));
 //						writerP->WriteString(buffer);
@@ -722,7 +782,6 @@ int main(void)
 	}
 		return 0;
 		}
-
 
 
 
@@ -746,67 +805,72 @@ void motorPID(int ideal_count,int servoangle){
 //	}
 
 
-	if(servoangle >800){
+	if(servoangle >780){
 		if(servoangle>=1100){
-			L_ideal_count = 0.58* ideal_count*increase_ratio;
+			L_ideal_count = 0.6* ideal_count*increase_ratio;
 			R_ideal_count =  ideal_count * increase_ratio;
 			//R_ideal_count = ideal_count / 0.65;
 		}
 		else if(servoangle<1100 && servoangle >= 1050){
-			L_ideal_count = 0.66f* ideal_count * increase_ratio;
+			L_ideal_count = 0.65* ideal_count * increase_ratio;
 			R_ideal_count = ideal_count *increase_ratio;
 			//R_ideal_count = ideal_count / 0.715;
 		}
 		else if(servoangle<1050 && servoangle >= 1000){
-			L_ideal_count = 0.70* ideal_count*increase_ratio;
+			L_ideal_count = 0.68* ideal_count*increase_ratio;
 			R_ideal_count = ideal_count *increase_ratio;
 			//R_ideal_count = ideal_count / 0.715;
 		}
 		else if(servoangle<1000 && servoangle >= 950){
-			L_ideal_count = 0.72* ideal_count*increase_ratio;
+			L_ideal_count = 0.75* ideal_count*increase_ratio;
 			R_ideal_count = ideal_count *increase_ratio;
 			//R_ideal_count = ideal_count / 0.715;
 		}
 		else if(servoangle<950 && servoangle >= 900){
-			L_ideal_count = 0.80* ideal_count*increase_ratio;
+			L_ideal_count = 0.82* ideal_count*increase_ratio;
 			R_ideal_count = ideal_count *increase_ratio;
 			//R_ideal_count = ideal_count / 0.715;
 		}
 		else if(servoangle<900 && servoangle >= 850){
-			L_ideal_count = 0.82* ideal_count*increase_ratio;
+			L_ideal_count = 0.85* ideal_count*increase_ratio;
 			R_ideal_count = ideal_count *increase_ratio;
 			//R_ideal_count = ideal_count / 0.715;
+		}
+		else{
+			L_ideal_count = 0.93* ideal_count*increase_ratio;
+			R_ideal_count = ideal_count *increase_ratio;
 		}
 	}
 	else if(servoangle < 700){
 		if(servoangle <500){
 			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.72;
+			R_ideal_count = increase_ratio*ideal_count/1.73;
 			//L_ideal_count = ideal_count * 1.65;
 		}
 		else if(servoangle >=500 && servoangle <550){
 			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.80;
+			R_ideal_count = increase_ratio*ideal_count/1.68;
 			//L_ideal_count = ideal_count * 1.5;
 
 		}
 		else if(servoangle >=550 && servoangle <600){
 			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.70;
+			R_ideal_count = increase_ratio*ideal_count/1.55;
 			//L_ideal_count = ideal_count * 1.5;
 
 		}
 		else if(servoangle >=600 && servoangle <650){
 			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.42;
+			R_ideal_count = increase_ratio*ideal_count/1.38;
 			//L_ideal_count = ideal_count * 1.5;
 
 		}
 		else if(servoangle >=650 && servoangle < 700){
 			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.32;
+			R_ideal_count = increase_ratio*ideal_count/1.18;
 			//L_ideal_count = ideal_count * 1.23;
 		}
+
 	}
 
 	L_premotor_error = L_motor_error;
@@ -814,25 +878,25 @@ void motorPID(int ideal_count,int servoangle){
 	L_motor_errorsum += L_motor_error;
 
 	L_motor_ideal += KP_LM*(L_motor_error)+KI_LM*(L_motor_errorsum)+KD_LM*(L_motor_error-L_premotor_error);
-	if(L_motor_ideal > 600){
+	if(L_motor_ideal > 550){
+		L_motor_ideal = 550;
 		L_motorP->SetClockwise(true);
-		L_motor_ideal = 500;
 	}
 	if(L_motor_ideal <0){
 		L_motorP->SetClockwise(false);
-		L_motor_ideal = 150;
+		 L_motor_ideal=100;
 	}
 	R_premotor_error = R_motor_error;
 	R_motor_error = R_ideal_count + R_encoder;
 	R_motor_errorsum += R_motor_error;
 	R_motor_ideal += KP_RM*(R_motor_error)+KI_RM*(R_motor_errorsum)+KD_RM*(R_motor_error-R_premotor_error);
-	if(R_motor_ideal >600){
+	if(R_motor_ideal >550){
 		R_motorP->SetClockwise(false);
-		R_motor_ideal = 500;
+		R_motor_ideal = 550;
 	}
 	if(R_motor_ideal <0){
 		R_motorP->SetClockwise(true);
-		R_motor_ideal=150;
+		 R_motor_ideal=100;
 	}
 
 
@@ -883,11 +947,11 @@ void turningPID(){
 	// Incremental PID(n) = PID(n-1) + kp * (e(n)-e(n-1)) +kd *(e(n)-2e(n-1)+e(n-2)) + ki * e(n)
 	if(!crossroad && entercross){
 		idealdegree = initial_servo + int(KP_curve*ServoErr +KD_curve*(ServoErr-ServoPreErr));
-		if(idealdegree > 1000){
-			idealdegree = 1000;
+		if(idealdegree > 990){
+			idealdegree = 990;
 		}
-		if(idealdegree < 500){
-			idealdegree = 500;
+		if(idealdegree < 490){
+			idealdegree = 490;
 
 		}
 	}
@@ -1144,7 +1208,7 @@ void find_edge(){
 //			lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
 //			lcdP->FillColor(0xF800);//Red
 
-    	   	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition)&&edge[L(row-6)].row < 35 && !L_slow){
+    	   	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition)&&edge[L(row-6)].row >32 && !L_slow){
     	   		L_slow = true;
 //    	   		lcdP->SetRegion(Lcd::Rect(0,100,100,40));
 //    	   		sprintf(buf,"L corner");
@@ -1157,7 +1221,7 @@ void find_edge(){
     	   	}
 
 
-        	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 40){
+        	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 38){
 
 				corner_Lexist = true;
 				L_slow = false;
@@ -1179,7 +1243,7 @@ void find_edge(){
 		if(row >= 12 && row % 2 == 0 && abs(edge[R(row)].edgeposition + edge[R(row-12)].edgeposition - 2*edge[R(row-6)].edgeposition )>= 4 && edge[R(row-6)].row >=30 && edge[R(row-6)].edgeposition < 74){
 
 
-			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && edge[R(row-6)].row < 35 && !R_slow){
+			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && edge[R(row-6)].row >32 && !R_slow){
 				R_slow = true;
 //    	   		lcdP->SetRegion(Lcd::Rect(80,100,50,40));
 //    	   		sprintf(buf,"R c");
@@ -1190,7 +1254,7 @@ void find_edge(){
 //    	   		sprintf(buf,"No R ");
 //    	   		writerP->WriteString(buf);
 			}
-			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=40){
+			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=38){
 				corner_Rexist = true;
 				R_slow = false;
 				R_corner.x = edge[R(row-6)].edgeposition;
@@ -1274,150 +1338,305 @@ void find_edge(){
 				}
 	}
 	else if(roundabout){
+
+		if(L_roundabout){
 		for(int i = CAM_W/2; i >2; i--){
-					//BWW found!
-					if(!camptr[i][CAM_H-1] && !camptr[i-1][CAM_H-1] && camptr[i-2][CAM_H-1] ){
-						edge[L(0)].edgeposition = i-1;
-						edge[L(0)].row = CAM_H-1;
-						left_bottom_exist = true;
-						break;
-					}
+			//BWW found!
+			if(!camptr[i][CAM_H-1] && !camptr[i-1][CAM_H-1] && camptr[i-2][CAM_H-1] ){
+				edge[L(0)].edgeposition = i-1;
+				edge[L(0)].row = CAM_H-1;
+				left_bottom_exist = true;
+				break;
+			}
+		}
+		if(left_bottom_exist == false){
+			edge[L(0)].edgeposition = 1;
+			edge[L(0)].row = CAM_H-1;
+		}
+
+
+
+
+
+			corner_Lexist = false;
+			corner_Rexist = false;
+			L_slow = false;
+			R_slow = false;
+			bool L_stop = false;
+			bool R_stop = false;
+		for(int row = 1; row<CAM_H; row ++){
+
+			bool L_up = false;
+			L_up = camptr[edge[L(row-1)].edgeposition][edge[L(row-1)].row-1];
+			//upper point is still white for left edges
+			if(!L_up){
+
+				if(edge[L(row-1)].edgeposition == 1){
+					edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
+					edge[L(row)].row = edge[L(row-1)].row-1;
 				}
-				if(left_bottom_exist == false){
-					edge[L(0)].edgeposition = 1;
-					edge[L(0)].row = CAM_H-1;
+
+				else if(camptr[edge[L(row-1)].edgeposition-1][edge[L(row-1)].row-1]){
+					edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
+					edge[L(row)].row = edge[L(row-1)].row-1;
+				}
+				else if(camptr[edge[L(row-1)].edgeposition-1][edge[L(row-1)].row]){
+					edge[L(row)].edgeposition = edge[L(row-1)].edgeposition-1;
+					edge[L(row)].row = edge[L(row-1)].row-1;
+
+				}
+				else if(camptr[edge[L(row-1)].edgeposition-1][edge[L(row-1)].row+1]){
+					edge[L(row)].edgeposition = edge[L(row-1)].edgeposition-1;
+					edge[L(row)].row = edge[L(row-1)].row;
+
+				}
+				else if(camptr[edge[L(row-1)].edgeposition][edge[L(row-1)].row+1]){
+					edge[L(row)].edgeposition = edge[L(row-1)].edgeposition-1;
+					edge[L(row)].row = edge[L(row-1)].row+1;
+				}
+				else {
+					edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
+					edge[L(row)].row = edge[L(row-1)].row-1;
 				}
 
-
-
-
-
-					corner_Lexist = false;
-					corner_Rexist = false;
-					L_slow = false;
-					R_slow = false;
-					bool L_stop = false;
-					bool R_stop = false;
-				for(int row = 1; row<CAM_H; row ++){
-
-					bool L_up = false;
-					L_up = camptr[edge[L(row-1)].edgeposition][edge[L(row-1)].row-1];
-					//upper point is still white for left edges
-					if(!L_up){
-
-						if(edge[L(row-1)].edgeposition == 1){
-							edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
-							edge[L(row)].row = edge[L(row-1)].row-1;
-						}
-
-						else if(camptr[edge[L(row-1)].edgeposition-1][edge[L(row-1)].row-1]){
-							edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
-							edge[L(row)].row = edge[L(row-1)].row-1;
-						}
-						else if(camptr[edge[L(row-1)].edgeposition-1][edge[L(row-1)].row]){
-							edge[L(row)].edgeposition = edge[L(row-1)].edgeposition-1;
-							edge[L(row)].row = edge[L(row-1)].row-1;
-
-						}
-						else if(camptr[edge[L(row-1)].edgeposition-1][edge[L(row-1)].row+1]){
-							edge[L(row)].edgeposition = edge[L(row-1)].edgeposition-1;
-							edge[L(row)].row = edge[L(row-1)].row;
-
-						}
-						else if(camptr[edge[L(row-1)].edgeposition][edge[L(row-1)].row+1]){
-							edge[L(row)].edgeposition = edge[L(row-1)].edgeposition-1;
-							edge[L(row)].row = edge[L(row-1)].row+1;
-						}
-						else {
-							edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
-							edge[L(row)].row = edge[L(row-1)].row-1;
-						}
+			}
+			//upper point is black for left edges
+			else{
+				if(!L_stop){
+					if(edge[L(row-1)].edgeposition == 78){
+						L_stop = true;
+						edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
+						edge[L(row)].row = edge[L(row-1)].row-1;
+					}
+					else if(edge[L(row-1)].edgeposition <=2 && (camptr[40][edge[L(row-1)].row-5]||camptr[40][edge[L(row-1)].row-3]) ){
+						edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
+						edge[L(row)].row = edge[L(row-1)].row-1;
+						L_stop = true;
+					}
+					else if(!camptr[edge[L(row-1)].edgeposition+1][edge[L(row-1)].row-1]){
+						edge[L(row)].edgeposition = edge[L(row-1)].edgeposition+1;
+						edge[L(row)].row = edge[L(row-1)].row-1;
+					}
+					else if(!camptr[edge[L(row-1)].edgeposition+1][edge[L(row-1)].row]){
+						edge[L(row)].edgeposition = edge[L(row-1)].edgeposition+1;
+						edge[L(row)].row = edge[L(row-1)].row;
 
 					}
-					//upper point is black for left edges
+					else if(!camptr[edge[L(row-1)].edgeposition+1][edge[L(row-1)].row+1]){
+						edge[L(row)].edgeposition = edge[L(row-1)].edgeposition+1;
+						edge[L(row)].row = edge[L(row-1)].row+1;
+
+					}
+					else if(!camptr[edge[L(row-1)].edgeposition][edge[L(row-1)].row+1]){
+						edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
+						edge[L(row)].row = edge[L(row-1)].row+1;
+					}
 					else{
-						if(!L_stop){
-							if(edge[L(row-1)].edgeposition == 78){
-								L_stop = true;
-								edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
-								edge[L(row)].row = edge[L(row-1)].row-1;
-							}
-							else if(edge[L(row-1)].edgeposition <=2 && (camptr[40][edge[L(row-1)].row-5]||camptr[40][edge[L(row-1)].row-3]) ){
-								edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
-								edge[L(row)].row = edge[L(row-1)].row-1;
-								L_stop = true;
-							}
-							else if(!camptr[edge[L(row-1)].edgeposition+1][edge[L(row-1)].row-1]){
-								edge[L(row)].edgeposition = edge[L(row-1)].edgeposition+1;
-								edge[L(row)].row = edge[L(row-1)].row-1;
-							}
-							else if(!camptr[edge[L(row-1)].edgeposition+1][edge[L(row-1)].row]){
-								edge[L(row)].edgeposition = edge[L(row-1)].edgeposition+1;
-								edge[L(row)].row = edge[L(row-1)].row;
+						edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
+						edge[L(row)].row = edge[L(row-1)].row-1;
+					}
+				}
+				else{
+					edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
+					edge[L(row)].row = edge[L(row-1)].row-1;
+				}
 
-							}
-							else if(!camptr[edge[L(row-1)].edgeposition+1][edge[L(row-1)].row+1]){
-								edge[L(row)].edgeposition = edge[L(row-1)].edgeposition+1;
-								edge[L(row)].row = edge[L(row-1)].row+1;
+			}
 
-							}
-							else if(!camptr[edge[L(row-1)].edgeposition][edge[L(row-1)].row+1]){
-								edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
-								edge[L(row)].row = edge[L(row-1)].row+1;
-							}
-							else{
-								edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
-								edge[L(row)].row = edge[L(row-1)].row-1;
-							}
+
+		       if(row >= 12 && row % 2==0 && abs(edge[L(row)].edgeposition + edge[L(row-12)].edgeposition - 2*edge[L(row-6)].edgeposition) >= 4 && edge[L(row-6)].row >= 30 && edge[L(row-6)].edgeposition > 5  ){
+
+		//			lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
+		//			lcdP->FillColor(0xF800);//Red
+
+		    	   	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition)&&edge[L(row-6)].row > 35 && !L_slow){
+		    	   		L_slow = true;
+		    	   		lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
+		    	   		lcdP->FillColor(0xF800);//Red
+		//    	   		lcdP->SetRegion(Lcd::Rect(0,100,100,40));
+		//    	   		sprintf(buf,"L corner");
+		//    	   		writerP->WriteString(buf);
+		    	   	}
+		    	   	else{
+		//    	   		lcdP->SetRegion(Lcd::Rect(0,100,100,40));
+		//    	   		sprintf(buf," No L ");
+		//    	   		writerP->WriteString(buf);
+		    	   	}
+
+
+		        	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 40){
+
+						corner_Lexist = true;
+						L_slow = false;
+						L_corner.x = edge[L(row-6)].edgeposition;
+						L_corner.y = edge[L(row-6)].row;
+						lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 4,edge[L(row-6)].row -4, 9,9));
+						lcdP->FillColor(0x0000);//Black
+					}
+		        	if(!corner_Lexist){
+		//    			lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
+		//    			lcdP->FillColor(0xF800);//Red
+		        	}
+				}
+		}
+		for(int j=0;j<60;j++){
+			edge[R(j)].row = edge[L(j)].row;
+			edge[R(j)].edgeposition = edge[L(j)].edgeposition + width[j];
+		}
+
+
+
+
+
+	}
+		else if(R_roundabout){
+			// find the right edge at bottom line.
+			for(int i = CAM_W/2; i < CAM_W -2 ; i++){
+				//WWB found!
+				if(!camptr[i][CAM_H-1]&&!camptr[i+1][CAM_H-1]&&camptr[i+2][CAM_H-1]){
+					edge[R(0)].edgeposition = i+1;
+					edge[R(0)].row = CAM_H-1;
+					right_bottom_exist = true;
+					break;
+				}
+			}
+			if(right_bottom_exist == false){
+				edge[R(0)].edgeposition = CAM_W -2;
+				edge[R(0)].row = CAM_H-1;
+			}
+
+
+
+
+				corner_Lexist = false;
+				corner_Rexist = false;
+				L_slow = false;
+				R_slow = false;
+				bool L_stop = false;
+				bool R_stop = false;
+			for(int row = 1; row<CAM_H; row ++){
+
+				bool R_up = false;
+
+				//upper point is still white for right edges
+				R_up = camptr[edge[R(row-1)].edgeposition][edge[R(row-1)].row-1];
+				if(!R_up){
+					if(edge[R(row-1)].edgeposition == 78){
+						edge[R(row)].edgeposition = edge[R(row-1)].edgeposition;
+						edge[R(row)].row = edge[R(row-1)].row-1;
+					}
+					else if(camptr[edge[R(row-1)].edgeposition+1][edge[R(row-1)].row-1]){
+						edge[R(row)].edgeposition = edge[R(row-1)].edgeposition;
+						edge[R(row)].row = edge[R(row-1)].row-1;
+					}
+					else if(camptr[edge[R(row-1)].edgeposition+1][edge[R(row-1)].row]){
+						edge[R(row)].edgeposition = edge[R(row-1)].edgeposition+1;
+						edge[R(row)].row = edge[R(row-1)].row-1;
+
+					}
+					else if(camptr[edge[R(row-1)].edgeposition+1][edge[R(row-1)].row+1]){
+						edge[R(row)].edgeposition = edge[R(row-1)].edgeposition+1;
+						edge[R(row)].row = edge[R(row-1)].row;
+
+					}
+					else if(camptr[edge[R(row-1)].edgeposition][edge[R(row-1)].row+1]){
+						edge[R(row)].edgeposition = edge[R(row-1)].edgeposition+1;
+						edge[R(row)].row = edge[R(row-1)].row+1;
+
+					}
+					else {
+						edge[R(row)].edgeposition = edge[R(row-1)].edgeposition;
+						edge[R(row)].row = edge[R(row-1)].row-1;
+					}
+
+				}
+				//upper point is black for right edges
+				else{
+					if(!R_stop){
+						if(edge[R(row-1)].edgeposition == 1){
+							R_stop = true;
+							edge[R(row)].edgeposition = edge[R(row-1)].edgeposition;
+							edge[R(row)].row = edge[R(row-1)].row-1;
+						}
+						if(edge[R(row-1)].edgeposition == 78 && camptr[40][edge[R(row-1)].row-5]){
+							edge[R(row)].edgeposition = edge[R(row-1)].edgeposition;
+							edge[R(row)].row = edge[R(row-1)].row-1;
+							R_stop = true;
+						}
+						else if(!camptr[edge[R(row-1)].edgeposition-1][edge[R(row-1)].row-1]){
+							edge[R(row)].edgeposition = edge[R(row-1)].edgeposition-1;
+							edge[R(row)].row = edge[R(row-1)].row-1;
+						}
+						else if(!camptr[edge[R(row-1)].edgeposition-1][edge[R(row-1)].row]){
+							edge[R(row)].edgeposition = edge[R(row-1)].edgeposition-1;
+							edge[R(row)].row = edge[R(row-1)].row;
+
+						}
+						else if(!camptr[edge[R(row-1)].edgeposition-1][edge[R(row-1)].row+1]){
+							edge[R(row)].edgeposition = edge[R(row-1)].edgeposition-1;
+							edge[R(row)].row = edge[R(row-1)].row+1;
+
+						}
+						else if(!camptr[edge[R(row-1)].edgeposition][edge[R(row-1)].row+1]){
+							edge[R(row)].edgeposition = edge[R(row-1)].edgeposition;
+							edge[R(row)].row = edge[R(row-1)].row+1;
 						}
 						else{
-							edge[L(row)].edgeposition = edge[L(row-1)].edgeposition;
-							edge[L(row)].row = edge[L(row-1)].row-1;
+							edge[R(row)].edgeposition = edge[R(row-1)].edgeposition;
+							edge[R(row)].row = edge[R(row-1)].row-1;
 						}
-
 					}
-
-
-				       if(row >= 12 && row % 2==0 && abs(edge[L(row)].edgeposition + edge[L(row-12)].edgeposition - 2*edge[L(row-6)].edgeposition) >= 4 && edge[L(row-6)].row >= 30 && edge[L(row-6)].edgeposition > 5  ){
-
-				//			lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
-				//			lcdP->FillColor(0xF800);//Red
-
-				    	   	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition)&&edge[L(row-6)].row < 35 && !L_slow){
-				    	   		L_slow = true;
-//				    	   		lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
-//				    	   		lcdP->FillColor(0xF800);//Red
-				//    	   		lcdP->SetRegion(Lcd::Rect(0,100,100,40));
-				//    	   		sprintf(buf,"L corner");
-				//    	   		writerP->WriteString(buf);
-				    	   	}
-				    	   	else{
-				//    	   		lcdP->SetRegion(Lcd::Rect(0,100,100,40));
-				//    	   		sprintf(buf," No L ");
-				//    	   		writerP->WriteString(buf);
-				    	   	}
-
-				        	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 40){
-
-								corner_Lexist = true;
-								L_slow = false;
-								L_corner.x = edge[L(row-6)].edgeposition;
-								L_corner.y = edge[L(row-6)].row;
-//								lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 4,edge[L(row-6)].row -4, 9,9));
-//								lcdP->FillColor(0x0000);//Black
-							}
-				        	if(!corner_Lexist){
-				//    			lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
-				//    			lcdP->FillColor(0xF800);//Red
-				        	}
-						}
+					else{
+						edge[R(row)].edgeposition = edge[R(row-1)].edgeposition;
+						edge[R(row)].row = edge[R(row-1)].row-1;
+					}
 				}
 
 
-				for(int j=0;j<60;j++){
-					edge[R(j)].row = edge[L(j)].row;
-					edge[R(j)].edgeposition = edge[L(j)].edgeposition + width[j];
+				/*
+				 * Trigger one R
+				 */
+
+				if(row >= 12 && row % 2 == 0 && abs(edge[R(row)].edgeposition + edge[R(row-12)].edgeposition - 2*edge[R(row-6)].edgeposition )>= 4 && edge[R(row-6)].row >=30 && edge[R(row-6)].edgeposition < 74){
+
+
+					if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && edge[R(row-6)].row > 35 && !R_slow){
+						R_slow = true;
+		    	   		lcdP->SetRegion(Lcd::Rect(edge[R(row-6)].edgeposition - 2,edge[R(row-6)].row -2, 4,4));
+		    	   		lcdP->FillColor(0xF800);//Red
+		//    	   		lcdP->SetRegion(Lcd::Rect(80,100,50,40));
+		//    	   		sprintf(buf,"R c");
+		//    	   		writerP->WriteString(buf);
+					}
+					else{
+		//    	   		lcdP->SetRegion(Lcd::Rect(80,100,50,40));
+		//    	   		sprintf(buf,"No R ");
+		//    	   		writerP->WriteString(buf);
+					}
+					if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=40){
+						corner_Rexist = true;
+						R_slow = false;
+						R_corner.x = edge[R(row-6)].edgeposition;
+						R_corner.y = edge[R(row-6)].row;
+						lcdP->SetRegion(Lcd::Rect(edge[R(row-6)].edgeposition-4,edge[R(row-6)].row-4, 9, 9));
+						lcdP->FillColor(0xF800);//Red
+					}
+					if(!corner_Rexist){
+		//				lcdP->SetRegion(Lcd::Rect(edge[R(row-6)].edgeposition-2,edge[R(row-6)].row-2, 4, 4));
+		//				lcdP->FillColor(0x0000);//Red
+					}
 				}
+
+
+
+			}
+			for(int j=0;j<60;j++){
+				edge[L(j)].row = edge[R(j)].row;
+				edge[L(j)].edgeposition = edge[R(j)].edgeposition - width[j];
+			}
+
+
+		}
 	}
 }
 
@@ -1780,15 +1999,6 @@ bool roundabout_detect(int i,int j){
 
 void checkround(){
 
-	int L_count = 0;
-	int R_count = 0;
-
-
-//	int half_x = 0;
-//	int half_y = 0;
-//	int x = 0;
-//	int y = 0;
-//	int scale = 0;
 	int middle_x = 0;
 	int middle_y = 0;
 	int bottom_x = 0;
@@ -1800,55 +2010,52 @@ void checkround(){
 	bottom_y = (edge[L(1)].row + edge[R(1)].row)/2;
 	k = double(bottom_y - middle_y)/double(middle_x - bottom_x);
 	detectline.clear();
-	for(int row =0; row< (middle_y)/2; row++){
+	for(int row =0; row< (middle_y); row++){
 		coor temp;
-		temp.x = round((2*(row+1)/k) + middle_x);
-		temp.y = middle_y - 2*(row+1);
+		temp.x = round((1*(row+1)/k) + middle_x);
+		temp.y = middle_y - (row+1);
 		detectline.push_back(temp);
 	}
 
 	bool first = false;
 	bool second = false;
-	for(int row=0;row<detectline.size()-3;row++){
-//		lcdP->SetRegion(Lcd::Rect(detectline[row].x,detectline[row].y, 2, 2));
-//		lcdP->FillColor(0xF800);//red
+	for(int row=0;row<detectline.size() -3;row++){
+		lcdP->SetRegion(Lcd::Rect(detectline[row].x,detectline[row].y, 1, 1));
+		lcdP->FillColor(0xF800);//red
 		if(!first && !camptr[detectline[row].x][detectline[row].y] &&!camptr[detectline[row+1].x][detectline[row+1].y] &&camptr[detectline[row+2].x][detectline[row+2].y]){
 			first = true;
 		}
 
 
+
 		else if(first &&!second && camptr[detectline[row].x][detectline[row].y] &&camptr[detectline[row+1].x][detectline[row+1].y] && !camptr[detectline[row+2].x][detectline[row+2].y]){
 			second = true;
 		}
-		else if(second &&!camptr[detectline[row].x][detectline[row].y] && camptr[detectline[row+1].x][detectline[row+1].y]){
+
+
+		else if(second && !camptr[detectline[row].x][detectline[row].y] && camptr[detectline[row+1].x][detectline[row+1].y]){
 			roundabout = true;
 		}
 	}
 
-
 	if(!roundabout){
 		crossroad = true;
 	}
-//	half_x = (middle_x - bottom_x)/2;
-//	half_y = (middle_y - bottom_y)/2;
-//	x = 2*middle_x - bottom_x;
-//	y = 2*middle_y - bottom_y;
-//	if(  middle_y >= 45){
-//	while(y >= 35){
-//		scale += 1;
-//		x = (scale+4)*middle_x/2 - (scale+2)*bottom_x/2;
-//		y = (scale+4)*middle_y/2 - (scale+2)*bottom_y/2;
-//
-//	}
-//	}
-//	if(roundabout_detect(y,x)){
-//		roundabout = true;
-//		crossroad = false;
-//	}
-//	else{
-//		roundabout = false;
-//		crossroad = true;
-//	}
+	else{
+		int L =0;
+		int R = 0;
+		L = edge[L(59)].edgeposition - 1;
+		R = 78 - edge[R(59)].edgeposition;
+		if(L<=R){
+			L_roundabout = true;
+			R_roundabout = false;
+		}
+		else{
+			R_roundabout = true;
+			L_roundabout = false;
+		}
+
+	}
 
 
 
@@ -1882,6 +2089,7 @@ bool Rcorner(int i,int j){
 
 return false;
 	}
+
 
 
 void Printedge(){
