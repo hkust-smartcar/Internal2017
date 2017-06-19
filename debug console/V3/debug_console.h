@@ -74,7 +74,7 @@ class DebugConsole {
   /**
    * pause and start debugging
    */
-  void EnterDebug();
+  void EnterDebug(char* leave_msg);
 
   /**
    * just listen and do, no pause
@@ -135,8 +135,7 @@ class DebugConsole {
  private:
   int focus = 0;
   int topIndex = 0;
- public:std::vector<Item> items;
- private:
+  std::vector<Item> items;
   libsc::Joystick* joystick;
   libsc::St7735r* lcd;
   libsc::LcdTypewriter* writer;
@@ -149,12 +148,13 @@ class DebugConsole {
   int offset = 0; //distance away from top of lcd
   bool auto_flash = true; //flash
   int flash_sum=0;
+  bool flag=false;
 
   void Printxy(int x, int y, char* c, int inverted = false);
 
   void Clear();
 
-  int ListenerDo(libsc::Joystick::State key);
+  void ListenerDo(libsc::Joystick::State key);
 };
 
 #endif // CHASING17_DEBUG_CONSOLE_H_
