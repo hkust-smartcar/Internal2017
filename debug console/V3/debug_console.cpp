@@ -6,7 +6,7 @@
  *
  * Author: Dipsy Wong (dipsywong98)
  *
- * Implementation for DebugConsole (v3) class.
+ * Implementation for DebugConsole (v3.1) class.
  *
  */
 
@@ -59,16 +59,19 @@ Item* Item::SetReadOnly(bool isReadOnly) {
 DebugConsole::DebugConsole(Joystick* joystick, St7735r* lcd, LcdTypewriter* writer, int displayLength)
     : joystick(joystick), lcd(lcd), writer(writer), displayLength(displayLength) {}
 
-void DebugConsole::EnterDebug() {
-  int flag = 1;
-  Item item(">>exit<<");
-  PushItem(item);
+void DebugConsole::EnterDebug(char* leave_msg) {
+  flag = true;
+  Item item(leave_msg);
+  InsertItem(item);
   int index = items.size();
+  Load();
   ListItems();
   while (flag) {
     Listen();
+//    if(System::Time()%100==0)
+    	Save();
   }
-  items.erase(items.end() - (index - items.size()));
+  items.erase(items.begin());
   Clear();
 }
 
@@ -105,8 +108,8 @@ void DebugConsole::PrintItem(int index, bool isInverted) {
 void DebugConsole::PrintItemValue(int index, bool isInverted) {
   if (items[index].GetValuePtr() != nullptr) {
     char buff[20];
-    sprintf(buff, "%.5lf", items[index].GetValue());
-    Printxy(7, index - topIndex, buff, isInverted);
+    sprintf(buff, "%.3lf", items[index].GetValue());
+    Printxy(9, index - topIndex, buff, isInverted);
   }
 }
 
@@ -119,10 +122,11 @@ void DebugConsole::Load(){
 	for(int i=0;i<items.size();i++){
 		if(!items[i].IsFlashable()) continue;
 		float* v=items[i].GetValuePtr();
+		float temp=0;
 		if(v==nullptr)continue;
-		memcpy((unsigned char*) v, buff+start, 4);
+		memcpy((unsigned char*) &temp, buff+start, 4);
 		start+=4;
-		if(*v!=*v)*v=0;
+		if(temp==temp)*v=temp;
 	}
 	delete [] buff;
 }
@@ -186,7 +190,7 @@ void DebugConsole::Clear() {
   lcd->FillColor(0x0000);
 }
 
-int DebugConsole::ListenerDo(Joystick::State key) {
+void DebugConsole::ListenerDo(Joystick::State key) {
   Item item = items[focus];
   switch (key) {
     case Joystick::State::kDown:
@@ -222,23 +226,27 @@ int DebugConsole::ListenerDo(Joystick::State key) {
     case Joystick::State::kSelect:
       if (item.GetListener() != nullptr) {
         item.GetListener()();
-      } else if (item.GetText() == ">>exit debug<<")
-        return 0;
+      } else if (flag&&focus==0)//leave item click
+        flag=false;
       break;
     case Joystick::State::kLeft:
+      if (flag&&focus==0)//leave item click
+        flag=false;
       if (item.GetValuePtr() != nullptr && !item.IsReadOnly()) {
         item.SetValue(item.GetValue() - item.GetInterval());
         PrintItemValue(focus, true);
       }
       break;
     case Joystick::State::kRight:
+      if (flag&&focus==0)//leave item click
+        flag=false;
       if (item.GetValuePtr() != nullptr && !item.IsReadOnly()) {
         item.SetValue(item.GetValue() + item.GetInterval());
         PrintItemValue(focus, true);
       }
       break;
     default:
-      return 1;
+      return;
   }
-  return 1;
+  return;
 }
