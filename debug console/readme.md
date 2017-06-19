@@ -1,4 +1,4 @@
-# Debug Console V3
+# Debug Console V3.1
 for fun debugging
 
 To get started, add the header file [debug_console.h](https://github.com/hkust-smartcar/Internal2017/blob/dipsy/debug%20console/V3/debug_console.h) and the source file [debug_console.cpp](https://github.com/hkust-smartcar/Internal2017/blob/dipsy/debug%20console/V3/debug_console.cpp) in `inc` and `src` folder respectively.
@@ -11,6 +11,9 @@ In console version, use WASD spacebar instead
 Use up and down to choose between rows, left right to adjust value, select to choose
 
 You can also change to use your own function by setting listener function (v1)
+
+# What is new in V3.1
+- nothing but better interface
 
 # What is new in V3
 - support flash, which allow the value to stay in the program when restart the smartcar. The data still have some chances to lose when restart, but very low.
@@ -36,26 +39,26 @@ debug console is displaying multiple items
 ##### default constructor of an item
 ```c++
 /*readOnly is for Item which can change value*/
-Item(char* text=NULL,float* value=NULL,bool readOnly=false);
+Item(char* text=NULL, float* value=NULL, bool flashable, bool readOnly=false);
 ```
 ##### add the item to console
 ```c++
-void pushItem(Item item);//append the item at highest index before exit
-void insertItem(Item item, int index=0);//insert item to that index, default 0
+void PushItem(Item item);//append the item at highest index before exit
+void InsertItem(Item item, int index=0);//insert item to that index, default 0
 ```
 ##### example
 ```C++
 //insert an item which can adjust the value of x
-console.insertItem(DebugConsole::Item("adjust x = ",&x));
+console.InsertItem(Item("adjust x = ",&x));
 
-//append an item which can only read the value of x
-console.insertItem(DebugConsole::Item("display x = ",&x,true));
+//append an item which can only read the value of x but cannot store in the chip
+console.InsertItem(Item("display x = ",&x,false,true));
 ```
 
 ### Enter the interface of DebugConsole
 ```C++
 DebugConsole console;
-console.enterDebug();
+console.EnterDebug("Exit text");
 ```
 
 ### Using the debug console while running the program
@@ -82,16 +85,15 @@ void display(){
 int main(){
     DebugConsole console;
     DebugConsole::Item item("goto page2");
-	item.setListener(display);
-	console.insertItem(item);
-	console.enterDebug();
+	item.SetListener(display);
+	console.InsertItem(item);
+	console.EnterDebug();
 }
 ```
-BTW, an item can have multiple listener
 
 ### Shortcut for setting
 ```C++
-console.push(*(item.setText("hi")->setValue(&x)->setInterval(0.1)));
+console.PushItem(*(item.setText("hi")->setValue(&x)->setInterval(0.1)));
 ```
 
 ### Nested debug console
@@ -99,20 +101,20 @@ console.push(*(item.setText("hi")->setValue(&x)->setInterval(0.1)));
 void nextPage();
 DebugConsole* page2;
 int main(){
-    DebugConsole console1;
-    DebugConsole console2;
+    DebugConsole console1(...);
+    DebugConsole console2(...);
     page2=&console2;
     DebugConsole::Item item("next page");
-    item.setListener(nextPage);
+    item.SetListener(nextPage);
     console1.PushItem(item);
-    console1.EnterDebug();
+    console1.EnterDebug("Exit");
 }
-void nextPage(){page2->EnterDebug();}
+void nextPage(){page2->EnterDebug("back to page 1");}
 ```
 
 ## How to store permanant value (flash)
 ```C++
-DebugConsole console(pJoystick,pLcd,pWriter,2); //joystick, lcd and typewriter pointer
+DebugConsole console(pJoystick,pLcd,pWriter,2); //joystick, lcd and typewriter pointer, diplay 2 items at the same time
 Item item();
 item.SetValuePtr(&z)->SetText("z")->SetFlashable(true);	//item set value pointer (must be float), printed text, and flashable(important, or will not store)
 console.PushItem(item);
@@ -129,3 +131,4 @@ while(1){
 	}
 }
 ```
+if use EnterDebug function, it will auto load and auto save
