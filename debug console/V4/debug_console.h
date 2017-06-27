@@ -27,7 +27,8 @@ typedef enum{
 	  kNan,
 	  kInt,
 	  kFloat,
-	  kBool
+	  kBool,
+	  kBS //bit string using int
 } VarType;
 
 typedef struct Item{
@@ -36,6 +37,7 @@ typedef struct Item{
 	  uint8_t vIndex=0;
 	  float interval=1;
 	  Fptr listener=nullptr;
+	  int bsIndex=0; //for bitstring
 } Item;
 
 class DebugConsole {
@@ -59,9 +61,10 @@ class DebugConsole {
   /**
    * adding items to debug console
    */
-  void PushItem(char* text, int* valuePtr, float interval);
-  void PushItem(char* text, float* valuePtr, float interval);
-  void PushItem(char* text, bool* valuePtr);
+  void PushItem(char* text, int* valuePtr, float interval);//int
+  void PushItem(char* text, float* valuePtr, float interval);//float
+  void PushItem(char* text, bool* valuePtr);//bool
+  void PushItem(char* text, int* valuePtr);//bitstring
 
   /**
    * print item start from topIndex, total amount displayLength
