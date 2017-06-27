@@ -41,7 +41,7 @@ void DebugConsole::EnterDebug(char* leave_msg) {
   while (flag) {
     Listen();
 //    if(System::Time()%100==0)
-    	Save();
+	Save();
   }
   items.erase(items.begin());
   Clear();
@@ -84,6 +84,16 @@ void DebugConsole::PushItem(char* text, bool* valuePtr){
 	item.type = VarType::kBool;
 	item.vIndex = bool_values.size();
 	bool_values.push_back(valuePtr);
+	items.push_back(item);
+	flash_sum+=sizeof(*valuePtr);
+}
+void DebugConsole::PushItem(char* text, int* valuePtr){
+	Item item;
+	item.text = text;
+	item.type = VarType::kBS;
+	item.vIndex = int_values.size();
+	item.bsIndex = 0;
+	int_values.push_back(valuePtr);
 	items.push_back(item);
 	flash_sum+=sizeof(*valuePtr);
 }
@@ -142,6 +152,11 @@ void DebugConsole::PrintItemValue(int index, bool isInverted) {
     	break;
     case VarType::kBool:
     	sprintf(buff, "%s", *bool_values[item.vIndex] ? "true" : "false");
+    	break;
+    case VarType::kBS:
+    	sprintf(buff, "%d:%s", item.bsIndex,(*int_values[item.vIndex]>>item.bsIndex)&1 ? "true" : "false");
+    	Printxy(7, index - topIndex, buff, isInverted);
+    	return;
     	break;
     default:
     	return;break;
@@ -281,7 +296,11 @@ void DebugConsole::ListenerDo(Joystick::State key) {
       }
       break;
     case Joystick::State::kSelect:
-      if (item.listener != nullptr) {
+    	if(item.type==VarType::kBS){
+    		*int_values[item.vIndex]=*int_values[item.vIndex]^(1<<item.bsIndex);
+			PrintItemValue(focus, true);
+    	}
+    	else if (item.listener != nullptr) {
         item.listener();
       } else if (flag&&focus==0)//leave item click
         flag=false;
@@ -289,7 +308,11 @@ void DebugConsole::ListenerDo(Joystick::State key) {
     case Joystick::State::kLeft:
       if (flag&&focus==0)//leave item click
         flag=false;
-      if (item.type!=VarType::kNan) {
+      else if(item.type==VarType::kBS){
+    	  items[focus].bsIndex=(items[focus].bsIndex-1);
+    	  PrintItem(focus, true);
+      }
+      else if (item.type!=VarType::kNan) {
     	ChangeItemValue(focus,0);
         PrintItemValue(focus, true);
       }
@@ -297,7 +320,11 @@ void DebugConsole::ListenerDo(Joystick::State key) {
     case Joystick::State::kRight:
       if (flag&&focus==0)//leave item click
         flag=false;
-      if (item.type!=VarType::kNan) {
+      else if(item.type==VarType::kBS){
+		  items[focus].bsIndex=(items[focus].bsIndex+1);
+		  PrintItem(focus, true);
+		}
+		else if (item.type!=VarType::kNan) {
     	ChangeItemValue(focus,1);
         PrintItemValue(focus, true);
       }
