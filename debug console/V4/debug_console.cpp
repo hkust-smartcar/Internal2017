@@ -58,13 +58,23 @@ void DebugConsole::Listen() {
   }
 }
 
-void DebugConsole::PushItem(char* text, int* valuePtr, float interval){
+void DebugConsole::PushItem(char* text, uint16_t* valuePtr, float interval){
 	Item item;
 	item.text = text;
-	item.type = VarType::kInt;
-	item.vIndex = int_values.size();
+	item.type = VarType::kUint16;
+	item.vIndex = uint16t_values.size();
 	item.interval=interval;
-	int_values.push_back(valuePtr);
+	uint16t_values.push_back(valuePtr);
+	items.push_back(item);
+	flash_sum+=sizeof(*valuePtr);
+}
+void DebugConsole::PushItem(char* text, int32_t* valuePtr, float interval){
+	Item item;
+	item.text = text;
+	item.type = VarType::kInt32;
+	item.vIndex = int32t_values.size();
+	item.interval=interval;
+	int32t_values.push_back(valuePtr);
 	items.push_back(item);
 	flash_sum+=sizeof(*valuePtr);
 }
@@ -87,13 +97,13 @@ void DebugConsole::PushItem(char* text, bool* valuePtr){
 	items.push_back(item);
 	flash_sum+=sizeof(*valuePtr);
 }
-void DebugConsole::PushItem(char* text, int* valuePtr){
+void DebugConsole::PushItem(char* text, int32_t* valuePtr){
 	Item item;
 	item.text = text;
 	item.type = VarType::kBS;
-	item.vIndex = int_values.size();
+	item.vIndex = int32t_values.size();
 	item.bsIndex = 0;
-	int_values.push_back(valuePtr);
+	int32t_values.push_back(valuePtr);
 	items.push_back(item);
 	flash_sum+=sizeof(*valuePtr);
 }
@@ -118,9 +128,12 @@ void DebugConsole::ChangeItemValue(int index, bool IsIncrement){
 	switch(item.type){
 	    case VarType::kNan:
 	    	return;break;
-	    case VarType::kInt:
-	    	*int_values[item.vIndex]+= int(c*item.interval);
+	    case VarType::kUint16:
+	    	*uint16t_values[item.vIndex]+= int(c*item.interval);
 	    	break;
+		case VarType::kInt32:
+			*int32t_values[item.vIndex]+= int(c*item.interval);
+			break;
 	    case VarType::kFloat:
 	    	*float_values[item.vIndex]+=float(c*item.interval);
 	    	break;
@@ -144,8 +157,11 @@ void DebugConsole::PrintItemValue(int index, bool isInverted) {
     switch(item.type){
     case VarType::kNan:
     	return;break;
-    case VarType::kInt:
-    	sprintf(buff, "%d", *int_values[item.vIndex]);
+    case VarType::kUint16:
+    	sprintf(buff, "%d", *uint16t_values[item.vIndex]);
+    	break;
+    case VarType::kInt32:
+    	sprintf(buff, "%d", *int32t_values[item.vIndex]);
     	break;
     case VarType::kFloat:
     	sprintf(buff, "%.3lf", *float_values[item.vIndex]);
@@ -154,7 +170,7 @@ void DebugConsole::PrintItemValue(int index, bool isInverted) {
     	sprintf(buff, "%s", *bool_values[item.vIndex] ? "true" : "false");
     	break;
     case VarType::kBS:
-    	sprintf(buff, "%d:%s", item.bsIndex,(*int_values[item.vIndex]>>item.bsIndex)&1 ? "true" : "false");
+    	sprintf(buff, "%d:%s", item.bsIndex,(*int32t_values[item.vIndex]>>item.bsIndex)&1 ? "true" : "false");
     	Printxy(7, index - topIndex, buff, isInverted);
     	return;
     	break;
@@ -171,9 +187,16 @@ void DebugConsole::Load(){
 	int start=0;
 	Byte* buff = new Byte[flash_sum];
 	flash->Read(buff,flash_sum);
-	for(int i=0;i<int_values.size();i++){
-		int* v=int_values[i];
-		int temp=0;
+	for(int i=0;i<uint16t_values.size();i++){
+		uint16_t* v=uint16t_values[i];
+		uint16_t temp=0;
+		memcpy((unsigned char*) &temp, buff+start, sizeof(*v));
+		start+=sizeof(*v);
+		if(temp==temp)*v=temp;
+	}
+	for(int i=0;i<int32t_values.size();i++){
+		int32_t* v=int32t_values[i];
+		int32_t temp=0;
 		memcpy((unsigned char*) &temp, buff+start, sizeof(*v));
 		start+=sizeof(*v);
 		if(temp==temp)*v=temp;
@@ -199,8 +222,13 @@ void DebugConsole::Save(){
 	if(flash == nullptr) return;
 	int start=0;
 	Byte* buff = new Byte[flash_sum];
-	for(int i=0;i<int_values.size();i++){
-		int* v=int_values[i];
+	for(int i=0;i<uint16t_values.size();i++){
+		uint16_t* v=uint16t_values[i];
+		memcpy(buff+start, (unsigned char*) v, sizeof(*v));
+		start+=sizeof(*v);
+	}
+	for(int i=0;i<int32t_values.size();i++){
+		int32_t* v=int32t_values[i];
 		memcpy(buff+start, (unsigned char*) v, sizeof(*v));
 		start+=sizeof(*v);
 	}
@@ -297,7 +325,7 @@ void DebugConsole::ListenerDo(Joystick::State key) {
       break;
     case Joystick::State::kSelect:
     	if(item.type==VarType::kBS){
-    		*int_values[item.vIndex]=*int_values[item.vIndex]^(1<<item.bsIndex);
+    		*int32t_values[item.vIndex]=*int32t_values[item.vIndex]^(1<<item.bsIndex);
 			PrintItemValue(focus, true);
     	}
     	else if (item.listener != nullptr) {
@@ -309,7 +337,7 @@ void DebugConsole::ListenerDo(Joystick::State key) {
       if (flag&&focus==0)//leave item click
         flag=false;
       else if(item.type==VarType::kBS){
-    	  items[focus].bsIndex=(items[focus].bsIndex-1);
+    	  items[focus].bsIndex=(items[focus].bsIndex-1)%32;
     	  PrintItem(focus, true);
       }
       else if (item.type!=VarType::kNan) {
@@ -321,7 +349,7 @@ void DebugConsole::ListenerDo(Joystick::State key) {
       if (flag&&focus==0)//leave item click
         flag=false;
       else if(item.type==VarType::kBS){
-		  items[focus].bsIndex=(items[focus].bsIndex+1);
+		  items[focus].bsIndex=(items[focus].bsIndex+1)%32;
 		  PrintItem(focus, true);
 		}
 		else if (item.type!=VarType::kNan) {
