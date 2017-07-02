@@ -7,7 +7,6 @@
 #include <libsc/led.h>
 #include <libsc/button.h>
 #include <libbase/k60/gpio.h>
-#include <libbase/k60/pin.h>
 #include <libsc/st7735r.h>
 #include <libsc/lcd.h>
 #include <libsc/k60/ov7725.h>
@@ -21,34 +20,65 @@
 #include <vector>
 #include <math.h>
 #include <stdlib.h>
+#include <libsc/debug_console.h>
+#include <libsc/joystick.h>
 #define CAM_W 80
 #define CAM_H 60
 #define cam_w 80
 #define cam_h 120
-#define KP   4.3
-#define KD   3.4
-#define KP_curve 6.5
-#define KD_curve 2.3
-#define KP_R  5.7
-#define KD_R  2.8
-#define KP_LM 0.06
-#define KD_LM 0.07
-#define KI_LM 0
-#define KP_RM 0.06
-#define KD_RM 0.07
-#define KI_RM 0
-#define height 29
-#define focalL 40
-#define pathwidth 45
-#define initial_servo 740
-#define speed 2.6
-#define speed_ratio 0.5
-#define ratio_ratio 1
-#define increase_ratio 1.2
+float KP  =2;
+float KD  =0 ;
+float KP_curve =3.5;
+float KD_curve = 0;
+float KP_R  =5;
+float KD_R  =0;
+float KP_LM = 3;
+float KD_LM = 0.9;
+float KI_LM = 0.1;
+float KP_RM =3;
+float KD_RM =0.9;
+float KI_RM =0.1;
+float initial_servo =740;
+float speed =2.4;
+float speed_ratio =0.8;
+float ratio_ratio =1;
+float increase_ratio =1.1;
+float double_corner = 0.9;
+float roundabout_ratio = 0.9;
+float curve_ratio = 0.9;
+float  crossroad_ratio = 1;
+float entercross_ratio = 0.9;
+float KP_C = 3.5;
+float KD_C = 0;
 #define L(y) y
 #define R(y) y+60
-#define offset 33
-#define round_set 28
+int range =260;
+int L_entercrossrange = 205;
+int R_entercrossrange = 205;
+int middleline = 40;
+float offset =33;
+float round_set =28;
+
+
+
+int32_t L_motor_error = 0;
+int32_t L_premotor_error = 0;
+int32_t L_motor_errorsum=0;
+int16_t L_motor_ideal = 0;
+
+int32_t R_motor_error = 0;
+int32_t R_premotor_error = 0;
+int32_t R_motor_errorsum = 0;
+int16_t R_motor_ideal = 0;
+
+
+int32_t L_encoder =0;
+int32_t R_encoder =0;
+int32_t L_encoder_count = 0;
+int32_t R_encoder_count = 0; // 5800 corresponding to 1 meter.  512-> 1 cycle->8.826 cm
+int8_t L_power = 0;
+int8_t R_power = 0;
+int8_t num_check = 4;
 namespace libbase
 {
 	namespace k60
@@ -74,59 +104,54 @@ using namespace libsc::k60;
 string inputStr;
 bool tune = false;
 vector<double> constVector;
+
+
+
+
+
 bool programRun = true;
+struct set{
+	int8_t edgeposition; //x-coordinate
+	float slope;
+	int8_t row;// y-coordinate
 
-bool bluetoothListener(const Byte *data, const size_t size) {
+};
+set edge[120];
+int width[60];
+bool left_bottom_exist = false;
+bool right_bottom_exist = false;
 
-	if (data[0] == 'P') {
-		if (programRun == 0){
-		programRun = 1;
-		}
-		else{
-			programRun = 0;
-		}
-	}
+int servo_variable = 0;
+int ServoErr = 0;
+int ServoPreErr = 0;
 
-	if (data[0] == 't') {
-		programRun = 1;
-		tune = 1;
-		inputStr = "";
-	}
-	if (tune) {
-		unsigned int i = 0;
-		while (i<size) {
-			if (data[i] != 't' && data[i] != '\n') {
-				inputStr += (char)data[i];
-			} else if (data[i] == '\n') {
-				tune = 0;
-				break;
-			}
-			i++;
-		}
-		if (!tune) {
-			constVector.clear();
-			char * pch;
-			pch = strtok(&inputStr[0], ",");
-			while (pch != NULL){
-				double constant;
-				stringstream(pch) >> constant;
-				constVector.push_back(constant);
-				pch = strtok (NULL, ",");
-			}
+int idealdegree = initial_servo;
+int32_t L_ideal_count = 0;
+int32_t R_ideal_count = 0;
+int	num_of_round = 0;
+int num_of_cross = 0;
+bool corner_Lexist = false;
+bool corner_Rexist = false;
+bool L_slow = false;
+bool R_slow = false;
+bool crossroad = false;
+bool entercross =false;
+bool Rcross = false;
+bool roundabout = false;
+bool L_roundabout = false;
+bool R_roundabout = false;
+bool Round_step = false;
+bool Round_step2 = false;
+bool Cross_step = false;
+bool Lcurve = false;
+bool Rcurve = false;
+bool sum_of_encoder = false;
 
-		}
-	}
+bool motor_run = true;
+bool run = false;
+bool start = false;
+bool manual = false;
 
-//	else if (data[0] == 'a') {
-//		servoPtr->SetDegree(900);
-//	} else if (data[0] == 'd') {
-//		servoPtr->SetDegree(430);
-//	} else if (data[0] == 'A' || data[0] == 'D') {
-//		servoPtr->SetDegree(700);
-//	}
-
-	return 1;
-}
 
 
 bool camptr[CAM_W][CAM_H];
@@ -143,7 +168,7 @@ void extract_cam (const Byte* camBuffer) {
 	Uint pos = 300;
 	int bit_pos = 8;
 
-for(Uint i=0; i < 30; i++){
+for(Uint i=0; i < 40; i++){
 	for(Uint j = 0;j<CAM_W ; j++){
 		if (--bit_pos < 0) // Update after 8 bits are read
 					{
@@ -154,7 +179,7 @@ for(Uint i=0; i < 30; i++){
 	}
 }
 pos = pos -10;
-for(Uint i =30;i<60;i++){
+for(Uint i =40;i<60;i++){
 	pos += 10;
 	for(Uint j = 0;j<CAM_W ; j++){
 		if (--bit_pos < 0) // Update after 8 bits are read
@@ -289,69 +314,140 @@ void Print2D(){
 }
 k60::Ov7725* cameraP;
 
-int16_t L_motor_error = 0;
-int16_t L_premotor_error = 0;
-int16_t L_motor_errorsum=0;
-int16_t L_motor_ideal = 0;
 
-int16_t R_motor_error = 0;
-int16_t R_premotor_error = 0;
-int16_t R_motor_errorsum = 0;
-int16_t R_motor_ideal = 0;
-
-
-int32_t L_encoder =0;
-int32_t R_encoder =0;
-int32_t L_encoder_count = 0;
-int32_t R_encoder_count = 0; // 5800 corresponding to 1 meter.  512-> 1 cycle->8.826 cm
-int8_t L_power = 0;
-int8_t R_power = 0;
-int8_t num_check = 4;
-struct set{
-	int8_t edgeposition; //x-coordinate
-	float slope;
-	int8_t row;// y-coordinate
-
-};
-set edge[120];
-int width[60];
-bool left_bottom_exist = false;
-bool right_bottom_exist = false;
-
-bool changeworld = false;
-int ServoErr = 0;
-int ServoPreErr = 0;
-int idealdegree = initial_servo;
-bool corner_Lexist = false;
-bool corner_Rexist = false;
-bool L_slow = false;
-bool R_slow = false;
-bool crossroad = false;
-bool entercross =false;
-bool Rcross = false;
-bool roundabout = false;
-bool L_roundabout = false;
-bool R_roundabout = false;
-bool Round_step = false;
-bool Round_step2 = false;
-bool Cross_step = false;
-bool motor_run = true;
-bool Lcurve = false;
-bool Rcurve = false;
-bool sum_of_encoder = false;
 void find_edge();//code for edge finding
 void Printedge();
 void printCameraImage(const Byte* image);
 void turningPID(); // change the angle of servo
-void motorPID(int ,int);
+void motorPID(int ,int,bool direction =true);
 void checkround();
 void findpath();
 void Printpath();
 bool Lcorner(int , int );
 bool Rcorner(int , int);
 bool roundabout_detect(int,int);
+bool startline_detect();
+void reset();
+bool bluetoothListener(const Byte *data, const size_t size) {
+	if(!manual){
+		if (data[0] == 'w') {
+			run = true;
+			motor_run = true;
+		}
+	}
+//	else{
+//		if (data[0] == 'w') {
+//			motorPID(1.5*117,servoP->GetDegree());
+//		}
+//		else if (data[0] == 's') {
+//			motorPID(1.5*117,servoP->GetDegree(),false);
+//		}
+//		else{
+//			motorPID(0,servoP->GetDegree());
+//		}
+//
+//		if (data[0] == 'a') {
+//			servo_variable += 30;
+//			if(servo_variable > 250){
+//				servo_variable = 250;
+//			}
+//		}
+//
+//		else if (data[0] == 'd') {
+//			servo_variable -= 30;
+//			if(servo_variable < -250){
+//				servo_variable = -250;
+//			}
+//		}
+//	}
+
+
+
+
+	if (data[0] == 'P') {
+		if (programRun == 0){
+		programRun = 1;
+		}
+		else{
+			programRun = 0;
+		}
+	}
+
+	if (data[0] == 't') {
+		programRun = 1;
+		tune = 1;
+		inputStr = "";
+	}
+	if (tune) {
+		L_motor_errorsum = 0;
+		R_motor_errorsum = 0;
+		reset();
+		unsigned int i = 0;
+		while (i<size) {
+			if (data[i] != 't' && data[i] != '\n') {
+				inputStr += (char)data[i];
+			} else if (data[i] == '\n') {
+				tune = 0;
+				break;
+			}
+			i++;
+		}
+		if (!tune) {
+			constVector.clear();
+			char * pch;
+			pch = strtok(&inputStr[0], ",");
+			while (pch != NULL){
+				double constant;
+				stringstream(pch) >> constant;
+				constVector.push_back(constant);
+				pch = strtok (NULL, ",");
+			}
+
+
+			 KP   = constVector[0];
+			 KD   = constVector[1];
+			 KP_curve = constVector[2];
+			 KD_curve =  constVector[3];
+			 KP_R  = constVector[4];
+			 KD_R  = constVector[5];
+			 KP_LM = constVector[6];
+			 KD_LM = constVector[7];
+			 KI_LM = constVector[8];
+			 KP_RM = constVector[9];
+			 KD_RM = constVector[10];
+			 KI_RM = constVector[11];
+			 initial_servo = constVector[12];
+			 speed = constVector[13];
+			 speed_ratio = constVector[14];
+			 ratio_ratio = constVector[15];
+			 increase_ratio = constVector[16];
+			 double_corner =  constVector[17];
+			 roundabout_ratio = constVector[18];
+			 curve_ratio =  constVector[19];
+			 crossroad_ratio =  constVector[20];
+			 entercross_ratio = constVector[21];
+			 KP_C = constVector[22];
+			 KD_C = constVector[23];
+			 L_entercrossrange = constVector[24];
+			 R_entercrossrange = constVector[25];
+			 range = constVector[26];
+			 middleline = constVector[27];
+		}
+	}
+
+//	else if (data[0] == 'a') {
+//		servoPtr->SetDegree(900);
+//	} else if (data[0] == 'd') {
+//		servoPtr->SetDegree(430);
+//	} else if (data[0] == 'A' || data[0] == 'D') {
+//		servoPtr->SetDegree(700);
+//	}
+
+	return 1;
+}
 int main(void)
 {
+
 	for(int i = 0;i<10; i++){
 			width[i] = 46 - int(i*7/10);
 		}
@@ -414,8 +510,53 @@ int main(void)
 	 *
 	 */
 	FutabaS3010 servo(getServoConfig());
-	servo.SetDegree(initial_servo);
+	servo.SetDegree(initial_servo - range);
 	servoP = &servo;
+
+//joystick and flash
+
+		Joystick::Config joystick_config;
+		joystick_config.id = 0;
+		joystick_config.is_active_low = true;
+		Joystick joystick(joystick_config);
+
+//		Flash::Config flash_config;
+//		Flash flash(flash_config);
+//
+//		/Debug_console/
+//
+//		DebugConsole console(&joystick,&lcd,&writer,10);
+//
+//			Item item("distract");
+//		//	console.PushItem(item);
+//			console.PushItem(Item("KP" ,&KP,true));
+//			console.PushItem(Item("KD",&KD,true));
+//			console.PushItem(Item("KP_curve",&KP_curve,true));
+//			console.PushItem(Item("KD_curve",&KD_curve,true));
+//			console.PushItem(Item("KP_R",&KP_R,true));
+//			console.PushItem(Item("KD_R",&::KD_R,true));
+//			console.PushItem(Item("KP_LM",&KP_LM,true));
+//			console.PushItem(Item("KD_LM",&KD_LM,true));
+//			console.PushItem(Item("KI_LM",&KI_LM,true));
+//			console.PushItem(Item("KP_RM",&KP_RM,true));
+//			console.PushItem(Item("KD_RM",&KD_RM,true));
+//			console.PushItem(Item("KI_RM",&KI_RM,true));
+//			console.PushItem(Item("initial_servo",&initial_servo,true));
+//			console.PushItem(Item("speed",&speed,true));
+//			console.PushItem(Item("speed_ratio",&speed_ratio,true));
+//			console.PushItem(Item("ncrease_ratio",&increase_ratio,true));
+//			console.PushItem(Item("offset",&offset,true));
+//
+//			console.SetOffset(0);
+//			console.SetFlash(&flash);
+//
+//			//Load();
+//			console.EnterDebug(">enter program<");
+//
+//
+
+
+
 
 
 	//bluetooth initialization
@@ -438,32 +579,38 @@ int main(void)
 	DirEncoder R_Encoder(Rencoder_config);
 
 	int32_t lastTime = System::Time();
+	int32_t lastTime2 = System::Time();
 	int32_t sent = 0;
 	Path.reserve(20);
 	detectline.reserve(20);
 
+	double tempmk = 0;
+
 	while(true)
 	{
 
-		if( ( System::Time() - lastTime ) >= 20 ){
+		if( ( System::Time() - lastTime ) >= 12 ){
 			lastTime = System::Time();
 			sent++;
 
 			if (!programRun) {
-				motorPID(0,740);
-				continue;
+				run = false;
+				manual = true;
+			}
+			else{
+				manual = false;
 			}
 
 			const Byte* cameraBuffer = camera.LockBuffer();
 //			printCameraImage(cameraBuffer);
 			camera.UnlockBuffer();
 			//Sending image
-			if(sent == 5){
-			  compress_cam();
-			  sent = 0;
-			  const Byte imageByte = 170;
-			  bluetooth1.SendBuffer(&imageByte, 1);
-			  bluetooth1.SendBuffer(imgBuffer,600);
+
+			 // compress_cam();
+			  //sent = 0;
+//			  const Byte imageByte = 170;
+//			  bluetooth1.SendBuffer(&imageByte, 1);
+//			  bluetooth1.SendBuffer(imgBuffer,600);
 
 			  /*Send Data*/
 			  char speedChar[15] = {};
@@ -473,26 +620,60 @@ int main(void)
 			  //				sprintf(speedChar, "%.1f,%.2f,%.2f\n", 1.0, rightSpeed, rightTempTargetSpeed);
 			  //				sprintf(speedChar, "%.1f,%.2f,%.2f,%.2f,%.2f\n", 1.0, targetAng, tempTargetAng, curSpeed, targetSpeed);
 			  //			  	sprintf(speedChar, "%.1f,%.3f\n", 1.0, dt);
-			  sprintf(speedChar, "%.1f",idealdegree);
+		  sprintf(speedChar, "%.1f, %d,%d,%d,%d\n",1.0,0-R_encoder,R_ideal_count,L_encoder,L_ideal_count);
+
 			  string speedStr = speedChar;
-			  const Byte speedByte = 171;
+			  const Byte speedByte = 85;
 			  bluetooth1.SendBuffer(&speedByte, 1);
 			  bluetooth1.SendStr(speedStr);
 
 
 
-			}
+
 //
 			extract_cam(cameraBuffer);
 //			Filter2D();
-			//Print2D();
+			Print2D();
 
 			find_edge();
-
+//			if(!run && !start){
+//					if(System::Time() - lastTime2 > 3000){
+//					run = true;
+//					start = true;
+//					}
+//			}
 			char buf[50];
+//			if(run && num_of_round >0 && num_of_cross >3){
+//			if(startline_detect()){
+//				 if((edge[L(10)].edgeposition > 5 ||edge[L(10)].edgeposition <75 )){
+//						run = false;
+//					}
+//
+//
+//			}
+//			}
+
 
 			if(!roundabout && ! crossroad ){
-				if(corner_Lexist && corner_Rexist && !entercross){
+				if(num_of_round %3==1 &&corner_Lexist && corner_Rexist && !roundabout){
+					roundabout = true;
+					int L =0;
+					int R = 0;
+					L = edge[L(59)].edgeposition - 1;
+					R = 78 - edge[R(59)].edgeposition;
+					if(L<=R){
+						L_roundabout = true;
+						R_roundabout = false;
+					}
+					else{
+						R_roundabout = true;
+						L_roundabout = false;
+					}
+				}
+				else if(num_of_cross %4 == 2 &&corner_Lexist && corner_Rexist && !crossroad){
+					crossroad = true;
+				}
+				else if(corner_Lexist && corner_Rexist && !entercross){
 					checkround();
 				}
 				else if(entercross && corner_Lexist &&corner_Rexist){
@@ -502,7 +683,7 @@ int main(void)
 					crossroad = true;
 				}
 
-					sprintf(buf, "Normal!");
+//					sprintf(buf, "Normal!");
 //					lcdP->SetRegion(Lcd::Rect(0,60,80,80));
 //					writer.WriteString(buf);
 
@@ -540,9 +721,10 @@ int main(void)
 					if(L_encoder_count > 2000){
 						sum_of_encoder = false;
 
-
+						R_roundabout = false;
 						L_roundabout =false;
 						roundabout = false;
+						num_of_round++;
 						Round_step = false;
 						Round_step2 = false;
 						L_slow = false;
@@ -589,9 +771,10 @@ int main(void)
 						if(R_encoder_count > 2000){
 							sum_of_encoder = false;
 
-
+							L_roundabout = false;
 							R_roundabout =false;
 							roundabout = false;
+							num_of_round++;
 							Round_step = false;
 							Round_step2 = false;
 							L_slow = false;
@@ -614,7 +797,7 @@ int main(void)
 					L_encoder_count = 0;
 					sum_of_encoder = true;
 				}
-				if(L_encoder_count>3500 ){
+				if(L_encoder_count>4000 ){
 					int L=0;
 					int R=0;
 				    for(int row = 30; row<60;row++){
@@ -633,6 +816,7 @@ int main(void)
 					}
 					sum_of_encoder = false;
 					crossroad=false;
+					num_of_cross++;
 					Cross_step = false;
 					L_slow = false;
 					R_slow = false;
@@ -726,58 +910,70 @@ int main(void)
 			R_Encoder.Update();
 			R_encoder = R_Encoder.GetCount();
 			R_encoder_count = R_encoder_count-R_encoder;
-			if(motor_run && L_slow && R_slow){
-				motorPID(0.4*speed*117,servoP->GetDegree());
-			}
-			else if(motor_run && roundabout){
-				motorPID(0.7*speed*117,servoP->GetDegree());
-			}
-			else if(motor_run && crossroad){
-				motorPID(0.8*speed*117,servoP->GetDegree());
-			}
-			else if(motor_run && !crossroad && entercross){
-				motorPID(0.9*speed*117,servoP->GetDegree());
-
-			}
-			else if(motor_run && (Lcurve||Rcurve)){
-				L_slow = false;
-				R_slow = false;
-				motorPID(0.8*speed*117,servoP->GetDegree());
-			}
-			else if(motor_run && !L_slow && !R_slow){
-				motorPID(speed*117,servoP->GetDegree());
-			}
-			else if(motor_run && (L_slow || R_slow)){
-				motorPID(speed_ratio*speed*117,servoP->GetDegree());
-			}
-			else{
-				L_motor.SetPower(0);
-				R_motor.SetPower(0);
-			}
+//			if(!run){
+//				L_motorP->SetPower(0);
+//				R_motorP->SetPower(0);
+//			}
+//			else if(motor_run){
+//				L_motorP->SetPower(350);
+//				R_motorP->SetPower(350);
+//			}
+//			else{
+//				L_motorP->SetPower(0);
+//				R_motorP->SetPower(0);
+//			}
+//			motorPID(speed*117,servoP->GetDegree());
 
 
-			if( (abs(L_encoder) < 10 || abs(R_encoder)< 10 ) && System::Time() > 1000){
-				motor_run = false;
-			}
-			else{
-				motor_run = true;
-			}
 
-			char buffer[50];
-			float L_speed =0;
-			float R_speed =0;
-			L_speed = float(L_encoder*50)/5800;
-			R_speed = float(-R_encoder*50)/5800;
-//						sprintf(buffer, "%d , %d ",L_encoder_count,R_encoder_count);
-//						lcdP->SetRegion(Lcd::Rect(0,130,120,40));
-//						writerP->WriteString(buffer);
+
+				if(!run){
+					motorPID(0,740);
+				}
+				else if(motor_run && L_slow && R_slow){
+					motorPID(double_corner*speed*70,servoP->GetDegree());
+				}
+				else if(motor_run && roundabout){
+					motorPID(roundabout_ratio*speed*70,servoP->GetDegree());
+				}
+				else if(motor_run && crossroad){
+					motorPID(crossroad_ratio*speed*70,servoP->GetDegree());
+				}
+				else if(motor_run && !crossroad && entercross){
+					motorPID(entercross_ratio*speed*70,servoP->GetDegree());
+
+				}
+				else if(motor_run && (Lcurve||Rcurve)){
+					L_slow = false;
+					R_slow = false;
+					motorPID(curve_ratio*speed*70,servoP->GetDegree());
+				}
+				else if(motor_run && !L_slow && !R_slow){
+					motorPID(speed*70,servoP->GetDegree());
+				}
+				else if(motor_run && (L_slow || R_slow||corner_Lexist||corner_Rexist)){
+					motorPID(speed_ratio*speed*70,servoP->GetDegree());
+				}
+				else{
+					L_motor.SetPower(0);
+					R_motor.SetPower(0);
+				}
+
+
+				if( (L_encoder < 10 || R_encoder >-10 ) &&run && L_encoder_count > 500){
+					motor_run = false;
+				}
+				else{
+					motor_run = true;
+				}
+
+//				int time = System::Time() - lastTime;
+//				sprintf(buf, "%d",time);
 //
-//						sprintf(buffer, "%.3f , %.3f ",L_speed,R_speed);
-//						lcdP->SetRegion(Lcd::Rect(0,110,120,40));
-//						writerP->WriteString(buffer);
+//				lcdP->SetRegion(Lcd::Rect(0,60,80,80));
+//				writer.WriteString(buf);
 
 
-//
 		}
 	}
 		return 0;
@@ -786,120 +982,142 @@ int main(void)
 
 
 
-void motorPID(int ideal_count,int servoangle){
-	float L_ideal_count =ideal_count;
-	float R_ideal_count =ideal_count;
+void motorPID(int ideal_count,int servoangle,bool direction){
+	 L_ideal_count =ideal_count;
+	 R_ideal_count =ideal_count;
+	 float ratio = 0;
+     if(servoangle >780){
+    	 ratio = 0.000006857*servoangle*servoangle-0.01343*servoangle+7.149;
+    	 L_ideal_count = ratio* ideal_count*increase_ratio;
+    	 R_ideal_count =  ideal_count * increase_ratio;
+     }
+     else if(servoangle < 700){
+     			ratio = 1/(0.000006857*servoangle*servoangle-0.006869*servoangle+2.294);
+     			L_ideal_count = increase_ratio*ideal_count;
+     			R_ideal_count = increase_ratio*ideal_count/ratio;
+     }
 
-
-
-//	float input = (servoangle - 800)/273.9;
-//	float R_L_ratio =(-0.03685)* pow(input,5) + 0.04041* pow(input,4) + 0.1487*pow(input,3)+0.002813 * pow(input,2) + 0.2978 * input + 1.005;
-//	R_L_ratio = ratio_ratio * R_L_ratio;
-//	if(servoangle > 800){
-//	L_ideal_count = ideal_count * increase_ratio / R_L_ratio;
-//	R_ideal_count = ideal_count*increase_ratio ;
+//	if(servoangle >780){
+//		if(servoangle>=1100){
+//			L_ideal_count = 0.6* ideal_count*increase_ratio;
+//			R_ideal_count =  ideal_count * increase_ratio;
+//			//R_ideal_count = ideal_count / 0.65;
+//		}
+//		else if(servoangle<1100 && servoangle >= 1050){
+//			L_ideal_count = 0.65* ideal_count * increase_ratio;
+//			R_ideal_count = ideal_count *increase_ratio;
+//			//R_ideal_count = ideal_count / 0.715;
+//		}
+//		else if(servoangle<1050 && servoangle >= 1000){
+//			L_ideal_count = 0.68* ideal_count*increase_ratio;
+//			R_ideal_count = ideal_count *increase_ratio;
+//			//R_ideal_count = ideal_count / 0.715;
+//		}
+//		else if(servoangle<1000 && servoangle >= 950){
+//			L_ideal_count = 0.75* ideal_count*increase_ratio;
+//			R_ideal_count = ideal_count *increase_ratio;
+//			//R_ideal_count = ideal_count / 0.715;
+//		}
+//		else if(servoangle<950 && servoangle >= 900){
+//			L_ideal_count = 0.82* ideal_count*increase_ratio;
+//			R_ideal_count = ideal_count *increase_ratio;
+//			//R_ideal_count = ideal_count / 0.715;
+//		}
+//		else if(servoangle<900 && servoangle >= 850){
+//			L_ideal_count = 0.85* ideal_count*increase_ratio;
+//			R_ideal_count = ideal_count *increase_ratio;
+//			//R_ideal_count = ideal_count / 0.715;
+//		}
+//		else{
+//			L_ideal_count = 0.93* ideal_count*increase_ratio;
+//			R_ideal_count = ideal_count *increase_ratio;
+//		}
 //	}
-//	else{
-//		L_ideal_count =  ideal_count * increase_ratio ;
-//		R_ideal_count = ideal_count * increase_ratio * R_L_ratio;
+//	else if(servoangle < 700){
+//		if(servoangle <500){
+//			L_ideal_count = increase_ratio*ideal_count;
+//			R_ideal_count = increase_ratio*ideal_count/1.73;
+//			//L_ideal_count = ideal_count * 1.65;
+//		}
+//		else if(servoangle >=500 && servoangle <550){
+//			L_ideal_count = increase_ratio*ideal_count;
+//			R_ideal_count = increase_ratio*ideal_count/1.68;
+//			//L_ideal_count = ideal_count * 1.5;
+//
+//		}
+//		else if(servoangle >=550 && servoangle <600){
+//			L_ideal_count = increase_ratio*ideal_count;
+//			R_ideal_count = increase_ratio*ideal_count/1.55;
+//			//L_ideal_count = ideal_count * 1.5;
+//
+//		}
+//		else if(servoangle >=600 && servoangle <650){
+//			L_ideal_count = increase_ratio*ideal_count;
+//			R_ideal_count = increase_ratio*ideal_count/1.38;
+//			//L_ideal_count = ideal_count * 1.5;
+//
+//		}
+//		else if(servoangle >=650 && servoangle < 700){
+//			L_ideal_count = increase_ratio*ideal_count;
+//			R_ideal_count = increase_ratio*ideal_count/1.18;
+//			//L_ideal_count = ideal_count * 1.23;
+//		}
+//
 //	}
 
-
-	if(servoangle >780){
-		if(servoangle>=1100){
-			L_ideal_count = 0.6* ideal_count*increase_ratio;
-			R_ideal_count =  ideal_count * increase_ratio;
-			//R_ideal_count = ideal_count / 0.65;
-		}
-		else if(servoangle<1100 && servoangle >= 1050){
-			L_ideal_count = 0.65* ideal_count * increase_ratio;
-			R_ideal_count = ideal_count *increase_ratio;
-			//R_ideal_count = ideal_count / 0.715;
-		}
-		else if(servoangle<1050 && servoangle >= 1000){
-			L_ideal_count = 0.68* ideal_count*increase_ratio;
-			R_ideal_count = ideal_count *increase_ratio;
-			//R_ideal_count = ideal_count / 0.715;
-		}
-		else if(servoangle<1000 && servoangle >= 950){
-			L_ideal_count = 0.75* ideal_count*increase_ratio;
-			R_ideal_count = ideal_count *increase_ratio;
-			//R_ideal_count = ideal_count / 0.715;
-		}
-		else if(servoangle<950 && servoangle >= 900){
-			L_ideal_count = 0.82* ideal_count*increase_ratio;
-			R_ideal_count = ideal_count *increase_ratio;
-			//R_ideal_count = ideal_count / 0.715;
-		}
-		else if(servoangle<900 && servoangle >= 850){
-			L_ideal_count = 0.85* ideal_count*increase_ratio;
-			R_ideal_count = ideal_count *increase_ratio;
-			//R_ideal_count = ideal_count / 0.715;
-		}
-		else{
-			L_ideal_count = 0.93* ideal_count*increase_ratio;
-			R_ideal_count = ideal_count *increase_ratio;
-		}
-	}
-	else if(servoangle < 700){
-		if(servoangle <500){
-			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.73;
-			//L_ideal_count = ideal_count * 1.65;
-		}
-		else if(servoangle >=500 && servoangle <550){
-			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.68;
-			//L_ideal_count = ideal_count * 1.5;
-
-		}
-		else if(servoangle >=550 && servoangle <600){
-			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.55;
-			//L_ideal_count = ideal_count * 1.5;
-
-		}
-		else if(servoangle >=600 && servoangle <650){
-			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.38;
-			//L_ideal_count = ideal_count * 1.5;
-
-		}
-		else if(servoangle >=650 && servoangle < 700){
-			L_ideal_count = increase_ratio*ideal_count;
-			R_ideal_count = increase_ratio*ideal_count/1.18;
-			//L_ideal_count = ideal_count * 1.23;
-		}
-
-	}
+    L_motor_error = (L_ideal_count - L_encoder);
+    R_motor_error = (R_ideal_count + R_encoder);
 
 	L_premotor_error = L_motor_error;
-	L_motor_error = L_ideal_count - L_encoder;
 	L_motor_errorsum += L_motor_error;
+//	if(L_motor_errorsum > 60000){
+//		L_motor_errorsum = 60000;
+//	}
+//	if(L_motor_errorsum < -60000){
+//		L_motor_errorsum = -60000;
+//	}
+	L_motor_ideal = KP_LM*(L_motor_error)+KI_LM*(L_motor_errorsum)+KD_LM*(L_motor_error-L_premotor_error);
+	if(L_motor_ideal > 850){
+		L_motor_ideal = 850;
+		L_motorP->SetClockwise(direction);
+	}
+	if(L_motor_ideal <= 0){
+		L_motorP->SetClockwise(!direction);
+		if(L_motor_ideal < -150){
+			L_motor_ideal = -150;
+		}
 
-	L_motor_ideal += KP_LM*(L_motor_error)+KI_LM*(L_motor_errorsum)+KD_LM*(L_motor_error-L_premotor_error);
-	if(L_motor_ideal > 550){
-		L_motor_ideal = 550;
-		L_motorP->SetClockwise(true);
+		L_motor_ideal = -L_motor_ideal;
 	}
-	if(L_motor_ideal <0){
-		L_motorP->SetClockwise(false);
-		 L_motor_ideal=100;
-	}
+//	if(L_motor_ideal <0){
+//		L_motorP->SetClockwise(false);
+//		 L_motor_ideal=150;
+//	}
 	R_premotor_error = R_motor_error;
-	R_motor_error = R_ideal_count + R_encoder;
 	R_motor_errorsum += R_motor_error;
-	R_motor_ideal += KP_RM*(R_motor_error)+KI_RM*(R_motor_errorsum)+KD_RM*(R_motor_error-R_premotor_error);
-	if(R_motor_ideal >550){
-		R_motorP->SetClockwise(false);
-		R_motor_ideal = 550;
+//	if(R_motor_errorsum > 60000){
+//		R_motor_errorsum = 60000;
+//	}
+//	if(R_motor_errorsum < -60000){
+//		R_motor_errorsum = -60000;
+//	}
+	R_motor_ideal = KP_RM*(R_motor_error)+KI_RM*(R_motor_errorsum)+KD_RM*(R_motor_error-R_premotor_error);
+	if(R_motor_ideal >850){
+		R_motorP->SetClockwise(!direction);
+		R_motor_ideal = 850;
 	}
-	if(R_motor_ideal <0){
-		R_motorP->SetClockwise(true);
-		 R_motor_ideal=100;
+//	if(R_motor_ideal <0){
+//		R_motorP->SetClockwise(true);
+//		 R_motor_ideal=150;
+//	}
+
+	if(R_motor_ideal <=0){
+		R_motorP->SetClockwise(direction);
+		if(R_motor_ideal < -150){
+			R_motor_ideal = -150;
+		}
+		R_motor_ideal = -R_motor_ideal;
 	}
-
-
 
 
 
@@ -916,16 +1134,20 @@ void turningPID(){
 		middle = middle+Path[row].x;
 	}
 	for(int row =0; row < std::min(4,a); row++){
-		error1 = error1-(Path[row].x - 43);
+		error1 = error1-(Path[row].x - middleline);
 	}
 	for(int row=4; row< std::min(8,a); row++){
-		error2 = error2-(Path[row].x-43);
+		error2 = error2-(Path[row].x-middleline);
 	}
 	for(int row=8; row< std::min(12,a); row++){
-			error3 = error3-(Path[row].x-42);
+			error3 = error3-(Path[row].x- middleline);
 	}
-//	ServoErr = (0.6 * error1) + (0.4 * error2);
-	ServoErr = (0.5 * error1) + (0.5 * error2) + 0.1*error3;
+	if(entercross){
+	ServoErr = (0.4 * error1) + (0.6 * error2);
+	}
+	else{
+	ServoErr = (0.5 * error1) + (0.5 * error2);
+	}
 	int out = 0;
 	for(int row = 10; row < 40; row++){
 		if(edge[L(row)].edgeposition<3){
@@ -947,11 +1169,11 @@ void turningPID(){
 	// Incremental PID(n) = PID(n-1) + kp * (e(n)-e(n-1)) +kd *(e(n)-2e(n-1)+e(n-2)) + ki * e(n)
 	if(!crossroad && entercross){
 		idealdegree = initial_servo + int(KP_curve*ServoErr +KD_curve*(ServoErr-ServoPreErr));
-		if(idealdegree > 990){
-			idealdegree = 990;
+		if(idealdegree > initial_servo + L_entercrossrange){
+			idealdegree = initial_servo + L_entercrossrange;
 		}
-		if(idealdegree < 490){
-			idealdegree = 490;
+		if(idealdegree < initial_servo - R_entercrossrange){
+			idealdegree = initial_servo - R_entercrossrange;
 
 		}
 	}
@@ -974,28 +1196,29 @@ void turningPID(){
 	else{
 		idealdegree = initial_servo + int(KP*ServoErr +KD*(ServoErr-ServoPreErr));
 	}
-	if(idealdegree > 1080){
-		idealdegree = 1080;
-	}
-	if(idealdegree < 440){
-		idealdegree = 440;
-	}
+
 //	char buffer[50];
 //	sprintf(buffer,"%d %d %d",ServoErr,idealdegree, middle/4);
 //	lcdP->SetRegion(Lcd::Rect(0,80,128,40));
 //	writerP->WriteString(buffer);
-
+//
 if(out < 45){
+	if(idealdegree > initial_servo + range){
+		idealdegree = initial_servo + range;
+	}
+	if(idealdegree < initial_servo - range){
+		idealdegree = initial_servo - range;
+	}
 	servoP->SetDegree(idealdegree);
 	ServoPreErr = ServoErr;
 }
 else{
 	idealdegree = initial_servo + int(KP_curve*ServoPreErr);
-	if(idealdegree > 1100){
-		idealdegree = 1100;
+	if(idealdegree > initial_servo + range){
+		idealdegree = initial_servo + range;
 	}
-	if(idealdegree < 500){
-		idealdegree = 500;
+	if(idealdegree < initial_servo - range){
+		idealdegree = initial_servo - range;
 	}
 	servoP->SetDegree(idealdegree);
 }
@@ -1221,7 +1444,7 @@ void find_edge(){
     	   	}
 
 
-        	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 38){
+        	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 40){
 
 				corner_Lexist = true;
 				L_slow = false;
@@ -1254,7 +1477,7 @@ void find_edge(){
 //    	   		sprintf(buf,"No R ");
 //    	   		writerP->WriteString(buf);
 			}
-			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=38){
+			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=40){
 				corner_Rexist = true;
 				R_slow = false;
 				R_corner.x = edge[R(row-6)].edgeposition;
@@ -1273,69 +1496,102 @@ void find_edge(){
 	}
 }
 	else if(crossroad){
-		for(int i = 1; i <75; i++){
-					//BWW found!
-					if(camptr[i][CAM_H-1] && camptr[i+1][CAM_H-1] && !camptr[i+2][CAM_H-1] ){
-						edge[L(0)].edgeposition = i+2;
-						edge[L(0)].row = CAM_H-1;
+		for(int i = 1; i <CAM_W -5; i++){
+			//BWW found!
+			if(camptr[i][CAM_H-1] && camptr[i+1][CAM_H-1] && !camptr[i+2][CAM_H-1] ){
+				edge[L(0)].edgeposition = i+2;
+				edge[L(0)].row = CAM_H-1;
+				left_bottom_exist = true;
+				break;
+			}
+		}
+		if(left_bottom_exist == false){
+			edge[L(0)].edgeposition = 1;
+			edge[L(0)].row = CAM_H-1;
+		}
+		// find the right edge at bottom line.
+		for(int i = CAM_W -2; i >4 ; i--){
+			//WWB found!
+			if(camptr[i][CAM_H-1]&&camptr[i-1][CAM_H-1]&&!camptr[i-2][CAM_H-1]){
+				edge[R(0)].edgeposition = i-2;
+				edge[R(0)].row = CAM_H-1;
+				right_bottom_exist = true;
+				break;
+			}
+		}
+		if(right_bottom_exist == false){
+			edge[R(0)].edgeposition = CAM_W -2;
+			edge[R(0)].row = CAM_H-1;
+		}
+
+		int startpoint = 0;
+		startpoint = (edge[R(0)].edgeposition + edge[L(0)].edgeposition)/2;
+
+		bool left = false;
+		bool right = false;
+		if(edge[L(0)].edgeposition < (78 - edge[R(0)].edgeposition )){
+			right = true;
+		}
+		else{
+			left = true;
+		}
+		for(int row=1; row<59; row++){
+			left_bottom_exist = false;
+			right_bottom_exist = false;
+
+			if(!camptr[startpoint][CAM_H-1-row] || left){
+			for(int i = startpoint;i>2;i--){
+				if(!camptr[i][CAM_H-1-row] && !camptr[i-1][CAM_H-1-row] && camptr[i-2][CAM_H-1-row] ){
+					edge[L(row)].edgeposition = i-1;
+					edge[L(row)].row = edge[L(row-1)].row -1;
+					left_bottom_exist = true;
+					break;
+				}
+			}
+			}
+			else{
+				for(int i = startpoint;i<78;i++){
+					if(camptr[i][CAM_H-1-row] && camptr[i+1][CAM_H-1-row] && !camptr[i+2][CAM_H-1-row] ){
+						edge[L(row)].edgeposition = i+2;
+						edge[L(row)].row = edge[L(row-1)].row -1;
 						left_bottom_exist = true;
 						break;
 					}
 				}
-				if(left_bottom_exist == false){
-					edge[L(0)].edgeposition = 1;
-					edge[L(0)].row = CAM_H-1;
+			}
+			if(!left_bottom_exist){
+				edge[L(row)].edgeposition = 1;
+				edge[L(row)].row = edge[L(row-1)].row -1;
+			}
+
+			if(!camptr[startpoint][CAM_H-1-row] || right){
+			for(int i = startpoint; i<CAM_W;i++){
+				if(!camptr[i][CAM_H-1-row] && !camptr[i+1][CAM_H-1-row] && camptr[i+2][CAM_H-1-row] ){
+					edge[R(row)].edgeposition = i+1;
+					edge[R(row)].row = edge[R(row-1)].row -1;
+					right_bottom_exist = true;
+					break;
 				}
-				// find the right edge at bottom line.
-				for(int i = 79; i >4 ; i--){
-					//WWB found!
-					if(camptr[i][CAM_H-1]&&camptr[i-1][CAM_H-1]&&!camptr[i-2][CAM_H-1]){
-						edge[R(0)].edgeposition = i-2;
-						edge[R(0)].row = CAM_H-1;
+			}
+		}
+			else{
+				for(int i = startpoint; i>2;i--){
+					if(camptr[i][CAM_H-1-row] && camptr[i-1][CAM_H-1-row] && !camptr[i-2][CAM_H-1-row] ){
+						edge[R(row)].edgeposition = i-2;
+						edge[R(row)].row = edge[R(row-1)].row -1;
 						right_bottom_exist = true;
 						break;
 					}
 				}
-				if(right_bottom_exist == false){
-					edge[R(0)].edgeposition = 78;
-					edge[R(0)].row = CAM_H-1;
-				}
 
-				int startpoint = 0;
-				startpoint = (edge[R(0)].edgeposition + edge[L(0)].edgeposition)/2;
-				for(int row=1; row<59; row++){
-					left_bottom_exist = false;
-					right_bottom_exist = false;
+			}
+			if(!right_bottom_exist){
+				edge[R(row)].edgeposition = 79;
+				edge[R(row)].row = edge[R(row-1)].row -1;
+			}
 
 
-					for(int i = startpoint;i>0;i--){
-						if(!camptr[i][CAM_H-1-row] && !camptr[i-1][CAM_H-1-row] && camptr[i-2][CAM_H-1-row] ){
-							edge[L(row)].edgeposition = i-1;
-							edge[L(row)].row = edge[L(row-1)].row -1;
-							left_bottom_exist = true;
-							break;
-						}
-					}
-					if(!left_bottom_exist){
-						edge[L(row)].edgeposition = 1;
-						edge[L(row)].row = edge[L(row-1)].row -1;
-					}
-
-					for(int i = startpoint; i<80;i++){
-						if(!camptr[i][CAM_H-1-row] && !camptr[i+1][CAM_H-1-row] && camptr[i+2][CAM_H-1-row] ){
-							edge[R(row)].edgeposition = i+1;
-							edge[R(row)].row = edge[R(row-1)].row -1;
-							right_bottom_exist = true;
-							break;
-						}
-					}
-					if(!right_bottom_exist){
-						edge[R(row)].edgeposition = 79;
-						edge[R(row)].row = edge[R(row-1)].row -1;
-					}
-
-
-				}
+		}
 	}
 	else if(roundabout){
 
@@ -1451,8 +1707,8 @@ void find_edge(){
 
 		    	   	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition)&&edge[L(row-6)].row > 35 && !L_slow){
 		    	   		L_slow = true;
-		    	   		lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
-		    	   		lcdP->FillColor(0xF800);//Red
+//		    	   		lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
+//		    	   		lcdP->FillColor(0xF800);//Red
 		//    	   		lcdP->SetRegion(Lcd::Rect(0,100,100,40));
 		//    	   		sprintf(buf,"L corner");
 		//    	   		writerP->WriteString(buf);
@@ -1464,7 +1720,7 @@ void find_edge(){
 		    	   	}
 
 
-		        	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 40){
+		        	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 45){
 
 						corner_Lexist = true;
 						L_slow = false;
@@ -1613,7 +1869,7 @@ void find_edge(){
 		//    	   		sprintf(buf,"No R ");
 		//    	   		writerP->WriteString(buf);
 					}
-					if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=40){
+					if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=45){
 						corner_Rexist = true;
 						R_slow = false;
 						R_corner.x = edge[R(row-6)].edgeposition;
@@ -1644,6 +1900,7 @@ void findpath(){
 	 Lcurve = false;
 	 Rcurve = false;
 	Path.clear();
+	int time = 0;
 	int Left_x[15];
 	int Right_x[15];
 	for(int x=0;x<15;x++){
@@ -1782,7 +2039,7 @@ void findpath(){
 			/*
 			 * curve
 			 */
-				char buffer[50];
+
 				int Rvalue = 0;
 				int Lvalue = 0;
 				Lvalue = 2* Left_x[4] - Left_x[0];
@@ -1842,8 +2099,9 @@ void findpath(){
 							else{
 								if(Left_x[row] > 5){
 									coor temp;
-									temp.x = (5*Left_x[row]+ 3*Right_x[row])/8;
+									temp.x = ((time*3/5+1)*Left_x[row] + Right_x[row])/(time*3/5+2);
 									temp.y = 58-3*(row+1);
+									time++;
 									Path.push_back(temp);
 								}
 								else{
@@ -1869,9 +2127,10 @@ void findpath(){
 							else{
 								if(Right_x[row] < 75){
 									coor temp;
-									temp.x = (3*Left_x[row] + 5*Right_x[row])/8;
+									temp.x = ((time*3/5+1)*Right_x[row] + Left_x[row])/(time*3/5+2);
 									temp.y = 58-3*(row+1);
 									Path.push_back(temp);
+									time++;
 
 								}
 
@@ -2010,6 +2269,12 @@ void checkround(){
 	bottom_y = (edge[L(1)].row + edge[R(1)].row)/2;
 	k = double(bottom_y - middle_y)/double(middle_x - bottom_x);
 	detectline.clear();
+	if(k<3 && k>0){
+		k=3;
+	}
+	if(k>-3 && k <0){
+		k = -3;
+	}
 	for(int row =0; row< (middle_y); row++){
 		coor temp;
 		temp.x = round((1*(row+1)/k) + middle_x);
@@ -2031,7 +2296,6 @@ void checkround(){
 		else if(first &&!second && camptr[detectline[row].x][detectline[row].y] &&camptr[detectline[row+1].x][detectline[row+1].y] && !camptr[detectline[row+2].x][detectline[row+2].y]){
 			second = true;
 		}
-
 
 		else if(second && !camptr[detectline[row].x][detectline[row].y] && camptr[detectline[row+1].x][detectline[row+1].y]){
 			roundabout = true;
@@ -2116,4 +2380,56 @@ void printCameraImage(const Byte* image)
 {
 	lcdP->SetRegion(Lcd::Rect(0, 0, CAM_W, cam_h));
 	lcdP->FillBits(0x001F, 0xFFFF, image, CAM_W * cam_h);
+}
+bool startline_detect(){
+	int L = 0;
+	int R = 0;
+	int time = 0;
+	for(int row = 5; row <25; row++){
+		L = edge[L(row)].edgeposition;
+		R = edge[R(row)].edgeposition;
+		bool reverse = false;
+		time =0;
+		for(int count = L; count<R-2;count++){
+			if(!camptr[count][CAM_H-row] &&  camptr[count+1][CAM_H-row]&&!reverse){
+				time++;
+				reverse = true;
+			}
+			else if(reverse){
+				if(camptr[count][CAM_H-row] && !camptr[count+1][CAM_H-row]){
+					time++;
+					reverse= false;
+				}
+			}
+
+
+		}
+		if(time > 4){
+			return true;
+		}
+	}
+
+	return false;
+
+}
+
+void reset(){
+	int	num_of_round = 0;
+	int num_of_cross = 0;
+	bool corner_Lexist = false;
+	bool corner_Rexist = false;
+	bool L_slow = false;
+	bool R_slow = false;
+	bool crossroad = false;
+	bool entercross =false;
+	bool Rcross = false;
+	bool roundabout = false;
+	bool L_roundabout = false;
+	bool R_roundabout = false;
+	bool Round_step = false;
+	bool Round_step2 = false;
+	bool Cross_step = false;
+	bool Lcurve = false;
+	bool Rcurve = false;
+	bool sum_of_encoder = false;
 }
