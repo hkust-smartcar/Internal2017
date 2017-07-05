@@ -32,6 +32,8 @@ float KP_curve = 6.5;
 float KD_curve = 0;
 float KP_curveless = 4.5;
 float KD_curveless = 0;
+float KP_cross = 3;
+float KD_cross = 0;
 float KP_R  =5;
 float KD_R  =0;
 float KP_LM = 8;
@@ -164,8 +166,9 @@ bool motor_run = true;
 bool run = false;
 bool start = false;
 bool manual = false;
-
-
+bool lcd_read = false;
+bool L_far_corner = false;
+bool R_far_corner = false;
 
 bool camptr[CAM_W][CAM_H];
 
@@ -609,6 +612,30 @@ int main(void)
 			lastTime = System::Time();
 			sent++;
 
+
+			switch(joystick.GetState()){
+			case Joystick::State::kUp:
+				lcd_read = false;
+				break;
+			case Joystick::State::kDown:
+				lcd_read = true;
+				break;
+			case Joystick::State::kIdle:
+				break;
+			case Joystick::State::kLeft:
+				break;
+			case Joystick::State::kRight:
+				break;
+			case Joystick::State::kSelect:
+				break;
+			}
+
+
+
+
+
+
+
 			if (!programRun) {
 				run = false;
 				manual = true;
@@ -664,8 +691,7 @@ int main(void)
 
 
 
-
-			if(!roundabout && ! crossroad && !obstacle && R_encoder_count > 3000){
+			if(!roundabout && ! crossroad && !obstacle/* && R_encoder_count > 3000*/){
 				if(num_of_round %3==1 &&corner_Lexist && corner_Rexist && !roundabout){
 					roundabout = true;
 					int L =0;
@@ -690,11 +716,8 @@ int main(void)
 				else if(entercross && corner_Lexist &&corner_Rexist){
 					crossroad = true;
 				}
-				else if(entercross && corner_Rexist && corner_Lexist){
-					crossroad = true;
-				}
-				else if(num_of_obstacle!=1 && L_encoder_count > 4000){
-					if(!Lcurve && !Rcurve &&!Rcurve_less && !Lcurve_less ){
+				else{
+					if(!L_far_corner && !R_far_corner&&!Lcurve && !Rcurve &&!Rcurve_less && !Lcurve_less ){
 						if(obstacle_detect()){
 							obstacle = true;
 						}
@@ -702,9 +725,10 @@ int main(void)
 
 				}
 
-//					sprintf(buf, "Normal!");
-//					lcdP->SetRegion(Lcd::Rect(0,60,80,80));
-//					writer.WriteString(buf);
+
+
+
+
 
 			}
 			else if(roundabout){
@@ -748,6 +772,8 @@ int main(void)
 						Round_step2 = false;
 						L_slow = false;
 						R_slow = false;
+						R_far_corner = false;
+						L_far_corner =false;
 
 					}
 				}
@@ -798,6 +824,8 @@ int main(void)
 							Round_step2 = false;
 							L_slow = false;
 							R_slow = false;
+							R_far_corner = false;
+							L_far_corner =false;
 
 						}
 					}
@@ -839,6 +867,8 @@ int main(void)
 					Cross_step = false;
 					L_slow = false;
 					R_slow = false;
+					R_far_corner = false;
+					L_far_corner =false;
 					entercross = !entercross;
 
 				}
@@ -934,13 +964,20 @@ int main(void)
 					 run = false;
 					}
 					}
-
-
-
 			}
 
+			if(lcd_read){
+				Print2D();
+				Printpath();
+			}
+			else{
+				//lcdP->Clear();
+			}
+
+
+
 //			Printedge();
-//			Printpath();
+
 //			char deg[50];
 //			sprintf(deg, "%d",servoP->GetDegree());
 //			lcdP->SetRegion(Lcd::Rect(0,60,80,80));
@@ -979,7 +1016,7 @@ int main(void)
 					R_motor_errorsum = 0;
 					motorPID(0,820);
 				}
-				else if(motor_run && L_slow && R_slow){
+				else if(motor_run && L_far_corner && R_far_corner){
 					motorPID(double_corner*speed*70,servoP->GetDegree());
 				}
 				else if(motor_run && roundabout){
@@ -1196,13 +1233,13 @@ void turningPID(){
 			error3 = error3-(Path[row].x- middleline);
 	}
 	if(entercross){
-	ServoErr = (0.5 * error1) + (0.5 * error2);
+	ServoErr = (0.65 * error1) + (0.35 * error2);
 	}
 	else if(Lcurve || Rcurve){
-		ServoErr = (0.4 * error1) + (0.6 * error2);
+		ServoErr = (0.5 * error1) + (0.5 * error2);
 	}
 	else if(Lcurve_less || Rcurve_less){
-		ServoErr = (0.4 * error1) + (0.6 * error2);
+		ServoErr = (0.6 * error1) + (0.4 * error2);
 	}
 	else{
 	ServoErr = (0.5 * error1) + (0.5 * error2);
@@ -1236,7 +1273,9 @@ void turningPID(){
 
 		}
 	}
-
+	else if(crossroad){
+		idealdegree = initial_servo + int(KP_cross*ServoErr +KD_cross*(ServoErr-ServoPreErr));
+	}
 	else if(roundabout && !Round_step){
 		idealdegree = initial_servo + int(KP_R*ServoErr +KD_R*(ServoErr-ServoPreErr));
 
@@ -1261,12 +1300,13 @@ void turningPID(){
 	else{
 		idealdegree = initial_servo + int(KP*ServoErr +KD*(ServoErr-ServoPreErr));
 	}
-
-//	char buffer[50];
-//	sprintf(buffer,"%d %d %d",ServoErr,idealdegree, middle/4);
-//	lcdP->SetRegion(Lcd::Rect(0,80,128,40));
-//	writerP->WriteString(buffer);
-//
+	if(lcd_read){
+	char buffer[50];
+	sprintf(buffer,"%d %d %d",ServoErr,idealdegree, middle/4);
+	lcdP->SetRegion(Lcd::Rect(0,80,128,40));
+	writerP->WriteString(buffer);
+	}
+//}
 if(out < 45){
 	if(idealdegree > initial_servo + range){
 		idealdegree = initial_servo + range;
@@ -1331,6 +1371,8 @@ void find_edge(){
 		corner_Rexist = false;
 		L_slow = false;
 		R_slow = false;
+		R_far_corner = false;
+		L_far_corner =false;
 		bool L_stop = false;
 		bool R_stop = false;
 	for(int row = 1; row<60; row ++){
@@ -1504,8 +1546,8 @@ void find_edge(){
 //			lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
 //			lcdP->FillColor(0xF800);//Red
 
-    	   	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition)&&edge[L(row-6)].row >32 && !L_slow){
-    	   		L_slow = true;
+    	   	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition)&&edge[L(row-6)].row >32 && !L_far_corner){
+    	   		L_far_corner = true;
 //    	   		lcdP->SetRegion(Lcd::Rect(0,100,100,40));
 //    	   		sprintf(buf,"L corner");
 //    	   		writerP->WriteString(buf);
@@ -1520,7 +1562,7 @@ void find_edge(){
         	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition) && !corner_Lexist && edge[L(row-6)].row >= 40){
 
 				corner_Lexist = true;
-				L_slow = false;
+				L_far_corner = false;
 				L_corner.x = edge[L(row-6)].edgeposition;
 				L_corner.y = edge[L(row-6)].row;
 //				lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 4,edge[L(row-6)].row -4, 9,9));
@@ -1539,8 +1581,8 @@ void find_edge(){
 		if(row >= 12 && row % 2 == 0 && abs(edge[R(row)].edgeposition + edge[R(row-12)].edgeposition - 2*edge[R(row-6)].edgeposition )>= 4 && edge[R(row-6)].row >=30 && edge[R(row-6)].edgeposition < 74){
 
 
-			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && edge[R(row-6)].row >32 && !R_slow){
-				R_slow = true;
+			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && edge[R(row-6)].row >32 && !R_far_corner){
+				R_far_corner = true;
 //    	   		lcdP->SetRegion(Lcd::Rect(80,100,50,40));
 //    	   		sprintf(buf,"R c");
 //    	   		writerP->WriteString(buf);
@@ -1552,7 +1594,7 @@ void find_edge(){
 			}
 			if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=40){
 				corner_Rexist = true;
-				R_slow = false;
+				R_far_corner = false;
 				R_corner.x = edge[R(row-6)].edgeposition;
 				R_corner.y = edge[R(row-6)].row;
 //				lcdP->SetRegion(Lcd::Rect(edge[R(row-6)].edgeposition-4,edge[R(row-6)].row-4, 9, 9));
@@ -1691,6 +1733,8 @@ void find_edge(){
 			corner_Rexist = false;
 			L_slow = false;
 			R_slow = false;
+			R_far_corner = false;
+			L_far_corner =false;
 			bool L_stop = false;
 			bool R_stop = false;
 		for(int row = 1; row<CAM_H; row ++){
@@ -1778,8 +1822,8 @@ void find_edge(){
 		//			lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
 		//			lcdP->FillColor(0xF800);//Red
 
-		    	   	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition)&&edge[L(row-6)].row > 35 && !L_slow){
-		    	   		L_slow = true;
+		    	   	if(Lcorner(edge[L(row-6)].row,edge[L(row-6)].edgeposition)&&edge[L(row-6)].row > 35 && !L_far_corner){
+		    	   		L_far_corner= true;
 //		    	   		lcdP->SetRegion(Lcd::Rect(edge[L(row-6)].edgeposition - 2,edge[L(row-6)].row -2, 4,4));
 //		    	   		lcdP->FillColor(0xF800);//Red
 		//    	   		lcdP->SetRegion(Lcd::Rect(0,100,100,40));
@@ -1841,6 +1885,8 @@ void find_edge(){
 				corner_Rexist = false;
 				L_slow = false;
 				R_slow = false;
+				R_far_corner = false;
+				L_far_corner =false;
 				bool L_stop = false;
 				bool R_stop = false;
 			for(int row = 1; row<CAM_H; row ++){
@@ -1929,8 +1975,8 @@ void find_edge(){
 				if(row >= 12 && row % 2 == 0 && abs(edge[R(row)].edgeposition + edge[R(row-12)].edgeposition - 2*edge[R(row-6)].edgeposition )>= 4 && edge[R(row-6)].row >=30 && edge[R(row-6)].edgeposition < 74){
 
 
-					if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && edge[R(row-6)].row > 35 && !R_slow){
-						R_slow = true;
+					if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && edge[R(row-6)].row > 35 && !R_far_corner){
+						R_far_corner = true;
 //		    	   		lcdP->SetRegion(Lcd::Rect(edge[R(row-6)].edgeposition - 2,edge[R(row-6)].row -2, 4,4));
 //		    	   		lcdP->FillColor(0xF800);//Red
 		//    	   		lcdP->SetRegion(Lcd::Rect(80,100,50,40));
@@ -1944,7 +1990,7 @@ void find_edge(){
 					}
 					if(Rcorner(edge[R(row-6)].row,edge[R(row-6)].edgeposition) && !corner_Rexist && edge[R(row-6)].row>=45){
 						corner_Rexist = true;
-						R_slow = false;
+						 R_far_corner= false;
 						R_corner.x = edge[R(row-6)].edgeposition;
 						R_corner.y = edge[R(row-6)].row;
 //						lcdP->SetRegion(Lcd::Rect(edge[R(row-6)].edgeposition-4,edge[R(row-6)].row-4, 9, 9));
@@ -2000,10 +2046,8 @@ void find_edge(){
 
 
 
-			corner_Lexist = false;
-			corner_Rexist = false;
-			L_slow = false;
-			R_slow = false;
+
+
 			bool L_stop = false;
 			bool R_stop = false;
 		for(int row = 1; row<60; row ++){
@@ -2557,12 +2601,12 @@ void findpath(){
 				int Lvalue = 0;
 				Lvalue = 2* Left_x[4] - Left_x[0];
 				Rvalue = 2* Right_x[4] - Right_x[0];
-			if( Right_x[4] > CAM_W -4 &&Right_x[5] > CAM_W -4 && abs(Left_x[7]-Left_x[3]) >4 ){
+			if( Right_x[2] > CAM_W -4 &&Right_x[3] > CAM_W -4 && abs(Left_x[7]-Left_x[3]) >4 ){
 				Rcurve = true;
 				Lcurve = false;
 
 			}
-			else if(Left_x[4] <4 && Left_x[5] <4 && abs(Right_x[7] - Right_x[3]) >4 ){
+			else if(Left_x[2] <4 && Left_x[3] <4 && abs(Right_x[7] - Right_x[3]) >4 ){
 				Lcurve = true;
 				Rcurve = false;
 
@@ -2628,7 +2672,7 @@ void findpath(){
 							else{
 								if(Left_x[row] > 5){
 									coor temp;
-									temp.x = ((time*2/5+1)*Left_x[row] + Right_x[row])/(time*2/5+2);
+									temp.x = ((time/5+1)*Left_x[row] + Right_x[row])/(time/5+2);
 									temp.y = 58-3*(row+1);
 									time++;
 									Path.push_back(temp);
@@ -2656,7 +2700,7 @@ void findpath(){
 							else{
 								if(Right_x[row] < 75){
 									coor temp;
-									temp.x = ((time*2/5+1)*Right_x[row] + Left_x[row])/(time*2/5+2);
+									temp.x = ((time/5+1)*Right_x[row] + Left_x[row])/(time/5+2);
 									temp.y = 58-3*(row+1);
 									Path.push_back(temp);
 									time++;
@@ -2942,21 +2986,115 @@ void printCameraImage(const Byte* image)
 	lcdP->FillBits(0x001F, 0xFFFF, image, CAM_W * cam_h);
 }
 bool startline_detect(){
+
+	int Left_x[9];
+	int Right_x[9];
+	for(int x=0;x<9;x++){
+		Left_x[x] = -1;
+		Right_x[x] = -1;
+	}
+	for(int i=0; i< 60 ;i++){
+		/*
+			* Left!
+		*/
+		if(edge[L(i)].row == 58 && Left_x[0] == -1 ){
+			Left_x[0] = edge[L(i)].edgeposition;
+			continue;
+		}
+		if(edge[L(i)].row == 57 && Left_x[1] == -1){
+			Left_x[1] = edge[L(i)].edgeposition;
+			continue;
+		}
+		if(edge[L(i)].row == 56 && Left_x[2] == -1){
+			Left_x[2] = edge[L(i)].edgeposition;
+			continue;
+		}
+		if(edge[L(i)].row == 55 && Left_x[3] == -1){
+			Left_x[3] = edge[L(i)].edgeposition;
+			continue;
+		}
+		if(edge[L(i)].row == 54 && Left_x[4] == -1){
+			Left_x[4] = edge[L(i)].edgeposition;
+			continue;
+
+		}
+		if(edge[L(i)].row == 53 && Left_x[5] == -1){
+			Left_x[5] = edge[L(i)].edgeposition;
+			continue;
+	 	}
+		if(edge[L(i)].row == 52 && Left_x[6] == -1){
+			Left_x[6] = edge[L(i)].edgeposition;
+			continue;
+		}
+		if(edge[L(i)].row == 51 && Left_x[7] == -1){
+			Left_x[7] = edge[L(i)].edgeposition;
+			continue;
+		}
+		if(edge[L(i)].row == 50 && Left_x[8] == -1){
+			Left_x[8] = edge[L(i)].edgeposition;
+			continue;
+		}
+	}
+				/*
+				 * Right
+				 */
+			for(int i=0; i< 60 ;i++){
+				if(edge[R(i)].row ==58 && Right_x[0] == -1){
+					Right_x[0] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==57 && Right_x[1] == -1){
+					Right_x[1] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==56 && Right_x[2] == -1){
+					Right_x[2] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==55 && Right_x[3] == -1){
+					Right_x[3] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==54 && Right_x[4] == -1){
+					Right_x[4] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==53 && Right_x[5] == -1){
+					Right_x[5] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==52 && Right_x[6] == -1){
+					Right_x[6] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==51 && Right_x[7] == -1){
+					Right_x[7] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==50 && Right_x[8] == -1){
+					Right_x[8] = edge[R(i)].edgeposition;
+					continue;
+				}
+
+			}
+
+
+
 	int L = 0;
 	int R = 0;
 	int time = 0;
-	for(int row = 2; row <10; row++){
-		L = edge[L(row)].edgeposition;
-		R = edge[R(row)].edgeposition;
+	for(int row = 8; row >=0; row--){
+		L = Left_x[row];
+		R = Right_x[row];
 		bool reverse = false;
 		time =0;
 		for(int count = L; count<R-2;count++){
-			if(!camptr[count][CAM_H-row] &&  camptr[count+1][CAM_H-row]&&!reverse){
+			if(!camptr[count][50+(8-row)] &&  camptr[count+1][50+(8-row)]&&!reverse){
 				time++;
 				reverse = true;
 			}
 			else if(reverse){
-				if(camptr[count][CAM_H-row] && !camptr[count+1][CAM_H-row]){
+				if(camptr[count][50+(8-row)] && !camptr[count+1][50+(8-row)]){
 					time++;
 					reverse= false;
 				}
@@ -2973,6 +3111,75 @@ bool startline_detect(){
 
 }
 bool obstacle_detect(){
+
+	int Left_x[6];
+	int Right_x[6];
+	for(int x=0;x<6;x++){
+		Left_x[x] = -1;
+		Right_x[x] = -1;
+	}
+	for(int i=0; i< 60 ;i++){
+		/*
+			* Left!
+		*/
+		if(edge[L(i)].row == 35 && Left_x[0] == -1 ){
+			Left_x[0] = edge[L(i)].edgeposition;
+			continue;
+		}
+		if(edge[L(i)].row == 33 && Left_x[1] == -1){
+			Left_x[1] = edge[L(i)].edgeposition;
+			continue;
+		}
+		if(edge[L(i)].row == 31 && Left_x[2] == -1){
+			Left_x[2] = edge[L(i)].edgeposition;
+			continue;
+		}
+		if(edge[L(i)].row == 29 && Left_x[3] == -1){
+			Left_x[3] = edge[L(i)].edgeposition;
+			continue;
+		}
+		if(edge[L(i)].row == 27 && Left_x[4] == -1){
+			Left_x[4] = edge[L(i)].edgeposition;
+			continue;
+
+		}
+		if(edge[L(i)].row == 25 && Left_x[5] == -1){
+			Left_x[5] = edge[L(i)].edgeposition;
+			continue;
+	 	}
+	}
+				/*
+				 * Right
+				 */
+			for(int i=0; i< 60 ;i++){
+				if(edge[R(i)].row ==35 && Right_x[0] == -1){
+					Right_x[0] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==33 && Right_x[1] == -1){
+					Right_x[1] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==31 && Right_x[2] == -1){
+					Right_x[2] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==29 && Right_x[3] == -1){
+					Right_x[3] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==27 && Right_x[4] == -1){
+					Right_x[4] = edge[R(i)].edgeposition;
+					continue;
+				}
+				if(edge[R(i)].row ==25 && Right_x[5] == -1){
+					Right_x[5] = edge[R(i)].edgeposition;
+					continue;
+				}
+
+
+			}
+
 	int L = 0;
 	int R = 0;
 	int time = 0;
@@ -2981,35 +3188,49 @@ bool obstacle_detect(){
 	int count = 0;
 	int left = 0;
 	int right = 0;
-	for(int row = 25; row <35; row++){
-		L = edge[L(row)].edgeposition;
-		R = edge[R(row)].edgeposition;
+
+
+	for(int row = 5; row>=0;row--){
+		if(Right_x[row] > CAM_W -4 || Right_x[row]==1){
+			return false;
+		}
+		if(Left_x[row] < 4|| Left_x[row] ==-1){
+			return false;
+		}
+
+	}
+
+
+
+	for(int row = 5; row >=0; row--){
+		L = Left_x[row];
+		R = Right_x[row];
 		bool reverse = false;
 		time =0;
-		for(count = L; count<R-5;count++){
-			if(!camptr[count][CAM_H-row] &&  !camptr[count+1][CAM_H-row]&& camptr[count+2][CAM_H-row] &&camptr[count+3][CAM_H-row] && camptr[count+4][CAM_H-row]){
+		for(count = L; count<=R-2;count++){
+			if(!reverse && !camptr[count][25+2*(5-row)] &&  camptr[count+1][25+2*(5-row)]&& camptr[count+2][25+2*(5-row)]){
 				first = count+1-L;
-					if(first >= 4){
+				reverse =true;
+				time++;
+			}
+			else if(reverse){
+				if(camptr[count][25+2*(5-row)] && camptr[count+1][25+2*(5-row)] && !camptr[count+2][25+2*(5-row)]){
+					time++;
+					reverse= false;
+					second = count + 1-L-first;
+				}
+			}
+
+		}
+			if(time == 2 && second >=3 && second <=6){
+				if(first >= 4){
 						obstacle_right = true;
 					}
 					else{
 						obstacle_left = true;
 					}
 					return true;
-
-
 			}
-//			else if(reverse){
-//				if(camptr[count][CAM_H-row] && !camptr[count+1][CAM_H-row]){
-//					time++;
-//					reverse= false;
-//					second = count + 1-L-first;
-//				}
-//			}
-
-
-		}
-
 	}
 
 	return false;
