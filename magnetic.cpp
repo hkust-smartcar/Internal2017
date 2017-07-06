@@ -9,12 +9,12 @@
 #include <libbase/k60/mcg.h>
 #include <libsc/system.h>
 
+#include <algorithm>
 #include <cstring>
 #include <cmath>
-#include <vector>
 #include <sstream>
-#include <cstring>
 #include <stdio.h>
+#include <vector>
 
 //LED
 #include <libsc/led.h>
@@ -73,14 +73,23 @@ vector<double> constVector;
 double inputTargetSpeed = 0;
 double powSpeedP = 0, powSpeedI = 0, powSpeedD = 0;
 double diffP = 0, diffD = 0;
-double sumSpeedErrLim = 10000, sumAngErrLim = 100000;
+double midRatio = 0, frontRatio = 0;
+double diffOffset = 0;
+double frontCrossBoundary = 0, frontRoundBoundary = 0, midRoundBoundary = 0;
+double frontRoundDiv = 0, midRoundDiv = 0;
+double backMid = 0, backMidFront = 0, outRound = 0;
+double detectedPeriod = 0;
+double sideDecP = 0;
+double speedDecP = 0, speedDecP2 = 0, speedDecP3 = 0, speedDecLim = 0;
+double roundSpeedDec = 0, inRoundSpeedDec = 0;
+double sumSpeedErrLim = 10000;
 double temp = 0;
 
 int power = 0;
 int curDeg = 900;
-double differential = 0;
+int servoMid = 950, servoRange = 550;
 double sumSpeedErr = 0;
-bool programRun = true, tuneSpeed = false;
+bool programRun = true;
 
 double arrAvg(double arr[], int size, int& counter, double& total, double newVal) {
 
@@ -97,7 +106,8 @@ double arrAvg(double arr[], int size, int& counter, double& total, double newVal
 bool bluetoothListener(const Byte *data, const size_t size) {
 
 	if (data[0] == 'w') {
-		servoPtr->SetDegree(900);
+		curDeg = servoMid;
+		servoPtr->SetDegree(curDeg);
 	}
 	if (data[0] == 'a') {
 		curDeg += 20;
@@ -145,8 +155,25 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 			powSpeedD = constVector[3];
 			diffP = constVector[4];
 			diffD = constVector[5];
-			sumSpeedErrLim = constVector[6];
-			tuneSpeed = constVector[7];
+			midRatio = constVector[6];
+			frontRatio = constVector[7];
+			diffOffset = constVector[8];
+			frontCrossBoundary = constVector[9];
+			frontRoundBoundary = constVector[10];
+			midRoundBoundary = constVector[11];
+			frontRoundDiv = constVector[12];
+			midRoundDiv = constVector[13];
+			backMid = constVector[14];
+			backMidFront = constVector[15];
+			outRound = constVector[16];
+			sideDecP = constVector[17];
+			speedDecP = constVector[18];
+			speedDecP2 = constVector[19];
+			speedDecP3 = constVector[20];
+			speedDecLim = constVector[21];
+			roundSpeedDec = constVector[22];
+			inRoundSpeedDec = constVector[23];
+			sumSpeedErrLim = constVector[24];
 
 			power = 0;
 			sumSpeedErr = 0;
@@ -160,18 +187,18 @@ int main(void) {
 
 	System::Init();
 
-//Loop
+//loop
 	long startTime = System::Time();
 	long prevSampleTime = System::Time();
 	double dt = 0;
 	long currentTime = 0;
 	long loopCounter = 0;
 
-//Speed
+//speed
 	bool forward = 1;
 
 	const int speedArrSize = 10;
-	double speed = 0, prevSpeed = 0;
+	double speed = 0;
 	double targetSpeed = 0;
 	int speedArrCounter = 0;
 	double speedTotal = 0;
@@ -192,13 +219,50 @@ int main(void) {
 		speedErrRateArr[i] = 0;
 	}
 
-//Servo
+//turning
 
-	int servoMid = 1000, servoRange = 550;
-
-//Adc
 	double midLeft = 0, midRight = 0, frontLeft = 0, frontRight = 0;
-	double midDiff = 0, prevMidDiff = 0;
+
+	int roundState = 0;
+	bool crossDetected = 0;
+	long detectedTime = 0, backMidTime = 0, lastRound = 0;
+
+	double diff = 0, prevDiff = 0, diffRate = 0;
+	double midDiff = 0, frontDiff = 0;
+	double midSum = 0, frontDiv = 0;
+
+	const int diffRateArrSize = 3;
+	int diffRateArrCounter = 0;
+	double diffRateTotal = 0;
+	double diffRateArr[diffRateArrSize];
+	for (int i = 0; i < diffRateArrSize; i++){
+		diffRateArr[i] = 0;
+	}
+
+	const int frontDivArrSize = 10;
+	int frontDivArrCounter = 0;
+	double frontDivTotal = 0;
+	double frontDivArr[frontDivArrSize];
+	for (int i = 0; i < frontDivArrSize; i++){
+		frontDivArr[i] = 0;
+	}
+
+	const int midSumArrSize = 10;
+	int midSumArrCounter = 0;
+	double midSumTotal = 0;
+	double midSumArr[midSumArrSize];
+	for (int i = 0; i < midSumArrSize; i++){
+		midSumArr[i] = 0;
+	}
+
+	double deg = 0, prevDeg = 0;
+	const int degArrSize = 10;
+	int degArrCounter = 0;
+	double degTotal = 0;
+	double degArr[degArrSize];
+	for (int i = 0; i < degArrSize; i++){
+		degArr[i] = 0;
+	}
 
 //Angle
 //	double acc[3];
@@ -246,7 +310,7 @@ int main(void) {
 	Adc::Config adcConfig;
 	adcConfig.resolution = Adc::Config::Resolution::k12Bit;
 	adcConfig.speed = Adc::Config::SpeedMode::kTypical;
-	adcConfig.avg_pass = Adc::Config::AveragePass::k8;
+	adcConfig.avg_pass = Adc::Config::AveragePass::k32;
 //	adcConfig.pin = libbase::k60::Pin::Name::kPte0;
 //	Adc midLeftInductor(adcConfig);
 //	adcConfig.pin = libbase::k60::Pin::Name::kPte1;
@@ -270,22 +334,43 @@ int main(void) {
 	double temp = 0, temp1 = 0;
 	servo.SetDegree(servoMid);
 	System::DelayMs(2000);
+	detectedPeriod = 800;
 
 	//Constant
-	inputTargetSpeed = 3000;
-	powSpeedP = -0.05;
-	powSpeedI = -0.6;
-	powSpeedD = -0.0009;
-	diffP = -30;
-	diffD = 0;
+	inputTargetSpeed = 0;
+//	powSpeedP = -0.05;
+//	powSpeedI = -0.6;
+//	powSpeedD = -0.0009;
+	powSpeedP = -0.025;
+	powSpeedI = -0.2;
+	powSpeedD = -0.001;
+	diffP = -10;
+	diffD = -20;
+	midRatio = 150;
+	frontRatio = -25;
+	diffOffset = 0;
+	frontCrossBoundary = 600;
+	frontRoundBoundary = 60;
+	midRoundBoundary = 120;
+	frontRoundDiv = 50;
+	midRoundDiv = 100;
+	backMid = 100;
+	backMidFront = 100;
+	outRound = 200;
+	sideDecP = 0.1;
+	speedDecP = 0;
+	speedDecP2 = 0.05;
+	speedDecP3 = 0.2;
+	speedDecLim = 0.1;
+	roundSpeedDec = 0.5;
+	inRoundSpeedDec = 0.6;
 	sumSpeedErrLim = 10000;
-	tuneSpeed = 1;
 
 	while(1) {
 
 		currentTime = System::Time();
 
-		if (currentTime-startTime >= 5) {
+		if (currentTime-startTime >= 8) {
 
 			startTime = currentTime;
 			loopCounter++;
@@ -301,45 +386,112 @@ int main(void) {
 				temp = speed;
 			}
 			speed = arrAvg(speedArr, speedArrSize, speedArrCounter, speedTotal, temp);
-			prevSpeed = speed;
 
-			//angle
-//			mpu.Update(1);
-//			acc[0] = mpu.GetAccel()[0];
-//			acc[1] = mpu.GetAccel()[1];
-//			acc[2] = mpu.GetAccel()[2];
-//			accbine = sqrt(acc[0]*acc[0] + acc[1]*acc[1] + acc[2]*acc[2]);
-//			accAng = (acos(acc[0]/accbine)*180)/3.1415;
-//			gyroAng = curAng + (mpu.GetOmega()[1]/160/131)*dt;
-//			prevAng = curAng;
-//			curAng = arrAvg(angArr, angArrSize, angCounter, angTotal, abs((0.98*gyroAng)+(0.02*accAng)));
-
+			//stop car
 			if (programRun == false || System::Time()<3000) {
 				motor.SetPower(0);
 				continue;
 			}
 
-			//Adc
+			//adc
 			midLeft = midLeftInductor.GetResultF()*100;
+			midRight = midRightInductor.GetResultF()*100;
 			frontLeft = frontLeftInductor.GetResultF()*100;
 			frontRight = frontRightInductor.GetResultF()*100;
-			midRight = midRightInductor.GetResultF()*100;
+			midSum = arrAvg(midSumArr, midSumArrSize, midSumArrCounter, midSumTotal, midLeft + midRight);
+			frontDiv = arrAvg(frontDivArr, frontDivArrSize, frontDivArrCounter, frontDivTotal, fabs(frontLeft-frontRight));
 
-			prevMidDiff = midDiff;
-			if (midLeft != 0 && midRight != 0) {
-				midDiff = 1000/(midRight+frontRight) - 1000/(midLeft+frontLeft);
+			//cross
+//				if (roundState==0 && frontLeft+frontRight > frontCrossBoundary) {
+//					crossDetected  = true;
+//					detectedTime = System::Time();
+//				}
+//			if (crossDetected) {
+//				if ((System::Time()-detectedTime)<detectedPeriod) {
+//					frontLeft *= sideDecP;
+//					frontRight *= sideDecP;
+//				} else {
+//					crossDetected = false;
+//				}
+//			}
+
+			//round
+			if (roundState==0 && System::Time()-lastRound > detectedPeriod) {
+				if ((frontLeft+frontRight) > frontRoundBoundary && (midLeft+midRight) < midRoundBoundary && fabs(frontLeft-frontRight)<frontRoundDiv && fabs(midLeft-midRight)<midRoundDiv && fabs(curDeg-servoMid)<200) {
+					roundState = 1;
+					detectedTime = System::Time();
+				}
 			}
-			//filter
+			if (roundState == 1) {
+				if (2*midLeft + 2*midRight > backMid && 2*frontLeft + 2*frontRight < backMidFront) {
+					backMidTime = System::Time()-detectedTime;
+					roundState = 2;
+				} else {
+					frontRight *= sideDecP;
+					midRight *= sideDecP;
+				}
+			}
+			if (roundState == 2 && 2*frontLeft+2*frontRight>outRound) {
+				roundState = 3;
+				lastRound = System::Time();
+			}
+			if (roundState == 3) {
+				if (fabs(1000/midRight - 1000/midLeft)<10) {
+					roundState = 0;
+				}
+			}
+			if (roundState > 0) {
+				midLeft *= 2;
+				midRight *= 2;
+				frontLeft *= 2;
+				frontRight *= 2;
+			}
 
-			curDeg = servoMid + (int)diffP*midDiff + (int)diffD*(midDiff-prevMidDiff);
+			//diff
+			if (midLeft!=0 && frontLeft!=0 && frontRight!=0 && midRight!=0) {
+				midDiff = 1000/midRight - 1000/midLeft;
+				frontDiff = frontRight - frontLeft;
+				prevDiff = diff;
+				diff = (midRatio*midDiff + frontRatio*frontDiff)/(midLeft+midRight);
+				if (fabs(diff)<fabs(prevDiff)) {
+					temp = diff-prevDiff;
+				} else {
+					temp = 0;
+				}
+				diffRate = arrAvg(diffRateArr, diffRateArrSize, diffRateArrCounter, diffRateTotal, temp);
+			}
+
+
+//			temp = (diffRate-(straight*deg*deg)) * (diffRate-(straight*deg*deg));
+//			curDeg = servoMid + (int)(diffP*(1+temp)*diff + diffD*diffRate);
+
+			//deg-diff PID
+			prevDeg = curDeg;
+			curDeg = servoMid + (int)(diffP*diff + diffD*diffRate);
 			if (curDeg > servoMid+servoRange) {
 				curDeg = servoMid+servoRange;
 			} else if (curDeg < servoMid-servoRange) {
 				curDeg = servoMid-servoRange;
 			}
 			servo.SetDegree(curDeg);
+			deg = arrAvg(degArr, degArrSize, degArrCounter, degTotal, curDeg-servoMid);
 
-			targetSpeed = inputTargetSpeed;
+			//decelerate
+//			targetSpeed = inputTargetSpeed * (1-speedDecP*pow(max(((curDeg-servoMid)*(curDeg-servoMid) - (prevDeg-servoMid)*(prevDeg-servoMid)), 0.0), 3));
+//			targetSpeed = inputTargetSpeed - speedDecP*max(((curDeg-servoMid)*(curDeg-servoMid) - (prevDeg-servoMid)*(prevDeg-servoMid)), 0.0);
+			if (roundState == 1 || roundState == 3) {
+				targetSpeed = inputTargetSpeed*roundSpeedDec;
+			} else if (roundState == 2) {
+				targetSpeed = inputTargetSpeed*inRoundSpeedDec;
+			} else {
+//				targetSpeed = inputTargetSpeed - speedDecP/(midLeft+midRight);
+				targetSpeed = inputTargetSpeed * (1 - speedDecP*max(((curDeg-servoMid)*(curDeg-servoMid) - deg*deg), 0.0) - speedDecP2*fabs(min((midLeft+midRight - midSum), 0.0)) - speedDecP3*max(fabs(frontLeft-frontRight)-frontDiv, 0.0));
+				if (targetSpeed < inputTargetSpeed*speedDecLim) {
+					targetSpeed = inputTargetSpeed*speedDecLim;
+				}
+			}
+
+//			targetSpeed = inputTargetSpeed;
 
 			//power-speed PID
 			prevSpeedErr = speedErr;
@@ -376,7 +528,7 @@ int main(void) {
 				char dataChar[15] = {};
 //				sprintf(dataChar, "%.1f,%.3f\n", 1.0, midDiff);
 //				sprintf(dataChar, "%.1f,%d\n", 1.0, curDeg);
-				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, speed, targetSpeed, midLeft, frontLeft, frontRight, midRight);
+				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)targetSpeed, (float)roundState*1000, frontLeft, midLeft, midRight, frontRight);
 				string dataStr = dataChar;
 
 				const Byte startByte = 85;
