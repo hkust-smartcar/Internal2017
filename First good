@@ -30,7 +30,7 @@ float KP  =1.8;
 float KD  =0 ;
 float KP_curve = 6.5;
 float KD_curve = 0;
-float KP_curveless = 4;
+float KP_curveless = 6.5;
 float KD_curveless = 0;
 float KP_cross = 3;
 float KD_cross = 0;
@@ -50,7 +50,7 @@ float speed_ratio =1;
 float ratio_ratio =1;
 float increase_ratio =1;
 float double_corner = 1;
-float roundabout_ratio = 1;
+float roundabout_ratio = 0.75;
 float curve_ratio = 1;
 float  crossroad_ratio = 1;
 float entercross_ratio = 1;
@@ -62,7 +62,7 @@ float KD_C = 0;
 int range =260;
 int L_entercrossrange = 205;
 int R_entercrossrange = 205;
-int middleline = 41;
+float middleline = 40;
 float offset =23;
 float round_set =28;
 float test_angle = 830;
@@ -558,6 +558,7 @@ int main(void)
 			console.PushItem("curve_ratio",&curve_ratio,0.05);
 			console.PushItem("roundabout_ratio",&roundabout_ratio,0.05);
 			console.PushItem("entercross_ratio",&entercross_ratio,0.05);
+			console.PushItem("middleline",&middleline,1);
 			console.PushItem("KP",&KP,0.1);
 			console.PushItem("KP_curve",&KP_curve,0.1);
 			console.PushItem("KP_curveless",&KP_curveless,0.1);
@@ -1058,12 +1059,12 @@ void motorPID(int ideal_count,int servoangle){
 	 L_ideal_count =ideal_count;
 	 R_ideal_count =ideal_count;
 	 float ratio = 0;
-	 if(servoangle >=initial_servo){
+	 if(servoangle >=initial_servo +40){
 	     	 ratio = sqrt(0.00000008085*(servoangle)*(servoangle)-0.001442*(servoangle)+2.143);
 	     	 L_ideal_count = ratio* ideal_count*increase_ratio;
 	     	 R_ideal_count =  ideal_count * increase_ratio/ratio;
 	      }
-	 else if(servoangle <initial_servo){
+	 else if(servoangle <initial_servo - 40){
 	      			ratio = sqrt(-0.0000002248*(servoangle)*(servoangle)+0.001587*(servoangle)-0.1565);
 	      			L_ideal_count = increase_ratio*ideal_count/ratio;
 	      			R_ideal_count = increase_ratio*ideal_count*ratio;
@@ -1132,9 +1133,6 @@ void turningPID(){
 	for(int row=0;row< std::min(4,a);row++){
 		middle = middle+Path[row].x;
 	}
-
-
-
 	for(int row =0; row < std::min(4,a); row++){
 		error1 = error1-(Path[row].x - middleline);
 	}
@@ -1148,16 +1146,11 @@ void turningPID(){
 
 
 
-	if(entercross){
-	ServoErr = (0.5 * error1) + (0.5 * error2);
-	}
-	else if(Lcurve || Rcurve){
+	if(Lcurve || Rcurve){
 		ServoErr = (0.5 * error1) + (0.5 * error2);
 
 	}
 	else if(Lcurve_less || Rcurve_less){
-
-
 		if(average <=70){
 			ServoErr = (0.5 * error1) + (0.5 * error2);
 		}
@@ -1169,8 +1162,6 @@ void turningPID(){
 		else{
 			ServoErr = (0.3 * error1) + (0.7 * error2);
 		}
-
-
 	}
 	else{
 	ServoErr = (0.5 * error1) + (0.5 * error2);
@@ -1194,17 +1185,8 @@ void turningPID(){
 	 *
 	 */
 	// Incremental PID(n) = PID(n-1) + kp * (e(n)-e(n-1)) +kd *(e(n)-2e(n-1)+e(n-2)) + ki * e(n)
-	if(!crossroad && entercross){
-		idealdegree = initial_servo + int(KP_C*ServoErr +KD_C*(ServoErr-ServoPreErr));
-		if(idealdegree > initial_servo + L_entercrossrange){
-			idealdegree = initial_servo + L_entercrossrange;
-		}
-		if(idealdegree < initial_servo - R_entercrossrange){
-			idealdegree = initial_servo - R_entercrossrange;
-
-		}
-	}
-	else if(crossroad){
+	if(crossroad){
+		ServoErr = ServoErr * 8/a;
 		idealdegree = initial_servo + int(KP_cross*ServoErr +KD_cross*(ServoErr-ServoPreErr));
 	}
 	else if(roundabout && !Round_step){
@@ -1372,7 +1354,6 @@ void find_edge(){
 		bool L_stop = false;
 		bool R_stop = false;
 	for(int row = 1; row<60; row ++){
-
 		bool L_up = false;
 		bool R_up = false;
 		L_up = camptr[edge[L(row-1)].edgeposition][edge[L(row-1)].row-1];
