@@ -72,16 +72,17 @@ vector<double> constVector;
 //Constants
 double inputTargetSpeed = 0;
 double powSpeedP = 0, powSpeedI = 0, powSpeedD = 0;
-double diffP = 0, diffD = 0;
-double midRatio = 0, frontRatio = 0;
-double diffOffset = 0;
+double turnP = 0, turnD = 0;
+double straightBound = 0;
+double straightP = 0, straightD = 0;
+double frontDiffPow = 0, frontDiffMax = 0;
 double frontCrossBoundary = 0, frontRoundBoundary = 0, midRoundBoundary = 0;
 double frontRoundDiv = 0, midRoundDiv = 0;
 double backMid = 0, backMidFront = 0, outRound = 0;
 double detectedPeriod = 0;
-double sideDecP = 0;
+double midMin = 0;
 double speedDecP = 0, speedDecP2 = 0, speedDecP3 = 0, speedDecLim = 0;
-double roundSpeedDec = 0, inRoundSpeedDec = 0;
+double roundSpeedDec = 0;
 double sumSpeedErrLim = 10000;
 double temp = 0;
 
@@ -153,27 +154,29 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 			powSpeedP = constVector[1];
 			powSpeedI = constVector[2];
 			powSpeedD = constVector[3];
-			diffP = constVector[4];
-			diffD = constVector[5];
-			midRatio = constVector[6];
-			frontRatio = constVector[7];
-			diffOffset = constVector[8];
-			frontCrossBoundary = constVector[9];
-			frontRoundBoundary = constVector[10];
-			midRoundBoundary = constVector[11];
-			frontRoundDiv = constVector[12];
-			midRoundDiv = constVector[13];
-			backMid = constVector[14];
-			backMidFront = constVector[15];
-			outRound = constVector[16];
-			sideDecP = constVector[17];
-			speedDecP = constVector[18];
-			speedDecP2 = constVector[19];
-			speedDecP3 = constVector[20];
-			speedDecLim = constVector[21];
-			roundSpeedDec = constVector[22];
-			inRoundSpeedDec = constVector[23];
-			sumSpeedErrLim = constVector[24];
+			turnP = constVector[4];
+			turnD = constVector[5];
+			straightBound = constVector[6];
+			straightP = constVector[7];
+			straightD = constVector[8];
+			frontDiffPow = constVector[9];
+			frontDiffMax = constVector[10];
+			frontCrossBoundary = constVector[11];
+			frontRoundBoundary = constVector[12];
+			midRoundBoundary = constVector[13];
+			frontRoundDiv = constVector[14];
+			midRoundDiv = constVector[15];
+			backMid = constVector[16];
+			backMidFront = constVector[17];
+			outRound = constVector[18];
+			midMin = constVector[19];
+			detectedPeriod = constVector[20];
+			speedDecP = constVector[21];
+			speedDecP2 = constVector[22];
+			speedDecP3 = constVector[23];
+			speedDecLim = constVector[24];
+			roundSpeedDec = constVector[25];
+			sumSpeedErrLim = constVector[26];
 
 			power = 0;
 			sumSpeedErr = 0;
@@ -223,6 +226,8 @@ int main(void) {
 
 	double midLeft = 0, midRight = 0, frontLeft = 0, frontRight = 0;
 
+	bool carOut;
+
 	int roundState = 0;
 	bool crossDetected = 0;
 	long detectedTime = 0, backMidTime = 0, lastRound = 0;
@@ -239,7 +244,7 @@ int main(void) {
 		diffRateArr[i] = 0;
 	}
 
-	const int frontDivArrSize = 10;
+	const int frontDivArrSize = 20;
 	int frontDivArrCounter = 0;
 	double frontDivTotal = 0;
 	double frontDivArr[frontDivArrSize];
@@ -247,7 +252,7 @@ int main(void) {
 		frontDivArr[i] = 0;
 	}
 
-	const int midSumArrSize = 10;
+	const int midSumArrSize = 20;
 	int midSumArrCounter = 0;
 	double midSumTotal = 0;
 	double midSumArr[midSumArrSize];
@@ -256,7 +261,7 @@ int main(void) {
 	}
 
 	double deg = 0, prevDeg = 0;
-	const int degArrSize = 10;
+	const int degArrSize = 20;
 	int degArrCounter = 0;
 	double degTotal = 0;
 	double degArr[degArrSize];
@@ -333,8 +338,7 @@ int main(void) {
 
 	double temp = 0, temp1 = 0;
 	servo.SetDegree(servoMid);
-	System::DelayMs(2000);
-	detectedPeriod = 800;
+	System::DelayMs(1000);
 
 	//Constant
 	inputTargetSpeed = 0;
@@ -344,11 +348,10 @@ int main(void) {
 	powSpeedP = -0.025;
 	powSpeedI = -0.2;
 	powSpeedD = -0.001;
-	diffP = -10;
-	diffD = -20;
-	midRatio = 150;
-	frontRatio = -25;
-	diffOffset = 0;
+	turnP = -10;
+	turnD = -20;
+	frontDiffPow = 150;
+	frontDiffMax = 0;
 	frontCrossBoundary = 600;
 	frontRoundBoundary = 60;
 	midRoundBoundary = 120;
@@ -357,13 +360,13 @@ int main(void) {
 	backMid = 100;
 	backMidFront = 100;
 	outRound = 200;
-	sideDecP = 0.1;
+	midMin = 0.1;
+	detectedPeriod = 800;
 	speedDecP = 0;
 	speedDecP2 = 0.05;
 	speedDecP3 = 0.2;
 	speedDecLim = 0.1;
 	roundSpeedDec = 0.5;
-	inRoundSpeedDec = 0.6;
 	sumSpeedErrLim = 10000;
 
 	while(1) {
@@ -402,42 +405,21 @@ int main(void) {
 			frontDiv = arrAvg(frontDivArr, frontDivArrSize, frontDivArrCounter, frontDivTotal, fabs(frontLeft-frontRight));
 
 			//cross
-//				if (roundState==0 && frontLeft+frontRight > frontCrossBoundary) {
-//					crossDetected  = true;
-//					detectedTime = System::Time();
-//				}
-//			if (crossDetected) {
-//				if ((System::Time()-detectedTime)<detectedPeriod) {
-//					frontLeft *= sideDecP;
-//					frontRight *= sideDecP;
-//				} else {
-//					crossDetected = false;
-//				}
-//			}
+			if (crossDetected == 0 && roundState==0 && frontLeft+frontRight > frontCrossBoundary) {
+				crossDetected  = true;
+				detectedTime = System::Time();
+			}
+			if (crossDetected) {
+				if ((System::Time()-detectedTime)>detectedPeriod) {
+					crossDetected = false;
+				}
+			}
 
 			//round
-			if (roundState==0 && System::Time()-lastRound > detectedPeriod) {
-				if ((frontLeft+frontRight) > frontRoundBoundary && (midLeft+midRight) < midRoundBoundary && fabs(frontLeft-frontRight)<frontRoundDiv && fabs(midLeft-midRight)<midRoundDiv && fabs(curDeg-servoMid)<200) {
+			if (crossDetected == 0 && roundState==0 && System::Time()-lastRound > detectedPeriod) {
+				if (frontLeft > frontRoundBoundary && frontRight > frontRoundBoundary && (midLeft+midRight) < midRoundBoundary && fabs(frontLeft-frontRight)<frontRoundDiv && fabs(midLeft-midRight)<midRoundDiv && (midLeft+midRight)>(frontLeft+frontRight) && fabs(curDeg-servoMid)<300) {
 					roundState = 1;
 					detectedTime = System::Time();
-				}
-			}
-			if (roundState == 1) {
-				if (2*midLeft + 2*midRight > backMid && 2*frontLeft + 2*frontRight < backMidFront) {
-					backMidTime = System::Time()-detectedTime;
-					roundState = 2;
-				} else {
-					frontRight *= sideDecP;
-					midRight *= sideDecP;
-				}
-			}
-			if (roundState == 2 && 2*frontLeft+2*frontRight>outRound) {
-				roundState = 3;
-				lastRound = System::Time();
-			}
-			if (roundState == 3) {
-				if (fabs(1000/midRight - 1000/midLeft)<10) {
-					roundState = 0;
 				}
 			}
 			if (roundState > 0) {
@@ -446,28 +428,57 @@ int main(void) {
 				frontLeft *= 2;
 				frontRight *= 2;
 			}
+			if (roundState == 1) {
+				if (midLeft + midRight > backMid && frontLeft + frontRight < backMidFront) {
+					backMidTime = System::Time()-detectedTime;
+					roundState = 2;
+				}
+			}
+			if (roundState == 2 && frontLeft+frontRight>outRound) {
+				roundState = 3;
+				lastRound = System::Time();
+			}
+			if (roundState == 3) {
+				if (fabs(1000/midRight - 1000/midLeft)<20 && midLeft>160 && midRight>160) {
+					roundState = 0;
+				}
+			}
 
 			//diff
 			if (midLeft!=0 && frontLeft!=0 && frontRight!=0 && midRight!=0) {
-				midDiff = 1000/midRight - 1000/midLeft;
-				frontDiff = frontRight - frontLeft;
 				prevDiff = diff;
-				diff = (midRatio*midDiff + frontRatio*frontDiff)/(midLeft+midRight);
-				if (fabs(diff)<fabs(prevDiff)) {
-					temp = diff-prevDiff;
+				if ((midLeft>midMin || midRight>midMin) && roundState == 0) {
+					midDiff = 1000/midRight - 1000/midLeft;
+					frontDiff = frontLeft - frontRight;
+				} else if ((midLeft>70 || midRight>70) && roundState == 2) {
+					midDiff = 1000/midRight - 1000/midLeft;
+					frontDiff = frontLeft - frontRight;
+				}
+//				temp = (midLeft+midRight)/fabs(frontDiff);
+//				diff = (midRatio*midDiff + frontRatio*frontDiff)*sqrt(fabs(frontDiff))/(midLeft+midRight);
+//				diff = (midRatio*midDiff + frontRatio*frontDiff)*sqrt(fabs(frontDiff));
+//				diff = midDiff*pow(fabs(midDiff), frontDiffPowPow);
+				if (crossDetected || fabs(frontDiff)<straightBound) {
+					diff = midDiff;
 				} else {
-					temp = 0;
+					diff = midDiff*min(pow(fabs(frontDiff), frontDiffPow), frontDiffMax);
 				}
 				diffRate = arrAvg(diffRateArr, diffRateArrSize, diffRateArrCounter, diffRateTotal, temp);
 			}
 
 
 //			temp = (diffRate-(straight*deg*deg)) * (diffRate-(straight*deg*deg));
-//			curDeg = servoMid + (int)(diffP*(1+temp)*diff + diffD*diffRate);
+//			curDeg = servoMid + (int)(turnP*(1+temp)*diff + turnD*diffRate);
 
 			//deg-diff PID
 			prevDeg = curDeg;
-			curDeg = servoMid + (int)(diffP*diff + diffD*diffRate);
+			if (roundState == 1 || roundState == 3) {
+				curDeg = servoMid + servoRange;
+			} else if (crossDetected || fabs(frontDiff)<straightBound) {
+				curDeg = servoMid + (int)(straightP*diff + straightD*diffRate);
+			} else {
+				curDeg = servoMid + (int)(turnP*diff + turnD*diffRate);
+			}
 			if (curDeg > servoMid+servoRange) {
 				curDeg = servoMid+servoRange;
 			} else if (curDeg < servoMid-servoRange) {
@@ -479,16 +490,13 @@ int main(void) {
 			//decelerate
 //			targetSpeed = inputTargetSpeed * (1-speedDecP*pow(max(((curDeg-servoMid)*(curDeg-servoMid) - (prevDeg-servoMid)*(prevDeg-servoMid)), 0.0), 3));
 //			targetSpeed = inputTargetSpeed - speedDecP*max(((curDeg-servoMid)*(curDeg-servoMid) - (prevDeg-servoMid)*(prevDeg-servoMid)), 0.0);
+			targetSpeed = inputTargetSpeed;
 			if (roundState == 1 || roundState == 3) {
-				targetSpeed = inputTargetSpeed*roundSpeedDec;
-			} else if (roundState == 2) {
-				targetSpeed = inputTargetSpeed*inRoundSpeedDec;
-			} else {
-//				targetSpeed = inputTargetSpeed - speedDecP/(midLeft+midRight);
-				targetSpeed = inputTargetSpeed * (1 - speedDecP*max(((curDeg-servoMid)*(curDeg-servoMid) - deg*deg), 0.0) - speedDecP2*fabs(min((midLeft+midRight - midSum), 0.0)) - speedDecP3*max(fabs(frontLeft-frontRight)-frontDiv, 0.0));
-				if (targetSpeed < inputTargetSpeed*speedDecLim) {
-					targetSpeed = inputTargetSpeed*speedDecLim;
-				}
+				targetSpeed *= roundSpeedDec;
+			}
+			targetSpeed *= (1 - speedDecP*max(((curDeg-servoMid)*(curDeg-servoMid) - deg*deg), 0.0) - speedDecP2*fabs(min((midLeft+midRight - midSum), 0.0)) - speedDecP3*max(fabs(frontLeft-frontRight)-frontDiv, 0.0));
+			if (targetSpeed < inputTargetSpeed*speedDecLim) {
+				targetSpeed = inputTargetSpeed*speedDecLim;
 			}
 
 //			targetSpeed = inputTargetSpeed;
@@ -528,7 +536,11 @@ int main(void) {
 				char dataChar[15] = {};
 //				sprintf(dataChar, "%.1f,%.3f\n", 1.0, midDiff);
 //				sprintf(dataChar, "%.1f,%d\n", 1.0, curDeg);
-				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)targetSpeed, (float)roundState*1000, frontLeft, midLeft, midRight, frontRight);
+				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)midDiff, (float)roundState*1000, frontLeft, midLeft, midRight, frontRight);
+//				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)diff, (float)roundState*1000, frontLeft, midLeft, midRight, frontRight);
+//				temp = sqrt(frontLeft*frontLeft+midLeft*midLeft);
+//				temp1 = sqrt(frontRight*frontRight+midRight*midRight);
+//				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)temp, (float)temp1, frontLeft, midLeft, midRight, frontRight);
 				string dataStr = dataChar;
 
 				const Byte startByte = 85;
