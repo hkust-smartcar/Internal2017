@@ -37,6 +37,9 @@
 //ADC
 #include <libbase/k60/adc.h>
 
+//GPIO
+#include <libbase/k60/gpio.h>
+
 namespace libbase
 {
 	namespace k60
@@ -63,6 +66,7 @@ AlternateMotor * motorPtr;
 DirEncoder * encoderPtr;
 JyMcuBt106 * btPtr;
 FutabaS3010 * servoPtr;
+Led * ledPtr;
 
 //BT listener
 string inputStr;
@@ -73,23 +77,25 @@ vector<double> constVector;
 double inputTargetSpeed = 0;
 double powSpeedP = 0, powSpeedI = 0, powSpeedD = 0;
 double turnP = 0, turnD = 0;
-double frontStraightBound = 0;
+double frontStraightBound = 0, midStraightBound = 0;
 double straightP = 0, straightD = 0;
-double frontDiffPow = 0, midStraightBound = 0;
+double frontDiffPow = 0;
 double frontCrossBoundary = 0, frontRoundBoundary = 0, midRoundBoundary = 0;
-double roundRate = 0, midRoundDiv = 0;
-double backMid = 0, backMidFront = 0, outRound = 0;
+double roundRate = 0;
+double backMid = 0, outRound = 0;
 double detectedPeriod = 0;
-double midMin = 0;
+double midMin = 0, roundMidMin = 0;
 double speedDecP = 0, speedDecP2 = 0, speedDecP3 = 0, speedDecLim = 0;
 double roundSpeedDec = 0;
 double sumSpeedErrLim = 10000;
+double scale = 0;
 double temp = 0;
 
 int power = 0;
 int curDeg = 900;
 int servoMid = 950, servoRange = 550;
 double sumSpeedErr = 0;
+double buttonTime = 0, constantGroup = 0;
 bool programRun = true;
 
 double arrAvg(double arr[], int size, int& counter, double& total, double newVal) {
@@ -165,18 +171,18 @@ bool bluetoothListener(const Byte *data, const size_t size) {
 			frontRoundBoundary = constVector[12];
 			midRoundBoundary = constVector[13];
 			roundRate = constVector[14];
-			midRoundDiv = constVector[15];
-			backMid = constVector[16];
-			backMidFront = constVector[17];
-			outRound = constVector[18];
-			midMin = constVector[19];
-			detectedPeriod = constVector[20];
-			speedDecP = constVector[21];
-			speedDecP2 = constVector[22];
-			speedDecP3 = constVector[23];
-			speedDecLim = constVector[24];
-			roundSpeedDec = constVector[25];
-			sumSpeedErrLim = constVector[26];
+			backMid = constVector[15];
+			outRound = constVector[16];
+			midMin = constVector[17];
+			roundMidMin = constVector[18];
+			detectedPeriod = constVector[19];
+			speedDecP = constVector[20];
+			speedDecP2 = constVector[21];
+			speedDecP3 = constVector[22];
+			speedDecLim = constVector[23];
+			roundSpeedDec = constVector[24];
+			sumSpeedErrLim = constVector[25];
+			scale = constVector[26];
 
 			power = 0;
 			sumSpeedErr = 0;
@@ -330,9 +336,10 @@ int main(void) {
 //	double angTotal = 0;
 //	double angArr[angArrSize] = {0};
 
-//	Led::Config LedConfig;
-//	LedConfig.id = 0;
-//	Led led1(LedConfig);
+	Led::Config LedConfig;
+	LedConfig.id = 1;
+	Led led1(LedConfig);
+	ledPtr = &led1;
 
 	FutabaS3010::Config ServoConfig;
 	ServoConfig.id = 0;
@@ -365,14 +372,6 @@ int main(void) {
 	adcConfig.resolution = Adc::Config::Resolution::k12Bit;
 	adcConfig.speed = Adc::Config::SpeedMode::kTypical;
 	adcConfig.avg_pass = Adc::Config::AveragePass::k32;
-//	adcConfig.pin = libbase::k60::Pin::Name::kPte0;
-//	Adc midLeftInductor(adcConfig);
-//	adcConfig.pin = libbase::k60::Pin::Name::kPte1;
-//	Adc midRightInductor(adcConfig);
-//	adcConfig.pin = libbase::k60::Pin::Name::kPte2;
-//	Adc frontLeftInductor(adcConfig);
-//	adcConfig.pin = libbase::k60::Pin::Name::kPte3;
-//	Adc frontRightInductor(adcConfig);
 	adcConfig.pin = libbase::k60::Pin::Name::kPtb4;
 	Adc midLeftInductor(adcConfig);
 	adcConfig.pin = libbase::k60::Pin::Name::kPtb7;
@@ -382,6 +381,18 @@ int main(void) {
 	adcConfig.pin = libbase::k60::Pin::Name::kPtb6;
 	Adc frontRightInductor(adcConfig);
 
+	adcConfig.pin = libbase::k60::Pin::Name::kPte0;
+	Adc constant1(adcConfig);
+	adcConfig.pin = libbase::k60::Pin::Name::kPte1;
+	Adc constant2(adcConfig);
+	adcConfig.pin = libbase::k60::Pin::Name::kPte2;
+	Adc constant3(adcConfig);
+	adcConfig.pin = libbase::k60::Pin::Name::kPte3;
+	Adc constant4(adcConfig);
+
+	adcConfig.pin = libbase::k60::Pin::Name::kPtb0;
+	Adc finish(adcConfig);
+
 	motor.SetClockwise(forward);
 	motor.SetPower(0);
 
@@ -390,33 +401,33 @@ int main(void) {
 	System::DelayMs(1000);
 
 	//Constant
-	inputTargetSpeed = 10000;
+	inputTargetSpeed = 0;
 	powSpeedP = -0.025;
 	powSpeedI = -0.2;
 	powSpeedD = -0.001;
 	turnP = -9;
-	turnD = -100;
-	frontStraightBound = 10;
-	straightP = -4;
-	straightD = -100;
-	frontDiffPow = 0.3;
+	turnD = -180;
+	frontStraightBound = 6;
+	straightP = -3;
+	straightD = -180;
+	frontDiffPow = 0.35;
 	midStraightBound = 20;
-	frontCrossBoundary = 200;
+	frontCrossBoundary = 250;
 	frontRoundBoundary = 80;
 	midRoundBoundary = 120;
-	roundRate = 0;
-	midRoundDiv = 0;
-	backMid = 50;
-	backMidFront = 0;
-	outRound = 220;
+	roundRate = 0.2;
+	backMid = 60;
+	outRound = 250;
 	midMin = 60;
+	roundMidMin = 60;
 	detectedPeriod = 300;
 	speedDecP = 0;
-	speedDecP2 = 0.012;
+	speedDecP2 = 0.033;
 	speedDecP3 = 0;
-	speedDecLim = 0.3;
-	roundSpeedDec = 0.4;
+	speedDecLim = 0.25;
+	roundSpeedDec = 0.3;
 	sumSpeedErrLim = 10000;
+	scale = 47;
 
 	while(1) {
 
@@ -439,22 +450,49 @@ int main(void) {
 			}
 			speed = arrAvg(speedArr, speedArrSize, speedArrCounter, speedTotal, temp);
 
-			//stop car
-			if (programRun == false || System::Time()<3000) {
-				motor.SetPower(0);
-				continue;
+			if (constant1.GetResultF()*100>200 && System::Time()-buttonTime>500) {
+				led1.Switch();
+				if (constantGroup == 0) {
+					inputTargetSpeed += 1000;
+				} else {
+					midRoundBoundary += 10;
+				}
+				buttonTime = System::Time();
+			} else if (constant2.GetResultF()*100>200 && System::Time()-buttonTime>500) {
+				led1.Switch();
+				if (constantGroup == 0) {
+					speedDecP2 += 0.002;
+				} else {
+					backMid -= 10;
+				}
+				buttonTime = System::Time();
+			} else if (constant3.GetResultF()*100>200 && System::Time()-buttonTime>500) {
+				led1.Switch();
+				if (constantGroup == 0) {
+					frontDiffPow += 0.01;
+				} else {
+					outRound -= 10;
+				}
+				buttonTime = System::Time();
+			} else if (constant4.GetResultF()*100>200 && System::Time()-buttonTime>500) {
+				led1.Switch();
+				constantGroup = 1;
+				buttonTime = System::Time();
 			}
 
-			//adc
+//			if (finish.GetResultF()*100>200) {
+//				programRun = false;
+//			}
 
+			//adc
 			prevMidLeft = midLeft;
 			prevMidRight = midRight;
 			prevFrontLeft = frontLeft;
 			prevFrontRight = frontRight;
-			midLeft = midLeftInductor.GetResultF()*100;
-			midRight = midRightInductor.GetResultF()*100;
-			frontLeft = frontLeftInductor.GetResultF()*100;
-			frontRight = frontRightInductor.GetResultF()*100;
+			midLeft = midLeftInductor.GetResultF()*scale;
+			midRight = midRightInductor.GetResultF()*scale;
+			frontLeft = frontLeftInductor.GetResultF()*scale;
+			frontRight = frontRightInductor.GetResultF()*scale;
 			midSum = arrAvg(midSumArr, midSumArrSize, midSumArrCounter, midSumTotal, midLeft + midRight);
 			frontDiv = arrAvg(frontDivArr, frontDivArrSize, frontDivArrCounter, frontDivTotal, fabs(frontLeft-frontRight));
 			midLeftRate = arrAvg(midLeftRateArr, midLeftRateArrSize, midLeftRateArrCounter, midLeftRateTotal, midLeft-prevMidLeft);
@@ -511,7 +549,7 @@ int main(void) {
 			//diff
 			if (midLeft!=0 && frontLeft!=0 && frontRight!=0 && midRight!=0) {
 				prevDiff = diff;
-				if (((midLeft>midMin || midRight>midMin) && (roundState == 0 || roundState == 1)) || ((midLeft>70 || midRight>70) && roundState == 2)) {
+				if (((midLeft>midMin || midRight>midMin) && (roundState == 0 || roundState == 1)) || ((midLeft>roundMidMin || midRight>roundMidMin) && roundState == 2)) {
 					midDiff = 1000/midRight - 1000/midLeft;
 					frontDiff = frontLeft - frontRight;
 				}
@@ -584,6 +622,12 @@ int main(void) {
 			power = (int)(powSpeedP * speedErr + powSpeedI * sumSpeedErr + powSpeedD * speedErrRate);
 //			power = 0;
 
+			//stop car
+			if (programRun == false || System::Time()<3000) {
+				motor.SetPower(0);
+				continue;
+			}
+
 			//power limit
 			if (power > 500) {
 				power = 500;
@@ -605,8 +649,9 @@ int main(void) {
 				char dataChar[15] = {};
 //				sprintf(dataChar, "%.1f,%.3f\n", 1.0, midDiff);
 //				sprintf(dataChar, "%.1f,%d\n", 1.0, curDeg);
-				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)curDeg-servoMid, (float)roundState*1000, frontLeft, midLeft, midRight, frontRight);
-				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)diff, (float)roundState*1000, frontLeft, midLeft, midRight, frontRight);
+//				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)curDeg-servoMid, (float)roundState*1000, frontLeft, midLeft, midRight, frontRight);
+//				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)diff, (float)roundState*1000, frontLeft, midLeft, midRight, frontRight);
+				sprintf(dataChar, "%.1f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)finish.GetResultF()*100, (float)roundState*1000, constant1.GetResultF()*100, constant2.GetResultF()*100, constant3.GetResultF()*100, constant4.GetResultF()*100);
 //				sprintf(dataChar, "%.1f,%.3f,%.3f,%.3f,%.3f=%.3f,%.3f,%.3f,%.3f\n", 1.0, (float)midLeftRate, (float)midRightRate, (float)frontLeftRate, (float)frontRightRate, frontLeft, midLeft, midRight, frontRight);
 //				temp = sqrt(frontLeft*frontLeft+midLeft*midLeft);
 //				temp1 = sqrt(frontRight*frontRight+midRight*midRight);
